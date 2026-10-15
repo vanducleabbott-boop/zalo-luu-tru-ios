@@ -39,30 +39,24 @@ final class SSEParser {
         return nil
     }
 
-    /// Nạp 1 khối dữ liệu thô (có thể chứa nhiều dòng, cắt ở ranh giới bất kỳ) -> trả về các sự kiện hoàn chỉnh theo thứ tự.
+    /// Nạp 1 khối dữ liệu thô (có thể chứa nhiều dòng, cắt ở ranh giới bất kỳ, CRLF hay LF) -> trả về
+    /// các sự kiện hoàn chỉnh theo thứ tự. Tách theo BYTE UTF-8 (không dùng String.split theo Character
+    /// "\n") vì Swift gộp "\r\n" thành 1 Character (grapheme cluster) duy nhất - tách theo Character sẽ
+    /// không bao giờ khớp được "\n" khi input dùng xuống dòng kiểu CRLF.
     func feed(chunk: String) -> [SuKienSSE] {
+        bufferBytes.append(contentsOf: chunk.utf8)
         var ketQua: [SuKienSSE] = []
-        var phanConLai = bufferConLai + chunk
-        var dong: [Substring] = []
-        // tach theo \n, giu lai phan cuoi chua co \n ket thuc de nap tiep lan sau
-        if phanConLai.hasSuffix("\n") {
-            dong = phanConLai.dropLast().split(separator: "\n", omittingEmptySubsequences: false)
-            bufferConLai = ""
-        } else {
-            let tatCa = phanConLai.split(separator: "\n", omittingEmptySubsequences: false)
-            dong = Array(tatCa.dropLast())
-            bufferConLai = String(tatCa.last ?? "")
-        }
-        for d in dong {
-            var s = String(d)
-            if s.hasSuffix("\r") { s.removeLast() }
+        while let i = bufferBytes.firstIndex(of: 0x0A) {
+            var dongBytes = Array(bufferBytes[..<i])
+            bufferBytes.removeFirst(i + 1)
+            if dongBytes.last == 0x0D { dongBytes.removeLast() }
+            let s = String(decoding: dongBytes, as: UTF8.self)
             if let sk = feed(line: s) { ketQua.append(sk) }
         }
-        phanConLai = ""
         return ketQua
     }
 
-    private var bufferConLai = ""
+    private var bufferBytes: [UInt8] = []
 
     private func resetKhoi() {
         loaiDangGom = "message"

@@ -53,7 +53,7 @@ final class SSEParserTests: XCTestCase {
         let p = SSEParser()
         let raw = "retry: 3000\n\nevent: tin\ndata: {\"a\":1}\n\nevent: nhip\ndata: {}\n\n"
         let suKien = p.feed(chunk: raw)
-        XCTAssertEqual(suKien.count, 2)
+        guard suKien.count == 2 else { return XCTFail("Mong đợi 2 sự kiện, được \(suKien.count)") }
         XCTAssertEqual(suKien[0].loai, "tin")
         XCTAssertEqual(suKien[0].data, "{\"a\":1}")
         XCTAssertEqual(suKien[1].loai, "nhip")
@@ -71,7 +71,7 @@ final class SSEParserTests: XCTestCase {
             tatCa.append(contentsOf: p.feed(chunk: String(raw[i..<ke])))
             i = ke
         }
-        XCTAssertEqual(tatCa.count, 1)
+        guard tatCa.count == 1 else { return XCTFail("Mong đợi 1 sự kiện, được \(tatCa.count)") }
         XCTAssertEqual(tatCa[0].loai, "tin")
         XCTAssertTrue(tatCa[0].data.contains("6944541117544405014"))
     }
@@ -79,7 +79,7 @@ final class SSEParserTests: XCTestCase {
     func testXuongDongKieuCRLF_VanGhepDungSuKien() {
         let p = SSEParser()
         let suKien = p.feed(chunk: "event: doc\r\ndata: {\"cuoc_id\":\"x\"}\r\n\r\n")
-        XCTAssertEqual(suKien.count, 1)
+        guard suKien.count == 1 else { return XCTFail("Mong đợi 1 sự kiện, được \(suKien.count)") }
         XCTAssertEqual(suKien[0].loai, "doc")
         XCTAssertEqual(suKien[0].data, "{\"cuoc_id\":\"x\"}")   // \r phai duoc cat, khong con lan trong data
     }
