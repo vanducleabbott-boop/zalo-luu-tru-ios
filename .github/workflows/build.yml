@@ -14,13 +14,17 @@ jobs:
       - name: Chọn máy ảo iPhone để chạy test
         id: sim
         run: |
-          xcodebuild -project ZaloLuuTru.xcodeproj -scheme ZaloLuuTru -showdestinations 2>&1 | tee /tmp/destinations.txt || true
-          DEST=$(grep -o 'platform:iOS Simulator, id:[^,]*, OS:[^,]*, name:iPhone [^}]*' /tmp/destinations.txt \
-            | sed -E 's/platform:iOS Simulator, id:[^,]*, OS:([^,]*), name:(iPhone [^}]*)/platform=iOS Simulator,OS=\1,name=\2/' \
-            | sed 's/ *$//' | head -1)
-          if [ -z "$DEST" ]; then DEST="platform=iOS Simulator,name=iPhone 16"; fi
-          echo "Dùng destination: $DEST"
-          echo "dest=$DEST" >> "$GITHUB_OUTPUT"
+          xcrun simctl list devices available | tee /tmp/simctl.txt || true
+          UDID=$(grep -i iphone /tmp/simctl.txt | grep -oE '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | head -1)
+          if [ -z "$UDID" ]; then
+            echo "Không có máy ảo iPhone sẵn có, tạo mới"
+            RUNTIME=$(xcrun simctl list runtimes available | grep -oE 'com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9-]+' | tail -1)
+            TYPE=$(xcrun simctl list devicetypes | grep -oE 'com\.apple\.CoreSimulator\.SimDeviceType\.iPhone-[0-9A-Za-z-]+' | tail -1)
+            echo "runtime=$RUNTIME devicetype=$TYPE"
+            UDID=$(xcrun simctl create "May test" "$TYPE" "$RUNTIME")
+          fi
+          echo "Dùng UDID máy ảo: $UDID"
+          echo "dest=platform=iOS Simulator,id=$UDID" >> "$GITHUB_OUTPUT"
       - name: Chạy test đơn vị (SSE/giải mã JSON/phân trang/gộp ngày - không cần mạng)
         run: |
           xcodebuild test -project ZaloLuuTru.xcodeproj -scheme ZaloLuuTru \
