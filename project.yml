@@ -1,0 +1,38 @@
+name: ZaloLuuTru
+options:
+  bundleIdPrefix: com.ducle
+  deploymentTarget:
+    iOS: "15.0"
+targets:
+  ZaloLuuTru:
+    type: application
+    platform: iOS
+    sources: [App]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ducle.zaloluutru
+        PRODUCT_NAME: ZaloLuuTru
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.0"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: "Zalo lưu trữ"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        UILaunchScreen: {}
+        UIRequiresFullScreen: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UIBackgroundModes: [audio]
+        NSMicrophoneUsageDescription: "Dùng mic để nghe gọi Zalo qua máy tính."
+        NSCameraUsageDescription: "Dùng camera để chụp ảnh gửi Zalo."
+        NSPhotoLibraryUsageDescription: "Chọn ảnh để gửi Zalo."
+        NSPhotoLibraryAddUsageDescription: "Lưu ảnh từ Zalo về máy."
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        ITSAppUsesNonExemptEncryption: false
+        LSApplicationQueriesSchemes: [zalo]
