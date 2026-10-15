@@ -14,10 +14,11 @@ jobs:
       - name: Chọn máy ảo iPhone để chạy test
         id: sim
         run: |
-          DEST=$(xcodebuild -scheme ZaloLuuTru -showdestinations 2>/dev/null \
-            | grep -o 'platform:iOS Simulator, id:[^,]*, OS:[^,]*, name:iPhone [^}]*' \
+          xcodebuild -project ZaloLuuTru.xcodeproj -scheme ZaloLuuTru -showdestinations 2>&1 | tee /tmp/destinations.txt || true
+          DEST=$(grep -o 'platform:iOS Simulator, id:[^,]*, OS:[^,]*, name:iPhone [^}]*' /tmp/destinations.txt \
             | sed -E 's/platform:iOS Simulator, id:[^,]*, OS:([^,]*), name:(iPhone [^}]*)/platform=iOS Simulator,OS=\1,name=\2/' \
             | sed 's/ *$//' | head -1)
+          if [ -z "$DEST" ]; then DEST="platform=iOS Simulator,name=iPhone 16"; fi
           echo "Dùng destination: $DEST"
           echo "dest=$DEST" >> "$GITHUB_OUTPUT"
       - name: Chạy test đơn vị (SSE/giải mã JSON/phân trang/gộp ngày - không cần mạng)
