@@ -1,0 +1,139 @@
+[
+ {
+  "id": "so-tay",
+  "la_nhom": 0,
+  "ten": "📒 Sổ tay",
+  "anh": "",
+  "tin_cuoi_ts": 1791972877153,
+  "tin_cuoi": {
+   "ten": "Tôi",
+   "la_toi": true,
+   "xem": "Xem trước mẫu"
+  },
+  "chua_doc": 0,
+  "cap_nhat_luc": 2107285344500,
+  "ghim": null
+ },
+ {
+  "id": "6515242632550946595",
+  "la_nhom": 0,
+  "ten": "Người G",
+  "anh": "https://example-cdn.zdn.vn/ava/6515242632550946595",
+  "tin_cuoi_ts": 1792031453378,
+  "tin_cuoi": {
+   "ten": "Tôi",
+   "la_toi": true,
+   "xem": "Xem trước mẫu"
+  },
+  "chua_doc": 0,
+  "cap_nhat_luc": 2107285345344,
+  "ghim": 4
+ },
+ {
+  "id": "1944456701013606837",
+  "la_nhom": 1,
+  "ten": "Nhóm H",
+  "anh": "",
+  "tin_cuoi_ts": 1791796976300,
+  "tin_cuoi": {
+   "ten": "Người I",
+   "la_toi": false,
+   "xem": "Xem trước mẫu"
+  },
+  "chua_doc": 0,
+  "cap_nhat_luc": 1791925351594,
+  "ghim": 3
+ },
+ {
+  "id": "4256332221452848472",
+  "la_nhom": 1,
+  "ten": "Nhóm J",
+  "anh": "",
+  "tin_cuoi_ts": 1792056078917,
+  "tin_cuoi": {
+   "ten": "Người K",
+   "la_toi": false,
+   "xem": "Xem trước mẫu"
+  },
+  "chua_doc": 10,
+  "cap_nhat_luc": 1792026288792,
+  "ghim": 2
+ },
+ {
+  "id": "2831127412391037443",
+  "la_nhom": 1,
+  "ten": "Nhóm L",
+  "anh": "",
+  "tin_cuoi_ts": 1792051262220,
+  "tin_cuoi": {
+   "ten": "Người M",
+   "la_toi": false,
+   "xem": "Xem trước mẫu"
+  },
+  "chua_doc": 0,
+  "cap_nhat_luc": 1792040172243,
+  "ghim": 1
+ },
+ {
+  "id": "6944541117544405014",
+  "la_nhom": 1,
+  "ten": "Nhóm N",
+  "anh": "https://example-cdn.zdn.vn/ava/6944541117544405014",
+  "tin_cuoi_ts": 1792081413376,
+  "tin_cuoi": {
+   "ten": "Người O",
+   "la_toi": false,
+   "xem": "Xem trước mẫu"
+  },
+  "chua_doc": 95,
+  "cap_nhat_luc": 1792018387695,
+  "ghim": null,
+  "tat_tb": true
+ },
+ {
+  "id": "1065675006557250435",
+  "la_nhom": 0,
+  "ten": "Người P",
+  "anh": "https://example-cdn.zdn.vn/ava/1065675006557250435",
+  "tin_cuoi_ts": 1792078338841,
+  "tin_cuoi": {
+   "ten": "Tôi",
+   "la_toi": true,
+   "xem": "Xem trước mẫu"
+  },
+  "chua_doc": 0,
+  "cap_nhat_luc": 1792028605165,
+  "ghim": null
+ },
+ {
+  "id": "526798244575473414",
+  "la_nhom": 0,
+  "ten": "Người M",
+  "anh": "https://example-cdn.zdn.vn/ava/526798244575473414",
+  "tin_cuoi_ts": 1792078273843,
+  "tin_cuoi": {
+   "ten": "Tôi",
+   "la_toi": true,
+   "xem": "Xem trước mẫu"
+  },
+  "chua_doc": 0,
+  "cap_nhat_luc": 1792025696217,
+  "ghim": null
+ },
+ {
+  "id": "anon-tat-tb",
+  "la_nhom": 1,
+  "ten": "Nhóm Tắt Thông Báo",
+  "anh": "",
+  "tin_cuoi_ts": 1792081413376,
+  "tin_cuoi": {
+   "ten": "Người X",
+   "la_toi": false,
+   "xem": "Xem trước mẫu"
+  },
+  "chua_doc": 95,
+  "cap_nhat_luc": 1792018387695,
+  "ghim": null,
+  "tat_tb": true
+ }
+]

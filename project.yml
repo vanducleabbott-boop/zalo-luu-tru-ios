@@ -2,7 +2,7 @@ name: ZaloLuuTru
 options:
   bundleIdPrefix: com.ducle
   deploymentTarget:
-    iOS: "15.0"
+    iOS: "16.0"
 targets:
   ZaloLuuTru:
     type: application
@@ -36,3 +36,22 @@ targets:
         LSSupportsOpeningDocumentsInPlace: true
         ITSAppUsesNonExemptEncryption: false
         LSApplicationQueriesSchemes: [zalo]
+  ZaloAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [ZaloAppTests]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ducle.zaloluutru.tests
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: ZaloLuuTru
+schemes:
+  ZaloLuuTru:
+    build:
+      targets:
+        ZaloLuuTru: all
+        ZaloAppTests: [test]
+    test:
+      targets: [ZaloAppTests]

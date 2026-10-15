@@ -11,6 +11,19 @@ jobs:
         run: brew install xcodegen
       - name: Tạo dự án
         run: xcodegen generate
+      - name: Chọn máy ảo iPhone để chạy test
+        id: sim
+        run: |
+          DEST=$(xcodebuild -scheme ZaloLuuTru -showdestinations 2>/dev/null \
+            | grep -o 'platform:iOS Simulator, id:[^,]*, OS:[^,]*, name:iPhone [^}]*' \
+            | sed -E 's/platform:iOS Simulator, id:[^,]*, OS:([^,]*), name:(iPhone [^}]*)/platform=iOS Simulator,OS=\1,name=\2/' \
+            | sed 's/ *$//' | head -1)
+          echo "Dùng destination: $DEST"
+          echo "dest=$DEST" >> "$GITHUB_OUTPUT"
+      - name: Chạy test đơn vị (SSE/giải mã JSON/phân trang/gộp ngày - không cần mạng)
+        run: |
+          xcodebuild test -project ZaloLuuTru.xcodeproj -scheme ZaloLuuTru \
+            -destination "${{ steps.sim.outputs.dest }}" CODE_SIGNING_ALLOWED=NO
       - name: Build (không ký - ESign ký lại)
         run: |
           xcodebuild -project ZaloLuuTru.xcodeproj -scheme ZaloLuuTru -configuration Release \

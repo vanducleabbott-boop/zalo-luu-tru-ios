@@ -1,0 +1,263 @@
+{
+ "cuoc": {
+  "id": "6944541117544405014",
+  "la_nhom": 1,
+  "ten": "Nhóm A",
+  "anh": "https://example-cdn.zdn.vn/ava/6944541117544405014",
+  "tin_cuoi_ts": 1792081413376,
+  "tin_cuoi": "{\"ten\":\"Lê Tiến\",\"la_toi\":false,\"xem\":\"@Ds Đinh Mạnh Hùng chắc gì. Lúc đó đường lại đầy Grab với Xanh SM của anh Vượng\"}",
+  "chua_doc": 95,
+  "cap_nhat_luc": 1792018387695,
+  "ghim": null
+ },
+ "tin": [
+  {
+   "msg_id": "8357782212408",
+   "cli_msg_id": "1791602517926",
+   "cuoc_id": "1065675006557250435",
+   "uid": "1065675006557250435",
+   "ten_nguoi": "Người E",
+   "la_toi": false,
+   "ts": 1791602525716,
+   "loai": "19",
+   "kieu": "file",
+   "chu": "",
+   "url": "https://example-cdn.zdn.vn/anon/8357782212408",
+   "file": "media/ANON/2026-10/anon_8357782212408.pdf",
+   "ten_file": "tai_lieu_mau.pdf",
+   "kich_thuoc": 3014337,
+   "quote": null,
+   "thu_hoi": false,
+   "phu": null,
+   "chu_goc": null,
+   "cam_xuc": []
+  },
+  {
+   "msg_id": "8358800458642",
+   "cli_msg_id": "1791619379655",
+   "cuoc_id": "1065675006557250435",
+   "uid": "1065675006557250435",
+   "ten_nguoi": "Người E",
+   "la_toi": false,
+   "ts": 1791619379697,
+   "loai": "4",
+   "kieu": "sticker",
+   "chu": "",
+   "url": null,
+   "file": "media/ANON/2026-10/anon_8358800458642.png",
+   "ten_file": null,
+   "kich_thuoc": 52273,
+   "quote": null,
+   "thu_hoi": false,
+   "phu": {
+    "khung": 4,
+    "ms": 300
+   },
+   "chu_goc": null,
+   "cam_xuc": []
+  },
+  {
+   "msg_id": "ltmv5cmubj1tn3fm",
+   "cli_msg_id": null,
+   "cuoc_id": "1065675006557250435",
+   "uid": null,
+   "ten_nguoi": "Tôi",
+   "la_toi": true,
+   "ts": 1791815414527,
+   "loai": "lich",
+   "kieu": "lich",
+   "chu": "⏰ Kfkfk",
+   "url": null,
+   "file": null,
+   "ten_file": null,
+   "kich_thuoc": null,
+   "quote": null,
+   "thu_hoi": false,
+   "phu": {
+    "lich": {
+     "id": "lrmv5cmu7x1m0o",
+     "tieuDe": "Tiêu đề lịch mẫu",
+     "emoji": "⏰",
+     "batDau": 1791844200000,
+     "lap": 0,
+     "rieng": true,
+     "dienThoai": true,
+     "cuocLich": "1065675006557250435",
+     "daXoa": true
+    }
+   },
+   "chu_goc": null,
+   "cam_xuc": []
+  },
+  {
+   "msg_id": "8371921662373",
+   "cli_msg_id": "1791944014933",
+   "cuoc_id": "2952142089157769137",
+   "uid": "7786576519246726214",
+   "ten_nguoi": "Người C",
+   "la_toi": false,
+   "ts": 1791944008655,
+   "loai": "chat.photo",
+   "kieu": "anh",
+   "chu": "",
+   "url": "https://example-cdn.zdn.vn/anon/8371921662373",
+   "file": "media/ANON/2026-10/anon_8371921662373.jpg",
+   "ten_file": null,
+   "kich_thuoc": 214266,
+   "quote": null,
+   "thu_hoi": true,
+   "phu": null,
+   "chu_goc": null,
+   "cam_xuc": []
+  },
+  {
+   "msg_id": "8371996488818",
+   "cli_msg_id": "1791944960135",
+   "cuoc_id": "2952142089157769137",
+   "uid": "1602721067935993719",
+   "ten_nguoi": "Người D",
+   "la_toi": false,
+   "ts": 1791944960726,
+   "loai": "webchat",
+   "kieu": "chu",
+   "chu": "Nội dung mẫu số 8818",
+   "url": null,
+   "file": null,
+   "ten_file": null,
+   "kich_thuoc": null,
+   "quote": null,
+   "thu_hoi": false,
+   "phu": null,
+   "chu_goc": null,
+   "cam_xuc": []
+  },
+  {
+   "msg_id": "8372182691730",
+   "cli_msg_id": "1791947264979",
+   "cuoc_id": "2952142089157769137",
+   "uid": "7786576519246726214",
+   "ten_nguoi": "Người C",
+   "la_toi": false,
+   "ts": 1791947280467,
+   "loai": "chat.photo",
+   "kieu": "anh",
+   "chu": "Chú thích mẫu",
+   "url": "https://example-cdn.zdn.vn/anon/8372182691730",
+   "file": "media/ANON/2026-10/anon_8372182691730.jpg",
+   "ten_file": null,
+   "kich_thuoc": 214073,
+   "quote": null,
+   "thu_hoi": false,
+   "phu": {
+    "tag": [
+     {
+      "uid": "2367964624253180821",
+      "pos": 0,
+      "len": 5
+     }
+    ]
+   },
+   "chu_goc": null,
+   "cam_xuc": [
+    {
+     "uid": "2367964624253180821",
+     "icon": "/-heart",
+     "ts": 1791947444409
+    }
+   ]
+  },
+  {
+   "msg_id": "8372196260050",
+   "cli_msg_id": "1791947447131",
+   "cuoc_id": "2952142089157769137",
+   "uid": "2367964624253180821",
+   "ten_nguoi": "Người B",
+   "la_toi": false,
+   "ts": 1791947446803,
+   "loai": "webchat",
+   "kieu": "chu",
+   "chu": "Nội dung mẫu @Người A số 0050",
+   "url": null,
+   "file": null,
+   "ten_file": null,
+   "kich_thuoc": null,
+   "quote": {
+    "ten": "Người C",
+    "chu": "",
+    "msg_id": "8372182691730"
+   },
+   "thu_hoi": false,
+   "phu": {
+    "tag": [
+     {
+      "uid": "7786576519246726214",
+      "pos": 0,
+      "len": 9
+     }
+    ]
+   },
+   "chu_goc": null,
+   "cam_xuc": []
+  },
+  {
+   "msg_id": "8376714089327",
+   "cli_msg_id": "1792043523654",
+   "cuoc_id": "6944541117544405014",
+   "uid": "1708558313004795647",
+   "ten_nguoi": "Người F",
+   "la_toi": false,
+   "ts": 1792043524584,
+   "loai": "chat.video.msg",
+   "kieu": "video",
+   "chu": "",
+   "url": "https://example-cdn.zdn.vn/anon/8376714089327",
+   "file": "media/ANON/2026-10/anon_8376714089327.mp4",
+   "ten_file": null,
+   "kich_thuoc": 2012542,
+   "quote": null,
+   "thu_hoi": false,
+   "phu": null,
+   "chu_goc": null,
+   "cam_xuc": [
+    {
+     "uid": "3036466132175892074",
+     "icon": "/-heart",
+     "ts": 1792046454730
+    },
+    {
+     "uid": "4687071446704287042",
+     "icon": "/-heart",
+     "ts": 1792049423457
+    }
+   ]
+  }
+ ],
+ "toi": "2085886849481656763",
+ "nguoi": {
+  "2367964624253180821": {
+   "uid": "2367964624253180821",
+   "ten": "Người B",
+   "anh": "https://example-cdn.zdn.vn/ava/2367964624253180821",
+   "cap_nhat_luc": 1791925351409
+  },
+  "276295207480553884": {
+   "uid": "276295207480553884",
+   "ten": "Người G",
+   "anh": "https://example-cdn.zdn.vn/ava/276295207480553884",
+   "cap_nhat_luc": 1791925351412
+  },
+  "8321491514034958130": null,
+  "3036466132175892074": {
+   "uid": "3036466132175892074",
+   "ten": "Người H",
+   "anh": "https://example-cdn.zdn.vn/ava/3036466132175892074",
+   "cap_nhat_luc": 1792046490113
+  },
+  "4687071446704287042": {
+   "uid": "4687071446704287042",
+   "ten": "Người I",
+   "anh": "https://example-cdn.zdn.vn/ava/4687071446704287042",
+   "cap_nhat_luc": 1792029339030
+  }
+ }
+}
