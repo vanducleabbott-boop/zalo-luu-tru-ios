@@ -15,5 +15,5 @@ enum ZaloMau {
     static let bongHo = thich(.white, UIColor(red: 0.165, green: 0.173, blue: 0.192, alpha: 1))
     static let nenChat = thich(UIColor(red: 0.886, green: 0.914, blue: 0.945, alpha: 1), UIColor(red: 0.078, green: 0.082, blue: 0.094, alpha: 1))
     static let chuPhu = thich(UIColor(red: 0.459, green: 0.537, blue: 0.639, alpha: 1), UIColor(red: 0.561, green: 0.6, blue: 0.651, alpha: 1))
-    static let do = thich(UIColor(red: 0.91, green: 0.263, blue: 0.247, alpha: 1), UIColor(red: 1, green: 0.353, blue: 0.322, alpha: 1))
+    static let mauDo = thich(UIColor(red: 0.91, green: 0.263, blue: 0.247, alpha: 1), UIColor(red: 1, green: 0.353, blue: 0.322, alpha: 1))
 }

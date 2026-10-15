@@ -46,7 +46,7 @@ struct MessageBubble: View {
         VStack(alignment: .leading, spacing: 4) {
             if t.thuHoi {
                 Text(t.laToi ? "↩ Bạn đã thu hồi tin này" : "↩ Tin đã bị thu hồi")
-                    .font(.caption.italic()).foregroundStyle(ZaloMau.do)
+                    .font(.caption.italic()).foregroundStyle(ZaloMau.mauDo)
             } else {
                 if let q = t.quote { TrichDanXemTruoc(q: q).onTapGesture { chamTrichDan(q.msgId ?? "") } }
                 noiDung
