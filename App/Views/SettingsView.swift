@@ -73,14 +73,14 @@ struct SettingsView: View {
                 }
                 Section("Bộ nhớ đệm iPhone") {
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Ảnh, video & tệp tin tạm")
-                            Text("Tự lưu trữ trong 30 ngày để tải tức thì").font(.caption2).foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Ảnh, video, tệp tin & tin nhắn")
+                            Text("• Tin nhắn: Tải sẵn trên máy mở tức thì\n• Ảnh & video: Tự lưu 30 ngày gần đây\n• Tệp tin (file): Tự lưu 7 ngày gần đây\n• Cũ hơn: Tải về khi bấm vào xem").font(.caption2).foregroundStyle(.secondary)
                         }
                         Spacer()
                         Text(dungLuongCache).foregroundStyle(.secondary)
                     }
-                    Button("Xoá bộ nhớ đệm") {
+                    Button("Xoá toàn bộ bộ nhớ đệm") {
                         hienXacNhanXoaCache = true
                     }
                     .font(.footnote)
@@ -89,7 +89,7 @@ struct SettingsView: View {
                     HStack {
                         Text("Phiên bản")
                         Spacer()
-                        Text("2.4 (Build 15)").foregroundStyle(.secondary)
+                        Text("2.5 (Build 16)").foregroundStyle(.secondary)
                     }
                 }
                 Section {
@@ -97,10 +97,11 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Cá nhân")
-            .confirmationDialog("Xoá toàn bộ bộ nhớ đệm ảnh, video & tệp tin?", isPresented: $hienXacNhanXoaCache, titleVisibility: .visible) {
+            .confirmationDialog("Xoá toàn bộ bộ nhớ đệm ảnh, video, tệp tin & tin nhắn?", isPresented: $hienXacNhanXoaCache, titleVisibility: .visible) {
                 Button("Xoá bộ nhớ đệm", role: .destructive) {
                     MediaDiskCache.shared.xoaToanBoCache()
                     ImageCacheManager.shared.xoaCache()
+                    TinNhanDiskCache.shared.xoaToanBo()
                     dungLuongCache = MediaDiskCache.shared.dungLuongDinhDang()
                 }
                 Button("Huỷ", role: .cancel) {}

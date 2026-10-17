@@ -83,6 +83,7 @@ final class AppEnvironment: ObservableObject {
         api.dangXuat()
         sse.dungHan()
         BackgroundAudioManager.shared.dungChayNen()
+        TinNhanDiskCache.shared.xoaToanBo()
         daDangNhap = false
     }
 

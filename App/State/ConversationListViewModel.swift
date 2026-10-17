@@ -36,30 +36,67 @@ final class ConversationListViewModel: ObservableObject {
             dsCuoc = try await env.api.dsCuoc()
             for c in dsCuoc { env.dsCuocCache[c.id] = c }
             await napTenNguoiChuaCo()
-            taiTruocMediaCacCuocDau()
+            taiTruocTinNhanVaMedia()
         } catch { loi = error.localizedDescription }
     }
 
-    private func taiTruocMediaCacCuocDau() {
+    private func taiTruocTinNhanVaMedia() {
         Task(priority: .background) { [weak self] in
             guard let self = self else { return }
-            // Tải trước ngầm ảnh/tệp của 4 cuộc trò chuyện hoạt động gần đây nhất
-            let topCuoc = Array(self.dsCuoc.prefix(4))
-            for c in topCuoc {
+            // Tải trước tin nhắn (text nhẹ) và media theo quy định:
+            // - Tin nhắn: tải sẵn vào đĩa để mở tức thì 0ms
+            // - File tài liệu: tải trước và lưu trong 1 tuần (7 ngày, tệp <= 15MB)
+            // - Ảnh & Video: tải trước và lưu trong 1 tháng (30 ngày)
+            // - Cũ hơn mốc này: không tải trước, người dùng bấm vào mới tải
+            let danhSachCuoc = Array(self.dsCuoc.prefix(30))
+            let moc1Thang = Date().addingTimeInterval(-30 * 24 * 3600).timeIntervalSince1970 * 1000
+            let moc1Tuan = Date().addingTimeInterval(-7 * 24 * 3600).timeIntervalSince1970 * 1000
+
+            for c in danhSachCuoc {
                 do {
                     let ph = try await self.env.api.dsTin(cuoc: c.id)
-                    let moc1Thang = Date().addingTimeInterval(-30 * 24 * 3600).timeIntervalSince1970 * 1000
-                    let tinGanDay = ph.tin.suffix(15).filter { $0.ts >= Int64(moc1Thang) }.reversed()
-                    var urls: [URL] = []
-                    for t in tinGanDay {
+                    // 1. Lưu tin nhắn vào cache đĩa
+                    TinNhanDiskCache.shared.luuTin(ph.tin, cuocId: c.id)
+
+                    // 2. Nạp trước thông tin người gửi
+                    let uids = ph.tin.compactMap { $0.uid }.filter { !$0.isEmpty }
+                    if !uids.isEmpty {
+                        await self.env.napNguoi(uids)
+                    }
+
+                    // 3. Tải trước media
+                    var urlsAnh: [URL] = []
+                    for t in ph.tin.reversed() {
                         guard let f = t.file, let u = self.env.api.diaChiMedia(f) else { continue }
+                        let ts = t.ts
+
+                        // Ảnh/GIF/Sticker trong 1 tháng
                         if ["anh", "gif", "sticker"].contains(t.kieu) {
-                            urls.append(u)
+                            if ts >= Int64(moc1Thang) {
+                                urlsAnh.append(u)
+                            }
+                        } else if t.kieu == "video" {
+                            // Video trong 1 tháng
+                            if ts >= Int64(moc1Thang) && !MediaDiskCache.shared.daCo(cho: u) {
+                                _ = await MediaDiskCache.shared.taiVaLuuVideo(tu: u)
+                            }
+                        } else if t.kieu == "file" {
+                            // File tài liệu trong 1 tuần (kích thước <= 15MB)
+                            if ts >= Int64(moc1Tuan) && !MediaDiskCache.shared.daCo(cho: u, tenFile: t.tenFile) {
+                                let mb = Double(t.kichThuoc ?? 0) / (1024 * 1024)
+                                if mb <= 15.0 {
+                                    _ = await MediaDiskCache.shared.taiVaLuuFile(tu: u, tenFile: t.tenFile)
+                                }
+                            }
                         }
                     }
-                    if !urls.isEmpty {
-                        await MediaPrefetchQueue.shared.them(urls: urls)
+
+                    if !urlsAnh.isEmpty {
+                        await MediaPrefetchQueue.shared.them(urls: urlsAnh)
                     }
+
+                    // Nghỉ 50ms giữa các cuộc để không làm nghẽn mạng
+                    try? await Task.sleep(nanoseconds: 50_000_000)
                 } catch {}
             }
         }
@@ -112,7 +149,10 @@ final class ConversationListViewModel: ObservableObject {
 
     private func xuLySuKien(_ sk: SuKienZalo) {
         switch sk {
-        case .tinMoi, .daDoc, .ghimDoiThayDoi, .ketNoiLai:
+        case .tinMoi(let cuocId, let tin, _):
+            TinNhanDiskCache.shared.capNhatTinMoi(tin: tin, cuocId: cuocId)
+            henTaiLaiDanhSach()
+        case .daDoc, .ghimDoiThayDoi, .ketNoiLai:
             henTaiLaiDanhSach()
         }
     }

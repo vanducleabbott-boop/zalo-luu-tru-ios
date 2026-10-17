@@ -12,9 +12,15 @@ final class MediaDiskCache {
 
     private let fileManager = FileManager.default
     private let thuMucCache: URL
-    private let motThangGiay: TimeInterval = 30 * 24 * 3600 // 30 ngày
+    private let motTuanGiay: TimeInterval = 7 * 24 * 3600   // 7 ngày (1 tuần) cho tệp tin tài liệu
+    private let motThangGiay: TimeInterval = 30 * 24 * 3600 // 30 ngày (1 tháng) cho ảnh và video
     private let khoaLock = NSLock()
     private var dangTaiFileTasks: [String: Task<URL?, Never>] = [:]
+
+    static let duoiAnhVideo: Set<String> = [
+        "jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp", "svg",
+        "mp4", "mov", "m4v", "3gp", "avi"
+    ]
 
     private init() {
         let caches = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -24,7 +30,7 @@ final class MediaDiskCache {
             try? fileManager.createDirectory(at: thuMucCache, withIntermediateDirectories: true)
         }
 
-        // Tự động dọn dẹp các file cũ hơn 1 tháng khi khởi tạo
+        // Tự động dọn dẹp các tệp quá hạn (file > 7 ngày, ảnh/video > 30 ngày)
         Task(priority: .background) { [weak self] in
             self?.donDepCacheCu()
         }
@@ -213,8 +219,11 @@ final class MediaDiskCache {
         try? fileManager.createDirectory(at: thuMucCache, withIntermediateDirectories: true)
     }
 
-    /// Dọn dẹp các tệp đã lưu quá 30 ngày (1 tháng)
+    /// Dọn dẹp các tệp đã lưu quá hạn:
+    /// - File tài liệu: tự động xóa sau 7 ngày (1 tuần)
+    /// - Ảnh và video: tự động xóa sau 30 ngày (1 tháng)
     func donDepCacheCu() {
+        let moc7Ngay = Date().addingTimeInterval(-motTuanGiay)
         let moc30Ngay = Date().addingTimeInterval(-motThangGiay)
         guard let tepTins = try? fileManager.contentsOfDirectory(
             at: thuMucCache,
@@ -222,8 +231,12 @@ final class MediaDiskCache {
         ) else { return }
 
         for file in tepTins {
+            let ext = file.pathExtension.lowercased()
+            let laAnhVideo = MediaDiskCache.duoiAnhVideo.contains(ext)
+            let mocXoa = laAnhVideo ? moc30Ngay : moc7Ngay
+
             if let date = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate,
-               date < moc30Ngay {
+               date < mocXoa {
                 khoaLock.lock()
                 try? fileManager.removeItem(at: file)
                 khoaLock.unlock()

@@ -33,20 +33,41 @@ final class ChatViewModel: ObservableObject {
     var danhSachHienThi: [GomNhom.MucHienThi] { GomNhom.gomTheoNgay(tinDangXem) }
 
     func taiLan1(quanh: Int64? = nil, sangMsgId: String? = nil) async {
-        dangTai = true
-        defer { dangTai = false }
         cheDoQuanh = quanh != nil
+
+        // 1. Nếu có tin nhắn đã lưu trong bộ nhớ đệm, hiển thị ngay lập tức (0ms delay)
+        var daCoCache = false
+        if quanh == nil, let cached = TinNhanDiskCache.shared.layTin(cuocId: cuoc.id), !cached.isEmpty {
+            tinDangXem = cached
+            daCoCache = true
+            Task { await napNguoiLienQuan(cached) }
+            if let sangMsgId { cuonToiMsgId = sangMsgId } else { cuonToiMsgId = "__cuoi__" }
+        }
+
+        // 2. Tải làm mới từ máy chủ
+        if !daCoCache { dangTai = true }
+        defer { dangTai = false }
         do {
             let kq = try await env.api.dsTin(cuoc: cuoc.id, quanh: quanh)
             if let c = kq.cuoc { cuoc = c }
             if let toi = kq.toi, !toi.isEmpty { env.uidToi = toi }
+            let cuCount = tinDangXem.count
             tinDangXem = kq.tin
             heTin = kq.tin.count < 60
+            if quanh == nil {
+                TinNhanDiskCache.shared.luuTin(kq.tin, cuocId: cuoc.id)
+            }
             await napNguoiLienQuan(kq.tin)
-            taiTruocMediaTrongVong1Thang(kq.tin)
-            if let sangMsgId { cuonToiMsgId = sangMsgId } else { cuonToiMsgId = "__cuoi__" }
+            taiTruocMediaTheoQuyDinh(kq.tin)
+            if let sangMsgId {
+                cuonToiMsgId = sangMsgId
+            } else if cuCount != kq.tin.count || !daCoCache {
+                cuonToiMsgId = "__cuoi__"
+            }
             if quanh == nil && cuoc.chuaDoc > 0 { danhDauDaDoc() }
-        } catch { loi = error.localizedDescription }
+        } catch {
+            if tinDangXem.isEmpty { loi = error.localizedDescription }
+        }
     }
 
     func taiTinCu() async {
@@ -58,8 +79,9 @@ final class ChatViewModel: ObservableObject {
             let (ds, het) = PhanTrang.noiTrangCu(hienTai: tinDangXem, trangCu: kq.tin)
             tinDangXem = ds
             heTin = het
+            TinNhanDiskCache.shared.luuTin(ds, cuocId: cuoc.id)
             await napNguoiLienQuan(kq.tin)
-            taiTruocMediaTrongVong1Thang(kq.tin)
+            taiTruocMediaTheoQuyDinh(kq.tin)
         } catch { loi = error.localizedDescription }
     }
 
@@ -76,19 +98,37 @@ final class ChatViewModel: ObservableObject {
         await env.napNguoi(uids)
     }
 
-    private func taiTruocMediaTrongVong1Thang(_ ds: [Tin]) {
+    private func taiTruocMediaTheoQuyDinh(_ ds: [Tin]) {
         let moc1Thang = Date().addingTimeInterval(-30 * 24 * 3600).timeIntervalSince1970 * 1000
-        // Đảo ngược danh sách: ưu tiên tải trước các tin MỚI NHẤT TRƯỚC (người dùng đang nhìn)
-        let tin1Thang = ds.filter { $0.ts >= Int64(moc1Thang) }.reversed()
+        let moc1Tuan = Date().addingTimeInterval(-7 * 24 * 3600).timeIntervalSince1970 * 1000
+
+        // Đảo ngược danh sách: ưu tiên tải trước các tin MỚI NHẤT TRƯỚC
+        let tinMoi = ds.reversed()
         var urlsTai: [URL] = []
-        for t in tin1Thang {
+        for t in tinMoi {
             guard let f = t.file, let url = env.api.diaChiMedia(f) else { continue }
+            let ts = t.ts
+
+            // Ảnh/GIF/Sticker: tải trước nếu trong vòng 1 tháng
             if ["anh", "gif", "sticker"].contains(t.kieu) {
-                urlsTai.append(url)
+                if ts >= Int64(moc1Thang) {
+                    urlsTai.append(url)
+                }
             } else if t.kieu == "video" {
-                if !MediaDiskCache.shared.daCo(cho: url) {
+                // Video: tải trước nếu trong vòng 1 tháng
+                if ts >= Int64(moc1Thang) && !MediaDiskCache.shared.daCo(cho: url) {
                     Task(priority: .background) {
                         _ = await MediaDiskCache.shared.taiVaLuuVideo(tu: url)
+                    }
+                }
+            } else if t.kieu == "file" {
+                // File: tải trước nếu trong vòng 1 tuần và kích thước <= 15MB
+                if ts >= Int64(moc1Tuan) && !MediaDiskCache.shared.daCo(cho: url, tenFile: t.tenFile) {
+                    let mb = Double(t.kichThuoc ?? 0) / (1024 * 1024)
+                    if mb <= 15.0 {
+                        Task(priority: .background) {
+                            _ = await MediaDiskCache.shared.taiVaLuuFile(tu: url, tenFile: t.tenFile)
+                        }
                     }
                 }
             }
@@ -147,8 +187,9 @@ final class ChatViewModel: ObservableObject {
         case .tinMoi(let cuocId, let tin, let laTinMoi):
             guard cuocId == cuoc.id, !cheDoQuanh else { return }
             tinDangXem = PhanTrang.ganTin(tinDangXem, tin)
+            TinNhanDiskCache.shared.capNhatTinMoi(tin: tin, cuocId: cuoc.id)
             Task { await napNguoiLienQuan([tin]) }
-            taiTruocMediaTrongVong1Thang([tin])
+            taiTruocMediaTheoQuyDinh([tin])
             if laTinMoi { cuonToiMsgId = "__cuoi_neu_sat_day__" }
             if laTinMoi && !tin.laToi { danhDauDaDoc() }
         case .daDoc, .ghimDoiThayDoi:
@@ -171,8 +212,9 @@ final class ChatViewModel: ObservableObject {
             } else {
                 for t in kq.tin { tinDangXem = PhanTrang.ganTin(tinDangXem, t) }
             }
+            TinNhanDiskCache.shared.luuTin(tinDangXem, cuocId: cuoc.id)
             await napNguoiLienQuan(kq.tin)
-            taiTruocMediaTrongVong1Thang(kq.tin)
+            taiTruocMediaTheoQuyDinh(kq.tin)
             if coMoi { cuonToiMsgId = "__cuoi_neu_sat_day__"; danhDauDaDoc() }
         } catch { /* mat mang tam thoi - bo qua, SSE se tu noi lai */ }
     }
