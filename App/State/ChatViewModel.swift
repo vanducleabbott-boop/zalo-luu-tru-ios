@@ -78,17 +78,33 @@ final class ChatViewModel: ObservableObject {
 
     private func taiTruocMediaTrongVong1Thang(_ ds: [Tin]) {
         let moc1Thang = Date().addingTimeInterval(-30 * 24 * 3600).timeIntervalSince1970 * 1000
-        let tin1Thang = ds.filter { $0.ts >= Int64(moc1Thang) }
+        // Đảo ngược danh sách: ưu tiên tải trước các tin MỚI NHẤT TRƯỚC (người dùng đang nhìn)
+        let tin1Thang = ds.filter { $0.ts >= Int64(moc1Thang) }.reversed()
+        var urlsTai: [URL] = []
         for t in tin1Thang {
             guard let f = t.file, let url = env.api.diaChiMedia(f) else { continue }
             if ["anh", "gif", "sticker"].contains(t.kieu) {
-                MediaDiskCache.shared.taiTruoc(url: url)
+                urlsTai.append(url)
+            } else if t.kieu == "file" {
+                // Tải trước các tệp tin đính kèm <= 25 MB để khi bấm vào là mở tức thì 0 giây chờ
+                if let sz = t.kichThuoc, sz <= 25 * 1024 * 1024 {
+                    if !MediaDiskCache.shared.daCo(cho: url, tenFile: t.tenFile) {
+                        Task(priority: .background) {
+                            _ = await MediaDiskCache.shared.taiVaLuuFile(tu: url, tenFile: t.tenFile)
+                        }
+                    }
+                }
             } else if t.kieu == "video" {
                 if !MediaDiskCache.shared.daCo(cho: url) {
                     Task(priority: .background) {
                         _ = await MediaDiskCache.shared.taiVaLuuVideo(tu: url)
                     }
                 }
+            }
+        }
+        if !urlsTai.isEmpty {
+            Task(priority: .background) {
+                await MediaPrefetchQueue.shared.them(urls: urlsTai)
             }
         }
     }

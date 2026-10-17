@@ -294,21 +294,16 @@ struct FileGalleryRow: View {
 
     private func moFile() async {
         guard let f = t.file, let url = env.api.diaChiMedia(f) else { return }
-        let ten = t.tenFile ?? UUID().uuidString
-        let dich = FileManager.default.temporaryDirectory.appendingPathComponent(ten)
-        if FileManager.default.fileExists(atPath: dich.path) {
-            fileDangXem = dich
+        if let cucBo = MediaDiskCache.shared.layFileCucBo(cho: url, tenFile: t.tenFile) {
+            fileDangXem = cucBo
             return
         }
         dangTai = true
         defer { dangTai = false }
-        do {
-            let (tam, _) = try await URLSession.shared.download(from: url)
-            try? FileManager.default.removeItem(at: dich)
-            try FileManager.default.moveItem(at: tam, to: dich)
-            fileDangXem = dich
-        } catch {
-            loi = error.localizedDescription
+        if let luu = await MediaDiskCache.shared.taiVaLuuFile(tu: url, tenFile: t.tenFile) {
+            fileDangXem = luu
+        } else {
+            loi = "Không thể tải tệp tin từ máy chủ"
         }
     }
 }

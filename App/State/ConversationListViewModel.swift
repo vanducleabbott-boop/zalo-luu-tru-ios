@@ -36,7 +36,37 @@ final class ConversationListViewModel: ObservableObject {
             dsCuoc = try await env.api.dsCuoc()
             for c in dsCuoc { env.dsCuocCache[c.id] = c }
             await napTenNguoiChuaCo()
+            taiTruocMediaCacCuocDau()
         } catch { loi = error.localizedDescription }
+    }
+
+    private func taiTruocMediaCacCuocDau() {
+        Task(priority: .background) { [weak self] in
+            guard let self = self else { return }
+            // Tải trước ngầm ảnh/tệp của 4 cuộc trò chuyện hoạt động gần đây nhất
+            let topCuoc = Array(self.dsCuoc.prefix(4))
+            for c in topCuoc {
+                do {
+                    let ph = try await self.env.api.dsTin(cuoc: c.id)
+                    let moc1Thang = Date().addingTimeInterval(-30 * 24 * 3600).timeIntervalSince1970 * 1000
+                    let tinGanDay = ph.tin.suffix(15).filter { $0.ts >= Int64(moc1Thang) }.reversed()
+                    var urls: [URL] = []
+                    for t in tinGanDay {
+                        guard let f = t.file, let u = self.env.api.diaChiMedia(f) else { continue }
+                        if ["anh", "gif", "sticker"].contains(t.kieu) {
+                            urls.append(u)
+                        } else if t.kieu == "file", let sz = t.kichThuoc, sz <= 10 * 1024 * 1024 {
+                            if !MediaDiskCache.shared.daCo(cho: u, tenFile: t.tenFile) {
+                                _ = await MediaDiskCache.shared.taiVaLuuFile(tu: u, tenFile: t.tenFile)
+                            }
+                        }
+                    }
+                    if !urls.isEmpty {
+                        await MediaPrefetchQueue.shared.them(urls: urls)
+                    }
+                } catch {}
+            }
+        }
     }
 
     private func napTenNguoiChuaCo() async {

@@ -72,23 +72,7 @@ struct StickerTinView: View {
     var body: some View {
         if let url {
             if let khung, khung > 1 {
-                let thoiGianKhung = Double(ms ?? 100) / 1000
-                TimelineView(.periodic(from: .zalo1970, by: 1.0 / 30)) { context in
-                    let giayTron = context.date.timeIntervalSince(.zalo1970)
-                    let idx = Int(giayTron / thoiGianKhung) % khung
-                    AsyncImage(url: url) { pha in
-                        switch pha {
-                        case .success(let img):
-                            img.resizable()
-                                .frame(width: oCanh * CGFloat(khung), height: oCanh)
-                                .offset(x: -CGFloat(idx) * oCanh)
-                        default:
-                            ProgressView()
-                        }
-                    }
-                }
-                .frame(width: oCanh, height: oCanh)
-                .clipped()
+                SpriteStickerView(url: url, khung: khung, ms: ms ?? 100, oCanh: oCanh)
             } else {
                 AnimatedImageView(url: url, contentMode: .scaleAspectFit, boGoc: 0)
                     .frame(width: oCanh, height: oCanh)
@@ -96,6 +80,60 @@ struct StickerTinView: View {
         } else {
             Text("[Sticker]").foregroundStyle(.secondary)
         }
+    }
+}
+
+private struct SpriteStickerView: View {
+    let url: URL
+    let khung: Int
+    let ms: Int
+    let oCanh: CGFloat
+
+    @State private var spriteImg: UIImage?
+
+    var body: some View {
+        Group {
+            if let img = spriteImg {
+                let thoiGianKhung = Double(ms) / 1000
+                TimelineView(.periodic(from: .zalo1970, by: 1.0 / 30)) { context in
+                    let giayTron = context.date.timeIntervalSince(.zalo1970)
+                    let idx = Int(giayTron / thoiGianKhung) % max(1, khung)
+                    Image(uiImage: img)
+                        .resizable()
+                        .frame(width: oCanh * CGFloat(khung), height: oCanh)
+                        .offset(x: -CGFloat(idx) * oCanh)
+                }
+                .frame(width: oCanh, height: oCanh)
+                .clipped()
+            } else {
+                ProgressView()
+                    .frame(width: oCanh, height: oCanh)
+                    .task {
+                        await napSprite()
+                    }
+            }
+        }
+    }
+
+    private func napSprite() async {
+        let khoa = MediaDiskCache.shared.khoaCache(tu: url)
+        if let cached = ImageCacheManager.shared.layAnh(khoa: khoa) {
+            spriteImg = cached
+            return
+        }
+        if let data = MediaDiskCache.shared.layDuLieu(cho: url), let img = UIImage(data: data) {
+            ImageCacheManager.shared.luuAnh(img, khoa: khoa, dungLuong: data.count)
+            spriteImg = img
+            return
+        }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            MediaDiskCache.shared.luuDuLieu(data, cho: url)
+            if let img = UIImage(data: data) {
+                ImageCacheManager.shared.luuAnh(img, khoa: khoa, dungLuong: data.count)
+                spriteImg = img
+            }
+        } catch {}
     }
 }
 private extension Date { static let zalo1970 = Date(timeIntervalSince1970: 0) }
@@ -176,34 +214,56 @@ struct FileTinView: View {
                     .overlay(Text(duoi.isEmpty ? "FILE" : String(duoi.prefix(4))).font(.system(size: 10, weight: .bold)).foregroundStyle(.white))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(tenFile ?? "Tệp").font(.system(size: 14, weight: .medium)).lineLimit(2)
-                    if dangTai { Text("Đang tải…").font(.caption).foregroundStyle(.secondary) }
-                    else { Text(DinhDang.kichCo(kichThuoc)).font(.caption).foregroundStyle(.secondary) }
+                    if dangTai {
+                        Text("Đang tải…").font(.caption).foregroundStyle(.secondary)
+                    } else if fileCucBo != nil {
+                        Text("\(DinhDang.kichCo(kichThuoc)) · Đã lưu trên iPhone").font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Text(DinhDang.kichCo(kichThuoc)).font(.caption).foregroundStyle(.secondary)
+                    }
                 }
                 Spacer(minLength: 0)
-                if dangTai { ProgressView() }
+                if dangTai {
+                    ProgressView()
+                } else if fileCucBo != nil {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(ZaloMau.xanh)
+                }
             }
             .frame(minWidth: 220, maxWidth: 300)
         }
         .buttonStyle(.plain)
         .disabled(url == nil || dangTai)
+        .onAppear {
+            kiemTraFileSanCo()
+        }
         .quickLookPreview($fileCucBo)
         .alert("Không tải được file", isPresented: Binding(get: { loi != nil }, set: { if !$0 { loi = nil } })) {
             Button("Đóng", role: .cancel) {}
         } message: { Text(loi ?? "") }
     }
 
+    private func kiemTraFileSanCo() {
+        guard let url else { return }
+        if let cucBo = MediaDiskCache.shared.layFileCucBo(cho: url, tenFile: tenFile) {
+            fileCucBo = cucBo
+        }
+    }
+
     private func taiVeVaXem() async {
         guard let url else { return }
-        if fileCucBo != nil { return }   // da tai xong tu lan truoc (vien quickLookPreview da tu mo khi tai xong)
+        if let cucBo = MediaDiskCache.shared.layFileCucBo(cho: url, tenFile: tenFile) {
+            fileCucBo = cucBo
+            return
+        }
         dangTai = true
         defer { dangTai = false }
-        do {
-            let (tam, _) = try await URLSession.shared.download(from: url)
-            let dich = FileManager.default.temporaryDirectory.appendingPathComponent(tenFile ?? UUID().uuidString)
-            try? FileManager.default.removeItem(at: dich)
-            try FileManager.default.moveItem(at: tam, to: dich)
-            fileCucBo = dich
-        } catch { loi = error.localizedDescription }
+        if let luu = await MediaDiskCache.shared.taiVaLuuFile(tu: url, tenFile: tenFile) {
+            fileCucBo = luu
+        } else {
+            loi = "Không thể tải tệp tin từ máy chủ"
+        }
     }
 }
 

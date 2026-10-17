@@ -74,7 +74,7 @@ struct SettingsView: View {
                 Section("Bộ nhớ đệm iPhone") {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Ảnh & video tạm")
+                            Text("Ảnh, video & tệp tin tạm")
                             Text("Tự lưu trữ trong 30 ngày để tải tức thì").font(.caption2).foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -89,7 +89,7 @@ struct SettingsView: View {
                     HStack {
                         Text("Phiên bản")
                         Spacer()
-                        Text("2.2 (Build 13)").foregroundStyle(.secondary)
+                        Text("2.3 (Build 14)").foregroundStyle(.secondary)
                     }
                 }
                 Section {
@@ -97,9 +97,10 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Cá nhân")
-            .confirmationDialog("Xoá toàn bộ bộ nhớ đệm ảnh & video?", isPresented: $hienXacNhanXoaCache, titleVisibility: .visible) {
+            .confirmationDialog("Xoá toàn bộ bộ nhớ đệm ảnh, video & tệp tin?", isPresented: $hienXacNhanXoaCache, titleVisibility: .visible) {
                 Button("Xoá bộ nhớ đệm", role: .destructive) {
                     MediaDiskCache.shared.xoaToanBoCache()
+                    ImageCacheManager.shared.xoaCache()
                     dungLuongCache = MediaDiskCache.shared.dungLuongDinhDang()
                 }
                 Button("Huỷ", role: .cancel) {}

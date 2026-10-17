@@ -1,5 +1,6 @@
 // Hiển thị ảnh tĩnh hoặc ảnh GIF động mượt mà bằng UIImageView & CGImageSource.
-// Tự động phân tách frame và tính thời gian lặp để hiển thị ảnh GIF chuyển động.
+// Bộ đệm RAM 256 MB kết hợp bộ nhớ đĩa iPhone 1 tháng (MediaDiskCache).
+// Đọc đĩa và giải mã ảnh hoàn toàn bất đồng bộ (background thread), không gây khựng luồng UI chính.
 
 import SwiftUI
 import UIKit
@@ -7,18 +8,23 @@ import ImageIO
 
 final class ImageCacheManager {
     static let shared = ImageCacheManager()
-    private let cache = NSCache<NSURL, UIImage>()
+    private let cache = NSCache<NSString, UIImage>()
 
     private init() {
-        cache.totalCostLimit = 64 * 1024 * 1024 // 64 MB
+        cache.totalCostLimit = 256 * 1024 * 1024 // 256 MB RAM
+        cache.countLimit = 300
     }
 
-    func layAnh(url: URL) -> UIImage? {
-        cache.object(forKey: url as NSURL)
+    func layAnh(khoa: String) -> UIImage? {
+        cache.object(forKey: khoa as NSString)
     }
 
-    func luuAnh(_ img: UIImage, url: URL, dungLuong: Int = 0) {
-        cache.setObject(img, forKey: url as NSURL, cost: dungLuong > 0 ? dungLuong : 1024 * 1024)
+    func luuAnh(_ img: UIImage, khoa: String, dungLuong: Int = 0) {
+        cache.setObject(img, forKey: khoa as NSString, cost: dungLuong > 0 ? dungLuong : 1024 * 1024)
+    }
+
+    func xoaCache() {
+        cache.removeAllObjects()
     }
 }
 
@@ -105,7 +111,10 @@ final class AnimatedUIImageViewWrapper: UIView {
         currentURL = url
         currentTask?.cancel()
 
-        if let cached = ImageCacheManager.shared.layAnh(url: url) {
+        let khoa = MediaDiskCache.shared.khoaCache(tu: url)
+
+        // 1. Kiểm tra RAM cache tức thì (0ms, siêu mượt)
+        if let cached = ImageCacheManager.shared.layAnh(khoa: khoa) {
             indicator.stopAnimating()
             imageView.image = cached
             if let count = cached.images?.count, count > 1 {
@@ -114,34 +123,49 @@ final class AnimatedUIImageViewWrapper: UIView {
             return
         }
 
-        // Kiểm tra bộ nhớ đệm đĩa cục bộ (1 tháng)
-        if let diskData = MediaDiskCache.shared.layDuLieu(cho: url),
-           let decoded = Self.giaiMaAnh(data: diskData) {
-            ImageCacheManager.shared.luuAnh(decoded, url: url, dungLuong: diskData.count)
-            indicator.stopAnimating()
-            imageView.image = decoded
-            if let count = decoded.images?.count, count > 1 {
-                imageView.startAnimating()
-            }
-            return
-        }
-
         imageView.image = nil
         indicator.startAnimating()
 
-        currentTask = Task { [weak self, url] in
+        // 2. Tải và giải mã bất đồng bộ (tránh giật luồng chính)
+        currentTask = Task(priority: .userInitiated) { [weak self, url, khoa] in
             guard let self = self else { return }
+
+            // Bước A: Kiểm tra đĩa iPhone trước (đã lưu trong vòng 1 tháng)
+            if let diskData = MediaDiskCache.shared.layDuLieu(cho: url) {
+                let decoded = await Task.detached(priority: .userInitiated) {
+                    Self.giaiMaAnh(data: diskData)
+                }.value
+
+                guard !Task.isCancelled else { return }
+                if let decoded = decoded {
+                    ImageCacheManager.shared.luuAnh(decoded, khoa: khoa, dungLuong: diskData.count)
+                    await MainActor.run {
+                        guard self.currentURL == url else { return }
+                        self.indicator.stopAnimating()
+                        self.imageView.image = decoded
+                        if let count = decoded.images?.count, count > 1 {
+                            self.imageView.startAnimating()
+                        }
+                    }
+                    return
+                }
+            }
+
+            // Bước B: Nếu đĩa chưa có, tải từ mạng với ưu tiên cao (UI đang cần xem)
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)
                 guard !Task.isCancelled else { return }
 
-                // Lưu tạm vào đĩa iPhone (hạn 1 tháng)
+                // Lưu vào đĩa iPhone
                 MediaDiskCache.shared.luuDuLieu(data, cho: url)
 
-                let decoded = Self.giaiMaAnh(data: data)
+                let decoded = await Task.detached(priority: .userInitiated) {
+                    Self.giaiMaAnh(data: data)
+                }.value
 
+                guard !Task.isCancelled else { return }
                 if let decoded = decoded {
-                    ImageCacheManager.shared.luuAnh(decoded, url: url, dungLuong: data.count)
+                    ImageCacheManager.shared.luuAnh(decoded, khoa: khoa, dungLuong: data.count)
                 }
 
                 await MainActor.run {
