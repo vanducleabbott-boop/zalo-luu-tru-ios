@@ -123,7 +123,7 @@ final class AppEnvironment: ObservableObject {
 
             await MainActor.run {
                 var moi = NavigationPath()
-                moi.append(YeuCauMoCuoc(cuoc: cuoc, sangMsgId: msgId))
+                moi.append(YeuCauMoCuoc(cuoc: cuoc, sangMsgId: nil))
                 self.duongDanChat = moi
             }
         }

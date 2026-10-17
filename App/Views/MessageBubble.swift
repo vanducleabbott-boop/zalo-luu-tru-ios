@@ -10,6 +10,7 @@ struct MessageBubble: View {
     let cuoiNhom: Bool
     let laNhom: Bool
     var chamTrichDan: (String) -> Void = { _ in }
+    var chonChuyenTiep: ((Tin) -> Void)? = nil
     @Binding var anhDangXem: AnhXemToan?
 
     private var tenGui: String {
@@ -118,6 +119,9 @@ struct MessageBubble: View {
     @ViewBuilder
     private var menu: some View {
         Button { vm.chonTraLoi(t) } label: { Label("Trả lời", systemImage: "arrowshape.turn.up.left") }
+        if t.duocChuyenTiep {
+            Button { chonChuyenTiep?(t) } label: { Label("Chuyển tiếp", systemImage: "arrowshape.turn.up.right") }
+        }
         if let c = t.chu, !c.isEmpty {
             Button { UIPasteboard.general.string = c } label: { Label("Sao chép", systemImage: "doc.on.doc") }
         }
