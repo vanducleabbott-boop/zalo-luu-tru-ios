@@ -34,6 +34,23 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         completionHandler([.banner, .sound, .badge, .list])
     }
 
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        let userInfo = response.notification.request.content.userInfo
+        if let cuocId = userInfo["cuoc"] as? String {
+            let msgId = userInfo["msgId"] as? String
+            print("[Notification] Nguoi dung an vao thong bao: cuoc=\(cuocId), msgId=\(msgId ?? "nil")")
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .moCuocTuThongBao,
+                    object: nil,
+                    userInfo: ["cuocId": cuocId, "msgId": msgId as Any]
+                )
+            }
+        }
+        completionHandler()
+    }
+
     /// Gọi khi nhận tin mới qua SSE. Chỉ báo khi: không phải tin của mình (trừ Sổ tay/Cloud của tôi) và nhóm chưa bị tắt thông báo.
     /// Cho phép thông báo cả khi app đang mở hoặc đang chạy nền.
     func baoTinMoiNeuCan(cuocId: String, tin: Tin, tenCuoc: String, laNhom: Bool, daTatThongBaoNhom: Bool) {
@@ -88,3 +105,8 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 }
+
+extension Notification.Name {
+    static let moCuocTuThongBao = Notification.Name("moCuocTuThongBao")
+}
+

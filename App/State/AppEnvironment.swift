@@ -4,6 +4,14 @@
 import Foundation
 import Combine
 import UIKit
+import SwiftUI
+
+struct YeuCauMoCuoc: Hashable, Identifiable {
+    let cuoc: Cuoc
+    var quanhTs: Int64? = nil
+    var sangMsgId: String? = nil
+    var id: String { cuoc.id + (sangMsgId ?? "") }
+}
 
 @MainActor
 final class AppEnvironment: ObservableObject {
@@ -16,6 +24,8 @@ final class AppEnvironment: ObservableObject {
     /// Tên/ảnh/trạng thái tắt-thông-báo của hội thoại - ConversationListViewModel cập nhật mỗi lần tải danh sách.
     /// Dùng để ghi đúng tiêu đề + tôn trọng "đã tắt thông báo nhóm" khi báo tin cục bộ lúc app ở nền.
     @Published var dsCuocCache: [String: Cuoc] = [:]
+    @Published var tabChon: Int = 0
+    @Published var duongDanChat = NavigationPath()
     let sse = SSEManager()
     private var huyTheoDoiThongBao: AnyCancellable?
 
@@ -29,6 +39,12 @@ final class AppEnvironment: ObservableObject {
             BackgroundAudioManager.shared.batDauChayNen()
         }
         huyTheoDoiThongBao = sse.suKien.receive(on: DispatchQueue.main).sink { [weak self] sk in self?.xuLyThongBaoNen(sk) }
+        NotificationCenter.default.addObserver(forName: .moCuocTuThongBao, object: nil, queue: .main) { [weak self] notif in
+            guard let self = self,
+                  let cuocId = notif.userInfo?["cuocId"] as? String else { return }
+            let msgId = notif.userInfo?["msgId"] as? String
+            self.moCuocTuThongBao(cuocId: cuocId, msgId: msgId)
+        }
     }
 
     private func xuLyThongBaoNen(_ sk: SuKienZalo) {
@@ -85,4 +101,31 @@ final class AppEnvironment: ObservableObject {
     }
 
     func anhNguoi(uid: String?) -> String? { uid.flatMap { nguoiCache[$0]?.anh } }
+
+    func moCuocTuThongBao(cuocId: String, msgId: String?) {
+        guard !cuocId.isEmpty else { return }
+        tabChon = 0
+        Task {
+            var cuocMucTieu = dsCuocCache[cuocId]
+            if cuocMucTieu == nil {
+                if let ds = try? await api.dsCuoc(), let tim = ds.first(where: { $0.id == cuocId }) {
+                    cuocMucTieu = tim
+                    dsCuocCache[cuocId] = tim
+                } else {
+                    let laNhom = cuocId.contains("@g.us") || cuocId.count > 16 ? 1 : 0
+                    cuocMucTieu = Cuoc(id: cuocId, laNhom: laNhom, ten: cuocId == "so_tay" ? "Cloud của tôi" : cuocId,
+                                       anh: nil, tinCuoiTs: nil, tinCuoi: nil, chuaDoc: 0, capNhatLuc: nil,
+                                       ghim: nil, tatTb: nil)
+                }
+            }
+
+            guard let cuoc = cuocMucTieu else { return }
+
+            await MainActor.run {
+                var moi = NavigationPath()
+                moi.append(YeuCauMoCuoc(cuoc: cuoc, sangMsgId: msgId))
+                self.duongDanChat = moi
+            }
+        }
+    }
 }

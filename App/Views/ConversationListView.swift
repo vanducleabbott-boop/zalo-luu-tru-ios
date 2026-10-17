@@ -32,10 +32,11 @@ struct ConversationListView: View {
 /// được vẽ lại mỗi khi dsCuoc/ketQuaTim.../tuKhoaTim thay đổi - @Published lồng trong 1 object khác
 /// không tự lan toả lên View nếu không có bước này.
 private struct ConversationListContentView: View {
+    @EnvironmentObject var env: AppEnvironment
     @ObservedObject var vm: ConversationListViewModel
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $env.duongDanChat) {
             Group {
                 if dangTim {
                     ketQuaTim
@@ -53,6 +54,16 @@ private struct ConversationListContentView: View {
             .navigationTitle("Tin nhắn")
             .searchable(text: $vm.tuKhoaTim, prompt: "Tìm người, nhóm, tin nhắn")
             .refreshable { await vm.tai() }
+            .navigationDestination(for: Cuoc.self) { c in ChatView(cuoc: c) }
+            .navigationDestination(for: YeuCauMoCuoc.self) { yc in
+                ChatView(cuoc: yc.cuoc, quanhTs: yc.quanhTs, sangMsgId: yc.sangMsgId)
+            }
+            .navigationDestination(for: TimKiemDiem.self) { diem in
+                ChatView(cuoc: Cuoc(id: diem.tin.cuocId ?? "", laNhom: diem.tin.laNhomCuoc ?? 0,
+                                     ten: diem.tin.tenCuoc, anh: nil, tinCuoiTs: nil, tinCuoi: nil,
+                                     chuaDoc: 0, capNhatLuc: nil, ghim: nil, tatTb: nil),
+                         quanhTs: diem.tin.ts, sangMsgId: diem.tin.msgId)
+            }
         }
     }
 
@@ -66,7 +77,6 @@ private struct ConversationListContentView: View {
             }
         }
         .listStyle(.plain)
-        .navigationDestination(for: Cuoc.self) { c in ChatView(cuoc: c) }
     }
 
     private var ketQuaTim: some View {
@@ -91,13 +101,6 @@ private struct ConversationListContentView: View {
             }
         }
         .listStyle(.plain)
-        .navigationDestination(for: Cuoc.self) { c in ChatView(cuoc: c) }
-        .navigationDestination(for: TimKiemDiem.self) { diem in
-            ChatView(cuoc: Cuoc(id: diem.tin.cuocId ?? "", laNhom: diem.tin.laNhomCuoc ?? 0,
-                                 ten: diem.tin.tenCuoc, anh: nil, tinCuoiTs: nil, tinCuoi: nil,
-                                 chuaDoc: 0, capNhatLuc: nil, ghim: nil, tatTb: nil),
-                     quanhTs: diem.tin.ts, sangMsgId: diem.tin.msgId)
-        }
     }
 
     @ViewBuilder
