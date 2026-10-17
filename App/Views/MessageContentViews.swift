@@ -46,19 +46,10 @@ struct AnhTinView: View {
 
     var body: some View {
         if let url {
-            AsyncImage(url: url) { pha in
-                switch pha {
-                case .success(let img):
-                    img.resizable().scaledToFit()
-                        .frame(maxWidth: 280, maxHeight: 340)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .onTapGesture { chamDeXem?() }
-                case .failure:
-                    khungLoi
-                default:
-                    ProgressView().frame(width: 180, height: 180)
-                }
-            }
+            AnimatedImageView(url: url, contentMode: .scaleAspectFit, boGoc: 10)
+                .frame(maxWidth: 280, maxHeight: 340)
+                .contentShape(Rectangle())
+                .onTapGesture { chamDeXem?() }
         } else { khungDangTai }
     }
     private var khungDangTai: some View {
@@ -71,7 +62,7 @@ struct AnhTinView: View {
     }
 }
 
-// ---------------------------------------------------------------- sticker (tĩnh hoặc sprite động)
+// ---------------------------------------------------------------- sticker (tĩnh hoặc sprite động / gif)
 struct StickerTinView: View {
     let url: URL?
     let khung: Int?
@@ -99,7 +90,7 @@ struct StickerTinView: View {
                 .frame(width: oCanh, height: oCanh)
                 .clipped()
             } else {
-                AsyncImage(url: url) { $0.resizable().scaledToFit() } placeholder: { ProgressView() }
+                AnimatedImageView(url: url, contentMode: .scaleAspectFit, boGoc: 0)
                     .frame(width: oCanh, height: oCanh)
             }
         } else {

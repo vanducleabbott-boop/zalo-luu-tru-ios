@@ -5,6 +5,7 @@ import PhotosUI
 
 struct MessageInputBar: View {
     @ObservedObject var vm: ChatViewModel
+    @FocusState.Binding var daFocus: Bool
     @State private var vanBan = ""
     @State private var dangGui = false
     @State private var anhDaChon: PhotosPickerItem?
@@ -19,6 +20,7 @@ struct MessageInputBar: View {
             .onChange(of: anhDaChon) { item in Task { await guiAnhDaChon(item) } }
 
             TextField(vm.cuoc.id == "so-tay" ? "Ghi chú…" : "Nhập tin nhắn…", text: $vanBan, axis: .vertical)
+                .focused($daFocus)
                 .lineLimit(1...5)
                 .padding(.horizontal, 12).padding(.vertical, 8)
                 .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 18))

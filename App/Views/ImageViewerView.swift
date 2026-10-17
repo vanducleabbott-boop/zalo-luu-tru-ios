@@ -13,29 +13,22 @@ struct ImageViewerView: View {
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            AsyncImage(url: anh.url) { pha in
-                switch pha {
-                case .success(let img):
-                    img.resizable().scaledToFit()
-                        .scaleEffect(ti_le)
-                        .offset(dich)
-                        .gesture(
-                            SimultaneousGesture(
-                                MagnificationGesture()
-                                    .onChanged { gt in ti_le = max(1, min(6, tiLeKhoa * gt)) }
-                                    .onEnded { _ in tiLeKhoa = ti_le; if ti_le <= 1 { withAnimation { dich = .zero; dichKhoa = .zero } } },
-                                DragGesture()
-                                    .onChanged { gt in if ti_le > 1 { dich = CGSize(width: dichKhoa.width + gt.translation.width, height: dichKhoa.height + gt.translation.height) } }
-                                    .onEnded { _ in dichKhoa = dich }
-                            )
-                        )
-                        .onTapGesture(count: 2) {
-                            withAnimation { if ti_le > 1 { ti_le = 1; tiLeKhoa = 1; dich = .zero; dichKhoa = .zero } else { ti_le = 2.5; tiLeKhoa = 2.5 } }
-                        }
-                default:
-                    ProgressView().tint(.white)
+            AnimatedImageView(url: anh.url, contentMode: .scaleAspectFit, boGoc: 0)
+                .scaleEffect(ti_le)
+                .offset(dich)
+                .gesture(
+                    SimultaneousGesture(
+                        MagnificationGesture()
+                            .onChanged { gt in ti_le = max(1, min(6, tiLeKhoa * gt)) }
+                            .onEnded { _ in tiLeKhoa = ti_le; if ti_le <= 1 { withAnimation { dich = .zero; dichKhoa = .zero } } },
+                        DragGesture()
+                            .onChanged { gt in if ti_le > 1 { dich = CGSize(width: dichKhoa.width + gt.translation.width, height: dichKhoa.height + gt.translation.height) } }
+                            .onEnded { _ in dichKhoa = dich }
+                    )
+                )
+                .onTapGesture(count: 2) {
+                    withAnimation { if ti_le > 1 { ti_le = 1; tiLeKhoa = 1; dich = .zero; dichKhoa = .zero } else { ti_le = 2.5; tiLeKhoa = 2.5 } }
                 }
-            }
             VStack {
                 HStack {
                     Spacer()

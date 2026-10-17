@@ -82,6 +82,7 @@ final class ChatViewModel: ObservableObject {
         do {
             try await env.api.guiChu(cuoc: cuoc.id, chu: chu, tag: tag, trichMsgId: trich)
             traLoi = nil
+            cuonToiMsgId = "__cuoi__"
         } catch { loi = "Không gửi được: " + error.localizedDescription }
     }
 
@@ -90,6 +91,7 @@ final class ChatViewModel: ObservableObject {
         do {
             try await env.api.guiFile(cuoc: cuoc.id, duLieu: duLieu, tenFile: tenFile, trichMsgId: trich)
             traLoi = nil
+            cuonToiMsgId = "__cuoi__"
         } catch { loi = "Không gửi được \(tenFile): " + error.localizedDescription }
     }
 
@@ -107,7 +109,10 @@ final class ChatViewModel: ObservableObject {
         catch { loi = "Không thu hồi được: " + error.localizedDescription }
     }
 
-    func chonTraLoi(_ t: Tin) { traLoi = t }
+    func chonTraLoi(_ t: Tin) {
+        traLoi = t
+        cuonToiMsgId = "__cuoi__"
+    }
     func boTraLoi() { traLoi = nil }
 
     // ---------------------------------------------------------------- realtime

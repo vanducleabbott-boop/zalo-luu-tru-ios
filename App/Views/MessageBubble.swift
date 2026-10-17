@@ -24,7 +24,10 @@ struct MessageBubble: View {
                 } else {
                     Color.clear.frame(width: 28, height: 28)
                 }
-            } else { Spacer(minLength: 40) }
+            } else {
+                nutTraLoiNho
+                Spacer(minLength: 30)
+            }
 
             VStack(alignment: t.laToi ? .trailing : .leading, spacing: 2) {
                 if !t.laToi && laNhom && dauNhom {
@@ -36,9 +39,30 @@ struct MessageBubble: View {
                     HangCamXuc(camXuc: t.camXuc, uidToi: env.uidToi)
                 }
             }
-            if !t.laToi { Spacer(minLength: 40) }
+            if !t.laToi {
+                nutTraLoiNho
+                Spacer(minLength: 30)
+            }
         }
         .padding(.top, dauNhom ? 8 : 1)
+    }
+
+    @ViewBuilder
+    private var nutTraLoiNho: some View {
+        if !t.thuHoi {
+            Button {
+                vm.chonTraLoi(t)
+            } label: {
+                Image(systemName: "arrowshape.turn.up.left.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .frame(width: 26, height: 26)
+                    .background(Color(.systemGray5).opacity(0.8), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Trả lời")
+            .padding(.bottom, 2)
+        }
     }
 
     @ViewBuilder

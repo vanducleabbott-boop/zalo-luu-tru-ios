@@ -36,6 +36,7 @@ struct ChatView: View {
 private struct ChatContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @ObservedObject var vm: ChatViewModel
+    @FocusState private var daFocusNhap: Bool
     @State private var anhDangXem: AnhXemToan?
     @State private var hienKho = false
     @State private var hienTimTrong = false
@@ -65,6 +66,7 @@ private struct ChatContentView: View {
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .background(ZaloMau.nenChat)
+                .scrollDismissesKeyboard(.interactively)
                 .onAppear {
                     cuonXuongDay(proxy: proxy, animate: false)
                 }
@@ -77,9 +79,25 @@ private struct ChatContentView: View {
                     }
                     vm.cuonToiMsgId = nil
                 }
+                .onChange(of: vm.traLoi?.msgId) { moi in
+                    if moi != nil {
+                        daFocusNhap = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                            cuonXuongDay(proxy: proxy, animate: true)
+                        }
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        cuonXuongDay(proxy: proxy, animate: true)
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
+                    cuonXuongDay(proxy: proxy, animate: true)
+                }
             }
             if let traLoi = vm.traLoi { ThanhTraLoiView(t: traLoi) { vm.boTraLoi() } }
-            MessageInputBar(vm: vm)
+            MessageInputBar(vm: vm, daFocus: $daFocusNhap)
         }
         .navigationTitle(vm.cuoc.ten ?? vm.cuoc.id)
         .navigationBarTitleDisplayMode(.inline)
@@ -136,22 +154,22 @@ private struct ChatContentView: View {
     }
 
     private func cuonXuongDay(proxy: ScrollViewProxy, animate: Bool) {
-        guard let cuoi = vm.tinDangXem.last?.msgId else { return }
         let thucHien = {
-            if animate {
-                withAnimation(.easeOut(duration: 0.25)) {
-                    proxy.scrollTo("__day_chat__", anchor: .bottom)
-                    proxy.scrollTo(cuoi, anchor: .bottom)
-                }
-            } else {
-                proxy.scrollTo("__day_chat__", anchor: .bottom)
+            if let cuoi = vm.tinDangXem.last?.msgId {
                 proxy.scrollTo(cuoi, anchor: .bottom)
             }
+            proxy.scrollTo("__day_chat__", anchor: .bottom)
         }
-        thucHien()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { thucHien() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+        if animate {
+            withAnimation(.easeOut(duration: 0.25)) { thucHien() }
+        } else {
             thucHien()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            if animate { withAnimation(.easeOut(duration: 0.2)) { thucHien() } } else { thucHien() }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+            if animate { withAnimation(.easeOut(duration: 0.2)) { thucHien() } } else { thucHien() }
             vm.daCuonXuongCuoiLanDau = true
         }
     }
