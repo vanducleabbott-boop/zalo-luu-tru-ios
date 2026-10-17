@@ -23,6 +23,10 @@ final class AppEnvironment: ObservableObject {
         settings = s
         api = ZaloAPI(baseURL: s.baseURL)
         NotificationManager.shared.xinQuyen()
+        BackgroundAudioManager.shared.batDauChayNen()
+        NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+            BackgroundAudioManager.shared.batDauChayNen()
+        }
         huyTheoDoiThongBao = sse.suKien.receive(on: DispatchQueue.main).sink { [weak self] sk in self?.xuLyThongBaoNen(sk) }
     }
 
@@ -50,13 +54,18 @@ final class AppEnvironment: ObservableObject {
 
     func dangNhap(matKhau: String) async throws -> Bool {
         let ok = try await api.dangNhap(matKhau: matKhau)
-        if ok { daDangNhap = true; sse.batDau(api: api) }
+        if ok {
+            daDangNhap = true
+            BackgroundAudioManager.shared.batDauChayNen()
+            sse.batDau(api: api)
+        }
         return ok
     }
 
     func dangXuat() {
         api.dangXuat()
         sse.dungHan()
+        BackgroundAudioManager.shared.dungChayNen()
         daDangNhap = false
     }
 
