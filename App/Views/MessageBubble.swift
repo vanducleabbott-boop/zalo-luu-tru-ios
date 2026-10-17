@@ -13,6 +13,7 @@ struct MessageBubble: View {
     var chonChuyenTiep: ((Tin) -> Void)? = nil
     @Binding var anhDangXem: AnhXemToan?
     @Binding var videoDangXem: VideoXemToan?
+    @Binding var fileDangXem: URL?
 
     private var tenGui: String {
         t.laToi ? "Bạn" : env.tenNguoi(uid: t.uid, macDinh: t.tenNguoi)
@@ -103,7 +104,9 @@ struct MessageBubble: View {
         case "ghiam":
             GhiAmTinView(url: diaChiFile)
         case "file":
-            FileTinView(url: diaChiFile, tenFile: t.tenFile, kichThuoc: t.kichThuoc)
+            FileTinView(url: diaChiFile, tenFile: t.tenFile, kichThuoc: t.kichThuoc) { localURL in
+                fileDangXem = localURL
+            }
             chuThichNeuCo
         case "lich":
             if let l = t.phu?.lich { LichHenTinView(lich: l) } else { Text(t.chu ?? "") }

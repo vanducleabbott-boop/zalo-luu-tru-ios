@@ -85,15 +85,6 @@ final class ChatViewModel: ObservableObject {
             guard let f = t.file, let url = env.api.diaChiMedia(f) else { continue }
             if ["anh", "gif", "sticker"].contains(t.kieu) {
                 urlsTai.append(url)
-            } else if t.kieu == "file" {
-                // Tải trước các tệp tin đính kèm <= 25 MB để khi bấm vào là mở tức thì 0 giây chờ
-                if let sz = t.kichThuoc, sz <= 25 * 1024 * 1024 {
-                    if !MediaDiskCache.shared.daCo(cho: url, tenFile: t.tenFile) {
-                        Task(priority: .background) {
-                            _ = await MediaDiskCache.shared.taiVaLuuFile(tu: url, tenFile: t.tenFile)
-                        }
-                    }
-                }
             } else if t.kieu == "video" {
                 if !MediaDiskCache.shared.daCo(cho: url) {
                     Task(priority: .background) {

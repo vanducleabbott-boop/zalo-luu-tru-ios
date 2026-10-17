@@ -55,10 +55,6 @@ final class ConversationListViewModel: ObservableObject {
                         guard let f = t.file, let u = self.env.api.diaChiMedia(f) else { continue }
                         if ["anh", "gif", "sticker"].contains(t.kieu) {
                             urls.append(u)
-                        } else if t.kieu == "file", let sz = t.kichThuoc, sz <= 10 * 1024 * 1024 {
-                            if !MediaDiskCache.shared.daCo(cho: u, tenFile: t.tenFile) {
-                                _ = await MediaDiskCache.shared.taiVaLuuFile(tu: u, tenFile: t.tenFile)
-                            }
                         }
                     }
                     if !urls.isEmpty {

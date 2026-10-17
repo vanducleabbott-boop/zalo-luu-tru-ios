@@ -14,6 +14,7 @@ final class MediaDiskCache {
     private let thuMucCache: URL
     private let motThangGiay: TimeInterval = 30 * 24 * 3600 // 30 ngày
     private let khoaLock = NSLock()
+    private var dangTaiFileTasks: [String: Task<URL?, Never>] = [:]
 
     private init() {
         let caches = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -121,17 +122,45 @@ final class MediaDiskCache {
     /// Tải tệp tin (ảnh/tệp đính kèm) và lưu vào bộ nhớ iPhone
     func taiVaLuuFile(tu url: URL, tenFile: String? = nil) async -> URL? {
         if let daCo = layFileCucBo(cho: url, tenFile: tenFile) { return daCo }
-        let dich = duongDanFile(cho: url, tenFile: tenFile)
-        do {
-            let (tam, _) = try await URLSession.shared.download(from: url)
-            khoaLock.lock()
-            defer { khoaLock.unlock() }
-            try? fileManager.removeItem(at: dich)
-            try fileManager.moveItem(at: tam, to: dich)
-            return dich
-        } catch {
-            return nil
+
+        let khoa = khoaCache(tu: url) + (tenFile ?? "")
+        khoaLock.lock()
+        if let taskDangChay = dangTaiFileTasks[khoa] {
+            khoaLock.unlock()
+            return await taskDangChay.value
         }
+
+        let task = Task<URL?, Never> { [weak self, url, tenFile, khoa] in
+            guard let self = self else { return nil }
+            let dich = self.duongDanFile(cho: url, tenFile: tenFile)
+            do {
+                var req = URLRequest(url: url)
+                req.timeoutInterval = 60
+                let (tam, resp) = try await URLSession.shared.download(for: req)
+                if let http = resp as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                    try? self.fileManager.removeItem(at: tam)
+                    return nil
+                }
+                self.khoaLock.lock()
+                defer { self.khoaLock.unlock() }
+                try? self.fileManager.removeItem(at: dich)
+                try self.fileManager.moveItem(at: tam, to: dich)
+                return dich
+            } catch {
+                return nil
+            }
+        }
+
+        dangTaiFileTasks[khoa] = task
+        khoaLock.unlock()
+
+        let ketQua = await task.value
+
+        khoaLock.lock()
+        dangTaiFileTasks.removeValue(forKey: khoa)
+        khoaLock.unlock()
+
+        return ketQua
     }
 
     /// Tải video về lưu đĩa iPhone để xem offline và xem tức thì

@@ -277,9 +277,10 @@ struct FileTinView: View {
     let url: URL?
     let tenFile: String?
     let kichThuoc: Int64?
+    var chamDeXem: ((URL) -> Void)? = nil
 
     @State private var dangTai = false
-    @State private var fileCucBo: URL?
+    @State private var daCoSan = false
     @State private var loi: String?
 
     private var duoi: String { DinhDang.duoiFile(tenFile).uppercased() }
@@ -297,7 +298,7 @@ struct FileTinView: View {
                     Text(tenFile ?? "Tệp").font(.system(size: 14, weight: .medium)).lineLimit(2)
                     if dangTai {
                         Text("Đang tải…").font(.caption).foregroundStyle(.secondary)
-                    } else if fileCucBo != nil {
+                    } else if daCoSan {
                         Text("\(DinhDang.kichCo(kichThuoc)) · Đã lưu trên iPhone").font(.caption).foregroundStyle(.secondary)
                     } else {
                         Text(DinhDang.kichCo(kichThuoc)).font(.caption).foregroundStyle(.secondary)
@@ -306,7 +307,7 @@ struct FileTinView: View {
                 Spacer(minLength: 0)
                 if dangTai {
                     ProgressView()
-                } else if fileCucBo != nil {
+                } else if daCoSan {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.footnote)
                         .foregroundStyle(ZaloMau.xanh)
@@ -319,7 +320,6 @@ struct FileTinView: View {
         .onAppear {
             kiemTraFileSanCo()
         }
-        .quickLookPreview($fileCucBo)
         .alert("Không tải được file", isPresented: Binding(get: { loi != nil }, set: { if !$0 { loi = nil } })) {
             Button("Đóng", role: .cancel) {}
         } message: { Text(loi ?? "") }
@@ -327,23 +327,25 @@ struct FileTinView: View {
 
     private func kiemTraFileSanCo() {
         guard let url else { return }
-        if let cucBo = MediaDiskCache.shared.layFileCucBo(cho: url, tenFile: tenFile) {
-            fileCucBo = cucBo
+        if MediaDiskCache.shared.daCo(cho: url, tenFile: tenFile) {
+            daCoSan = true
         }
     }
 
     private func taiVeVaXem() async {
         guard let url else { return }
         if let cucBo = MediaDiskCache.shared.layFileCucBo(cho: url, tenFile: tenFile) {
-            fileCucBo = cucBo
+            daCoSan = true
+            chamDeXem?(cucBo)
             return
         }
         dangTai = true
         defer { dangTai = false }
         if let luu = await MediaDiskCache.shared.taiVaLuuFile(tu: url, tenFile: tenFile) {
-            fileCucBo = luu
+            daCoSan = true
+            chamDeXem?(luu)
         } else {
-            loi = "Không thể tải tệp tin từ máy chủ"
+            loi = "Không thể tải tệp tin từ máy chủ. Vui lòng kiểm tra lại kết nối mạng."
         }
     }
 }

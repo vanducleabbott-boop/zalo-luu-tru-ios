@@ -1,4 +1,5 @@
 import SwiftUI
+import QuickLook
 
 final class ChatViewModelHolder: ObservableObject {
     @Published var vm: ChatViewModel?
@@ -39,6 +40,7 @@ private struct ChatContentView: View {
     @FocusState private var daFocusNhap: Bool
     @State private var anhDangXem: AnhXemToan?
     @State private var videoDangXem: VideoXemToan?
+    @State private var fileDangXem: URL?
     @State private var tinChuyenTiep: Tin?
     @State private var hienKho = false
     @State private var hienTimTrong = false
@@ -59,7 +61,8 @@ private struct ChatContentView: View {
                                           chamTrichDan: { denTin($0) },
                                           chonChuyenTiep: { tinChuyenTiep = $0 },
                                           anhDangXem: $anhDangXem,
-                                          videoDangXem: $videoDangXem)
+                                          videoDangXem: $videoDangXem,
+                                          fileDangXem: $fileDangXem)
                                 .id(t.msgId)
                                 .listRowSeparator(.hidden).listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
                                 .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
@@ -151,6 +154,7 @@ private struct ChatContentView: View {
         .sheet(item: $tinChuyenTiep) { t in ForwardMessageView(tin: t, cuocGocId: vm.cuoc.id) }
         .sheet(item: $anhDangXem) { a in ImageViewerView(anh: a) }
         .fullScreenCover(item: $videoDangXem) { v in TrinhPhatVideoView(url: v.url) }
+        .quickLookPreview($fileDangXem)
         .alert("Lỗi", isPresented: Binding(get: { vm.loi != nil }, set: { if !$0 { vm.loi = nil } })) {
             Button("Đóng", role: .cancel) {}
         } message: { Text(vm.loi ?? "") }
