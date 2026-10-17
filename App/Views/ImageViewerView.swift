@@ -14,6 +14,7 @@ struct ImageViewerView: View {
         ZStack {
             Color.black.ignoresSafeArea()
             AnimatedImageView(url: anh.url, contentMode: .scaleAspectFit, boGoc: 0)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .scaleEffect(ti_le)
                 .offset(dich)
                 .gesture(

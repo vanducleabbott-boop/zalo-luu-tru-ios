@@ -44,21 +44,68 @@ struct AnhTinView: View {
     let url: URL?
     var chamDeXem: (() -> Void)?
 
+    @State private var kichThuocAnh: CGSize?
+
     var body: some View {
         if let url {
-            AnimatedImageView(url: url, contentMode: .scaleAspectFit, boGoc: 10)
-                .frame(maxWidth: 280, maxHeight: 340)
-                .contentShape(Rectangle())
-                .onTapGesture { chamDeXem?() }
-        } else { khungDangTai }
+            Button {
+                chamDeXem?()
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemGray6))
+
+                    AnimatedImageView(url: url, contentMode: .scaleAspectFill, boGoc: 12) { size in
+                        self.kichThuocAnh = size
+                    }
+                }
+                .frame(width: tinhChieuRong(), height: tinhChieuCao())
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .contentShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+        } else {
+            khungChuaLuu
+        }
     }
-    private var khungDangTai: some View {
-        Text("Đang tải về máy chủ…").font(.footnote).foregroundStyle(.secondary)
-            .padding().frame(width: 180, height: 120).background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+
+    private func tinhChieuRong() -> CGFloat {
+        guard let size = kichThuocAnh, size.width > 0, size.height > 0 else { return 250 }
+        if size.width >= size.height {
+            // Ảnh ngang hoặc vuông: rộng 260pt
+            return 260
+        } else {
+            // Ảnh dọc: rộng theo tỉ lệ nhưng không dưới 180pt và tối đa 240pt
+            let tiLe = size.width / size.height
+            return max(180, min(240, 300 * tiLe))
+        }
     }
-    private var khungLoi: some View {
-        Image(systemName: "photo").foregroundStyle(.secondary)
-            .frame(width: 180, height: 120).background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+
+    private func tinhChieuCao() -> CGFloat {
+        guard let size = kichThuocAnh, size.width > 0, size.height > 0 else { return 190 }
+        let w = tinhChieuRong()
+        let tiLe = size.height / size.width
+        let h = w * tiLe
+        // Chiều cao tối thiểu 150pt, tối đa 340pt
+        return max(150, min(340, h))
+    }
+
+    private var khungChuaLuu: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "photo.badge.exclamationmark")
+                .font(.system(size: 26))
+                .foregroundStyle(.secondary)
+            Text("Ảnh chưa lưu trữ")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.secondary)
+            Text("File gốc đã hết hạn trên Zalo")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 16)
+        .padding(.horizontal, 20)
+        .frame(width: 220, height: 120)
+        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -203,8 +250,26 @@ struct VideoTinView: View {
                 kiemTraVaNapAnhBia()
             }
         } else {
-            Text("Đang tải video về máy chủ…").font(.footnote).foregroundStyle(.secondary)
+            khungChuaLuu
         }
+    }
+
+    private var khungChuaLuu: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "video.badge.exclamationmark")
+                .font(.system(size: 26))
+                .foregroundStyle(.secondary)
+            Text("Video chưa lưu trữ")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.secondary)
+            Text("File gốc đã hết hạn trên Zalo")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 16)
+        .padding(.horizontal, 20)
+        .frame(width: 220, height: 120)
+        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func kiemTraVaNapAnhBia() {

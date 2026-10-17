@@ -32,17 +32,20 @@ struct AnimatedImageView: UIViewRepresentable {
     let url: URL?
     var contentMode: UIView.ContentMode = .scaleAspectFit
     var boGoc: CGFloat = 10
+    var onImageLoaded: ((CGSize) -> Void)? = nil
 
     func makeUIView(context: Context) -> AnimatedUIImageViewWrapper {
         let wrapper = AnimatedUIImageViewWrapper()
         wrapper.imageView.contentMode = contentMode
         wrapper.boGoc = boGoc
+        wrapper.onImageLoaded = onImageLoaded
         return wrapper
     }
 
     func updateUIView(_ uiView: AnimatedUIImageViewWrapper, context: Context) {
         uiView.imageView.contentMode = contentMode
         uiView.boGoc = boGoc
+        uiView.onImageLoaded = onImageLoaded
         uiView.capNhat(url: url)
     }
 }
@@ -52,6 +55,7 @@ final class AnimatedUIImageViewWrapper: UIView {
     let indicator = UIActivityIndicatorView(style: .medium)
     private var currentURL: URL?
     private var currentTask: Task<Void, Never>?
+    var onImageLoaded: ((CGSize) -> Void)?
 
     var boGoc: CGFloat = 10 {
         didSet {
@@ -84,6 +88,11 @@ final class AnimatedUIImageViewWrapper: UIView {
         addSubview(imageView)
         addSubview(indicator)
 
+        setContentHuggingPriority(.defaultLow, for: .horizontal)
+        setContentHuggingPriority(.defaultLow, for: .vertical)
+        setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+
         NSLayoutConstraint.activate([
             imageView.topAnchor.constraint(equalTo: topAnchor),
             imageView.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -93,6 +102,13 @@ final class AnimatedUIImageViewWrapper: UIView {
             indicator.centerXAnchor.constraint(equalTo: centerXAnchor),
             indicator.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
+    }
+
+    override var intrinsicContentSize: CGSize {
+        guard let img = imageView.image, img.size.width > 0, img.size.height > 0 else {
+            return CGSize(width: UIView.noIntrinsicMetric, height: UIView.noIntrinsicMetric)
+        }
+        return img.size
     }
 
     func capNhat(url: URL?) {
@@ -117,8 +133,13 @@ final class AnimatedUIImageViewWrapper: UIView {
         if let cached = ImageCacheManager.shared.layAnh(khoa: khoa) {
             indicator.stopAnimating()
             imageView.image = cached
+            invalidateIntrinsicContentSize()
+            setNeedsLayout()
             if let count = cached.images?.count, count > 1 {
                 imageView.startAnimating()
+            }
+            if cached.size.width > 0, cached.size.height > 0 {
+                onImageLoaded?(cached.size)
             }
             return
         }
@@ -143,8 +164,13 @@ final class AnimatedUIImageViewWrapper: UIView {
                         guard self.currentURL == url else { return }
                         self.indicator.stopAnimating()
                         self.imageView.image = decoded
+                        self.invalidateIntrinsicContentSize()
+                        self.setNeedsLayout()
                         if let count = decoded.images?.count, count > 1 {
                             self.imageView.startAnimating()
+                        }
+                        if decoded.size.width > 0, decoded.size.height > 0 {
+                            self.onImageLoaded?(decoded.size)
                         }
                     }
                     return
@@ -172,8 +198,13 @@ final class AnimatedUIImageViewWrapper: UIView {
                     guard self.currentURL == url else { return }
                     self.indicator.stopAnimating()
                     self.imageView.image = decoded
+                    self.invalidateIntrinsicContentSize()
+                    self.setNeedsLayout()
                     if let count = decoded?.images?.count, count > 1 {
                         self.imageView.startAnimating()
+                    }
+                    if let size = decoded?.size, size.width > 0, size.height > 0 {
+                        self.onImageLoaded?(size)
                     }
                 }
             } catch {
