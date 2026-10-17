@@ -34,18 +34,22 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         completionHandler([.banner, .sound, .badge, .list])
     }
 
-    /// Gọi khi nhận tin mới qua SSE. Chỉ báo khi: không phải tin của mình và nhóm chưa bị tắt thông báo.
+    /// Gọi khi nhận tin mới qua SSE. Chỉ báo khi: không phải tin của mình (trừ Sổ tay/Cloud của tôi) và nhóm chưa bị tắt thông báo.
     /// Cho phép thông báo cả khi app đang mở hoặc đang chạy nền.
     func baoTinMoiNeuCan(cuocId: String, tin: Tin, tenCuoc: String, laNhom: Bool, daTatThongBaoNhom: Bool) {
-        guard !tin.laToi, !daTatThongBaoNhom else {
-            print("[Notification] Bo qua tin: laToi=\(tin.laToi), daTatTb=\(daTatThongBaoNhom)")
+        guard !daTatThongBaoNhom else {
+            print("[Notification] Bo qua tin do nhom da tat thong bao: cuoc=\(cuocId)")
+            return
+        }
+        if tin.laToi && cuocId != "so_tay" {
+            print("[Notification] Bo qua tin do chinh minh gui: cuoc=\(cuocId), msgId=\(tin.msgId)")
             return
         }
         let nd = UNMutableNotificationContent()
-        nd.title = tenCuoc
+        nd.title = tenCuoc.isEmpty ? "Zalo lưu trữ" : tenCuoc
         nd.body = xemTruoc(tin)
         nd.sound = .default
-        nd.userInfo = ["cuoc": cuocId]
+        nd.userInfo = ["cuoc": cuocId, "msgId": tin.msgId]
         let yc = UNNotificationRequest(identifier: "tin-\(tin.msgId)", content: nd, trigger: nil)
         UNUserNotificationCenter.current().add(yc) { loi in
             if let loi {

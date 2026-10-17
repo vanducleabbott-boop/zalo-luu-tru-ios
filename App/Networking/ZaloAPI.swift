@@ -53,6 +53,10 @@ final class ZaloAPI {
                       jsonBody: Encodable? = nil, rawBody: Data? = nil, headers: [String: String] = [:]) async throws -> Data {
         var req = URLRequest(url: try url(duongDan, query: query))
         req.httpMethod = method
+        if let token = giaTriCookiePhien() {
+            req.setValue("zw=\(token)", forHTTPHeaderField: "Cookie")
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         for (k, v) in headers { req.setValue(v, forHTTPHeaderField: k) }
         if let jsonBody {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -77,7 +81,7 @@ final class ZaloAPI {
     }
 
     // ---------------------------------------------------------------- đăng nhập (POST /dang-nhap, không phải JSON)
-    /// true = đúng mật khẩu (cookie đã lưu vào HTTPCookieStorage.shared); false = sai mật khẩu.
+    /// true = đúng mật khẩu (cookie đã lưu vào HTTPCookieStorage.shared + UserDefaults); false = sai mật khẩu.
     func dangNhap(matKhau: String) async throws -> Bool {
         var req = URLRequest(url: try url("/dang-nhap"))
         req.httpMethod = "POST"
@@ -86,15 +90,45 @@ final class ZaloAPI {
         req.httpBody = form.data(using: .utf8)
         let (_, resp) = try await session.data(for: req, delegate: khongChuyenHuong)
         guard let http = resp as? HTTPURLResponse else { return false }
-        return http.statusCode == 303
+        if http.statusCode == 303 || (200...299).contains(http.statusCode) {
+            // Trích xuất cookie zw từ header Set-Cookie
+            for (k, v) in http.allHeaderFields {
+                if String(describing: k).caseInsensitiveCompare("Set-Cookie") == .orderedSame {
+                    let headerStr = String(describing: v)
+                    if let range = headerStr.range(of: "zw=([^;]+)", options: .regularExpression) {
+                        let match = String(headerStr[range])
+                        let token = match.replacingOccurrences(of: "zw=", with: "")
+                        UserDefaults.standard.set(token, forKey: "zl_session_zw")
+                        print("[ZaloAPI] Da luu token zw vao UserDefaults: \(token.prefix(8))...")
+                    }
+                }
+            }
+            if let u = resp.url, let fields = http.allHeaderFields as? [String: String] {
+                let cookies = HTTPCookie.cookiesWithResponseHeaderFields(fields, for: u)
+                for c in cookies {
+                    HTTPCookieStorage.shared.setCookie(c)
+                    if c.name == "zw" {
+                        UserDefaults.standard.set(c.value, forKey: "zl_session_zw")
+                    }
+                }
+            }
+            return true
+        }
+        return false
     }
 
     func dangXuat() {
+        UserDefaults.standard.removeObject(forKey: "zl_session_zw")
         for c in HTTPCookieStorage.shared.cookies(for: baseURL) ?? [] { HTTPCookieStorage.shared.deleteCookie(c) }
+        if let all = HTTPCookieStorage.shared.cookies {
+            for c in all where c.name == "zw" {
+                HTTPCookieStorage.shared.deleteCookie(c)
+            }
+        }
     }
 
     func daCoCookiePhien() -> Bool {
-        (HTTPCookieStorage.shared.cookies(for: baseURL) ?? []).contains { $0.name == "zw" }
+        giaTriCookiePhien() != nil
     }
 
     // ---------------------------------------------------------------- danh sách hội thoại + tìm kiếm
@@ -186,7 +220,16 @@ final class ZaloAPI {
     }
 
     func giaTriCookiePhien() -> String? {
-        (HTTPCookieStorage.shared.cookies(for: baseURL) ?? []).first { $0.name == "zw" }?.value
+        if let v = UserDefaults.standard.string(forKey: "zl_session_zw"), !v.isEmpty {
+            return v
+        }
+        if let c = (HTTPCookieStorage.shared.cookies(for: baseURL) ?? []).first(where: { $0.name == "zw" }) {
+            return c.value
+        }
+        if let all = HTTPCookieStorage.shared.cookies, let c = all.first(where: { $0.name == "zw" }) {
+            return c.value
+        }
+        return nil
     }
 
     // ---------------------------------------------------------------- địa chỉ media (ảnh/file/video đã lưu)

@@ -25,25 +25,49 @@ private struct PayloadDoc: Decodable {
 @MainActor
 final class SSEManager: ObservableObject {
     @Published private(set) var daKetNoi = false
+    @Published private(set) var thongBaoTrangThai = "Chưa kết nối"
     let suKien = PassthroughSubject<SuKienZalo, Never>()
 
     private var client: SSEClient?
     private var lastHeard = Date.distantPast
     private var vongLap: Task<Void, Never>?
+    private var taskThuLai: Task<Void, Never>?
     private var quanSatVongDoi: AnyCancellable?
     private var apiHienTai: ZaloAPI?
 
     func batDau(api: ZaloAPI) {
         apiHienTai = api
+        taskThuLai?.cancel(); taskThuLai = nil
         dungHan(giuApi: true)
-        guard let u = try? api.diaChiSuKien() else { return }
-        let clientMoi = SSEClient(url: u)
+        guard let u = try? api.diaChiSuKien() else {
+            thongBaoTrangThai = "Lỗi địa chỉ máy chủ"
+            return
+        }
+        let token = api.giaTriCookiePhien()
+        let clientMoi = SSEClient(url: u, token: token)
         client = clientMoi
         lastHeard = Date()
+        thongBaoTrangThai = "Đang kết nối..."
         Task {
             await clientMoi.mo(
                 onEvent: { [weak self] sk in Task { @MainActor in self?.xuLy(sk) } },
-                onClosed: { [weak self] _ in Task { @MainActor in self?.daKetNoi = false } }
+                onClosed: { [weak self] loi in
+                    Task { @MainActor in
+                        guard let self else { return }
+                        self.daKetNoi = false
+                        let moTa = loi?.localizedDescription ?? "Ngắt kết nối"
+                        self.thongBaoTrangThai = "Mất kết nối (\(moTa))"
+                        print("[SSEManager] Ket noi bi dong: \(moTa), se tu dong thu lai sau 3 giay...")
+                        // Tu dong thu lai sau 3 giay neu con api
+                        self.taskThuLai?.cancel()
+                        self.taskThuLai = Task {
+                            try? await Task.sleep(nanoseconds: 3_000_000_000)
+                            if !Task.isCancelled, let curApi = self.apiHienTai {
+                                self.batDau(api: curApi)
+                            }
+                        }
+                    }
+                }
             )
         }
         if vongLap == nil { vongLapKiemTra() }
@@ -51,12 +75,16 @@ final class SSEManager: ObservableObject {
     }
 
     func dungHan(giuApi: Bool = false) {
+        taskThuLai?.cancel(); taskThuLai = nil
         vongLap?.cancel(); vongLap = nil
         quanSatVongDoi?.cancel(); quanSatVongDoi = nil
         let cuMa = client
         client = nil
         daKetNoi = false
-        if !giuApi { apiHienTai = nil }
+        if !giuApi {
+            apiHienTai = nil
+            thongBaoTrangThai = "Đã ngắt kết nối"
+        }
         Task { await cuMa?.dong() }
     }
 
@@ -72,6 +100,7 @@ final class SSEManager: ObservableObject {
     private func xuLy(_ sk: SuKienSSE) {
         lastHeard = Date()
         daKetNoi = true
+        thongBaoTrangThai = "Đang kết nối realtime"
         switch sk.loai {
         case "tin", "sua":
             guard let data = sk.data.data(using: .utf8) else { return }

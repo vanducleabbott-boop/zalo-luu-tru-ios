@@ -13,7 +13,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Máy chủ") {
+                Section("Máy chủ & Kết nối Realtime") {
                     if dangSua {
                         TextField("https://...", text: $diaChi)
                             .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
@@ -28,10 +28,23 @@ struct SettingsView: View {
                             Button("Sửa") { diaChi = env.settings.diaChiMayChu; dangSua = true }
                         }
                     }
+                    HStack {
+                        Text("Kết nối thời gian thực")
+                        Spacer()
+                        Text(env.sse.daKetNoi ? "🟢 Đang kết nối" : "🔴 \(env.sse.thongBaoTrangThai)")
+                            .font(.footnote)
+                            .foregroundStyle(env.sse.daKetNoi ? .green : .red)
+                    }
+                    if !env.sse.daKetNoi {
+                        Button("Thử kết nối lại realtime ngay") {
+                            env.sse.batDau(api: env.api)
+                        }
+                        .font(.footnote)
+                    }
                 }
                 Section("Thông báo") {
                     HStack {
-                        Text("Trạng thái")
+                        Text("Quyền thông báo")
                         Spacer()
                         Text(trangThaiThongBao)
                             .foregroundStyle(mauTrangThaiThongBao)
@@ -60,7 +73,7 @@ struct SettingsView: View {
                     HStack {
                         Text("Phiên bản")
                         Spacer()
-                        Text("1.4 (Build 5)").foregroundStyle(.secondary)
+                        Text("1.5 (Build 6)").foregroundStyle(.secondary)
                     }
                 }
                 Section {

@@ -5,10 +5,12 @@ import Foundation
 
 actor SSEClient {
     private let url: URL
+    private let tokenPhien: String?
     private var task: Task<Void, Never>?
 
-    init(url: URL) {
+    init(url: URL, token: String? = nil) {
         self.url = url
+        self.tokenPhien = token
     }
 
     /// Mở kết nối và gọi `onEvent` cho mỗi sự kiện nhận được, cho tới khi `dong()` được gọi hoặc kết nối lỗi (onClosed).
@@ -17,6 +19,11 @@ actor SSEClient {
         task = Task {
             var req = URLRequest(url: url)
             req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+            req.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+            if let token = tokenPhien, !token.isEmpty {
+                req.setValue("zw=\(token)", forHTTPHeaderField: "Cookie")
+                req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
             req.timeoutInterval = 70   // nhịp máy chủ 15s, im quá ~60-70s coi như đứt
             let parser = SSEParser()
             let cau = URLSessionConfiguration.default
@@ -24,13 +31,14 @@ actor SSEClient {
             cau.httpShouldSetCookies = true
             let session = URLSession(configuration: cau)
             do {
+                print("[SSE] Mo ket noi toi: \(url.absoluteString)")
                 let (byteStream, response) = try await session.bytes(for: req)
                 if let http = response as? HTTPURLResponse, http.statusCode != 200 {
                     print("[SSE] Loi HTTP status:", http.statusCode)
                     onClosed(NSError(domain: "SSEClient", code: http.statusCode))
                     return
                 }
-                print("[SSE] Da mo ket noi su kien thanh cong")
+                print("[SSE] Da mo ket noi su kien thanh cong (HTTP 200)")
                 // Gom theo BYTE (khong phai Character) roi moi giai ma UTF-8 ca dong: tin Zalo luon co chu tieng Viet
                 // co dau (UTF-8 nhieu byte) - tach tung byte thanh 1 UnicodeScalar rieng se lam hong cac ky tu nay.
                 // Ky tu "\n" (0x0A) khong bao gio la byte noi tiep cua UTF-8 nen cat o do luon an toan.

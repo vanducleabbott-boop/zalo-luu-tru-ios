@@ -29,7 +29,8 @@ final class AppEnvironment: ObservableObject {
     private func xuLyThongBaoNen(_ sk: SuKienZalo) {
         guard case .tinMoi(let cuocId, let tin, let laTinMoi) = sk, laTinMoi else { return }
         let c = dsCuocCache[cuocId]
-        NotificationManager.shared.baoTinMoiNeuCan(cuocId: cuocId, tin: tin, tenCuoc: c?.ten ?? tin.tenCuoc ?? cuocId,
+        let ten = c?.ten ?? tin.tenCuoc ?? (cuocId == "so_tay" ? "Cloud của tôi" : cuocId)
+        NotificationManager.shared.baoTinMoiNeuCan(cuocId: cuocId, tin: tin, tenCuoc: ten,
                                                     laNhom: c?.laNhomBool ?? false, daTatThongBaoNhom: c?.daTatThongBao ?? false)
     }
 
