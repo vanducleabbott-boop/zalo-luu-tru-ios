@@ -53,7 +53,7 @@ private struct ChatContentView: View {
                                 .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
                         case .tin(let t, let dauNhom, let cuoiNhom):
                             MessageBubble(vm: vm, t: t, dauNhom: dauNhom, cuoiNhom: cuoiNhom,
-                                          laNhom: vm.cuoc.laNhomBool, chamTrichDan: { denTin($0, proxy: proxy) },
+                                          laNhom: vm.cuoc.laNhomBool, chamTrichDan: { denTin($0) },
                                           anhDangXem: $anhDangXem)
                                 .id(t.msgId)
                                 .listRowSeparator(.hidden).listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
@@ -129,7 +129,11 @@ private struct ChatContentView: View {
                 } label: { Image(systemName: "ellipsis.circle") }
             }
         }
-        .sheet(isPresented: $hienKho) { MediaGalleryView(cuocId: vm.cuoc.id) }
+        .sheet(isPresented: $hienKho) {
+            MediaGalleryView(cuocId: vm.cuoc.id) { tinChon in
+                denTin(tinChon.msgId, ts: tinChon.ts)
+            }
+        }
         .sheet(isPresented: $hienTimTrong) { SearchInConversationView(vm: vm) }
         .sheet(item: $anhDangXem) { a in ImageViewerView(anh: a) }
         .alert("Lỗi", isPresented: Binding(get: { vm.loi != nil }, set: { if !$0 { vm.loi = nil } })) {
@@ -137,12 +141,12 @@ private struct ChatContentView: View {
         } message: { Text(vm.loi ?? "") }
     }
 
-    private func denTin(_ msgId: String, proxy: ScrollViewProxy) {
+    private func denTin(_ msgId: String, ts: Int64? = nil) {
         guard !msgId.isEmpty else { return }
         if vm.tinDangXem.contains(where: { $0.msgId == msgId }) {
-            withAnimation { proxy.scrollTo(msgId, anchor: .center) }
+            vm.cuonToiMsgId = msgId
         } else {
-            Task { await vm.taiLan1(sangMsgId: msgId) }
+            Task { await vm.taiLan1(quanh: ts, sangMsgId: msgId) }
         }
     }
 
