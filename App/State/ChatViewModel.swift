@@ -11,6 +11,7 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var heTin = false        // da toi tin cu nhat
     @Published private(set) var dangTaiTinCu = false
     @Published private(set) var dangTai = false
+    @Published var daCuonXuongCuoiLanDau = false
     @Published var traLoi: Tin?
     @Published var loi: String?
     /// Khi khác nil: UI nên cuộn tới tin nhắn này 1 lần rồi tự xoá giá trị (xem onChange trong ChatView).
@@ -48,7 +49,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     func taiTinCu() async {
-        guard !heTin, !dangTaiTinCu, let dauTien = tinDangXem.first else { return }
+        guard daCuonXuongCuoiLanDau, !heTin, !dangTaiTinCu, let dauTien = tinDangXem.first else { return }
         dangTaiTinCu = true
         defer { dangTaiTinCu = false }
         do {

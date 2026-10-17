@@ -59,15 +59,21 @@ private struct ChatContentView: View {
                                 .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
                         }
                     }
+                    Color.clear.frame(height: 1).id("__day_chat__")
+                        .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .background(ZaloMau.nenChat)
+                .onAppear {
+                    cuonXuongDay(proxy: proxy, animate: false)
+                }
                 .onChange(of: vm.cuonToiMsgId) { moi in
                     guard let moi else { return }
-                    let dich = (moi == "__cuoi__" || moi == "__cuoi_neu_sat_day__") ? vm.tinDangXem.last?.msgId : moi
-                    if let dich {
-                        withAnimation { proxy.scrollTo(dich, anchor: moi == "__cuoi__" || moi.hasPrefix("__") ? .bottom : .center) }
+                    if moi == "__cuoi__" || moi == "__cuoi_neu_sat_day__" {
+                        cuonXuongDay(proxy: proxy, animate: moi != "__cuoi__")
+                    } else {
+                        withAnimation { proxy.scrollTo(moi, anchor: .center) }
                     }
                     vm.cuonToiMsgId = nil
                 }
@@ -127,6 +133,27 @@ private struct ChatContentView: View {
     }
     private func datTat() async {
         do { try await env.api.datTatThongBao(cuoc: vm.cuoc.id, tat: !vm.cuoc.daTatThongBao) } catch { vm.loi = error.localizedDescription }
+    }
+
+    private func cuonXuongDay(proxy: ScrollViewProxy, animate: Bool) {
+        guard let cuoi = vm.tinDangXem.last?.msgId else { return }
+        let thucHien = {
+            if animate {
+                withAnimation(.easeOut(duration: 0.25)) {
+                    proxy.scrollTo("__day_chat__", anchor: .bottom)
+                    proxy.scrollTo(cuoi, anchor: .bottom)
+                }
+            } else {
+                proxy.scrollTo("__day_chat__", anchor: .bottom)
+                proxy.scrollTo(cuoi, anchor: .bottom)
+            }
+        }
+        thucHien()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { thucHien() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            thucHien()
+            vm.daCuonXuongCuoiLanDau = true
+        }
     }
 }
 
