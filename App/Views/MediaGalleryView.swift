@@ -47,23 +47,38 @@ struct MediaGalleryView: View {
                         taiThemNeuGanCuoi
                     }
                 } else if tab == "file" {
-                    List(ds) { t in
-                        HStack(spacing: 10) {
-                            RoundedRectangle(cornerRadius: 6).fill(Color.gray).frame(width: 36, height: 42)
-                                .overlay(Text(DinhDang.duoiFile(t.tenFile).uppercased().prefix(4)).font(.system(size: 9, weight: .bold)).foregroundStyle(.white))
-                            VStack(alignment: .leading) {
-                                Text(t.tenFile ?? "Tệp").lineLimit(1)
-                                Text("\(DinhDang.kichCo(t.kichThuoc)) · \(DinhDang.gioPhut(t.ts))").font(.caption).foregroundStyle(.secondary)
+                    List {
+                        ForEach(ds) { t in
+                            HStack(spacing: 10) {
+                                RoundedRectangle(cornerRadius: 6).fill(Color.gray).frame(width: 36, height: 42)
+                                    .overlay(Text(DinhDang.duoiFile(t.tenFile).uppercased().prefix(4)).font(.system(size: 9, weight: .bold)).foregroundStyle(.white))
+                                VStack(alignment: .leading) {
+                                    Text(t.tenFile ?? "Tệp").lineLimit(1)
+                                    Text("\(DinhDang.kichCo(t.kichThuoc)) · \(DinhDang.gioPhut(t.ts))").font(.caption).foregroundStyle(.secondary)
+                                }
                             }
                         }
+                        taiThemNeuGanCuoi
                     }
                     .listStyle(.plain)
                 } else {
-                    List(ds) { t in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(t.url ?? "").foregroundStyle(ZaloMau.xanh).lineLimit(1)
-                            Text(DinhDang.gioPhut(t.ts)).font(.caption).foregroundStyle(.secondary)
+                    List {
+                        ForEach(ds) { t in
+                            if let uStr = t.url, let u = URL(string: uStr) {
+                                Link(destination: u) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(uStr).foregroundStyle(ZaloMau.xanh).lineLimit(2)
+                                        Text(DinhDang.gioPhut(t.ts)).font(.caption).foregroundStyle(.secondary)
+                                    }
+                                }
+                            } else {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(t.url ?? "").foregroundStyle(ZaloMau.xanh).lineLimit(2)
+                                    Text(DinhDang.gioPhut(t.ts)).font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
                         }
+                        taiThemNeuGanCuoi
                     }
                     .listStyle(.plain)
                 }

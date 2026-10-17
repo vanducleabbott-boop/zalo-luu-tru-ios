@@ -185,13 +185,19 @@ final class ZaloAPI {
         try await goiJSON("/api/danh-ba", method: "POST")
     }
 
+    func giaTriCookiePhien() -> String? {
+        (HTTPCookieStorage.shared.cookies(for: baseURL) ?? []).first { $0.name == "zw" }?.value
+    }
+
     // ---------------------------------------------------------------- địa chỉ media (ảnh/file/video đã lưu)
     // Khớp mediaUrl() trong web/index.html: "/media/" + file (đổi \ -> /, bỏ tiền tố "media/" nếu có, mã hoá từng đoạn)
     func diaChiMedia(_ file: String, tai: String? = nil, xem: String? = nil) -> URL? {
         var chuan = file.replacingOccurrences(of: "\\", with: "/")
         if chuan.hasPrefix("media/") { chuan.removeFirst("media/".count) }
         let phan = chuan.split(separator: "/").map { String($0).addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? String($0) }
-        guard let u = try? url("/media/" + phan.joined(separator: "/"), query: ["tai": tai, "ten": xem]) else { return nil }
+        var query = ["tai": tai, "ten": xem]
+        if let zw = giaTriCookiePhien() { query["zw"] = zw }
+        guard let u = try? url("/media/" + phan.joined(separator: "/"), query: query) else { return nil }
         return u
     }
 
