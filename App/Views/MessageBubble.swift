@@ -12,6 +12,7 @@ struct MessageBubble: View {
     var chamTrichDan: (String) -> Void = { _ in }
     var chonChuyenTiep: ((Tin) -> Void)? = nil
     @Binding var anhDangXem: AnhXemToan?
+    @Binding var videoDangXem: VideoXemToan?
 
     private var tenGui: String {
         t.laToi ? "Bạn" : env.tenNguoi(uid: t.uid, macDinh: t.tenNguoi)
@@ -95,7 +96,9 @@ struct MessageBubble: View {
         case "sticker":
             StickerTinView(url: diaChiFile, khung: t.phu?.khung, ms: t.phu?.ms)
         case "video":
-            VideoTinView(url: diaChiFile)
+            VideoTinView(url: diaChiFile) {
+                if let u = diaChiFile { videoDangXem = VideoXemToan(url: u, msgId: t.msgId) }
+            }
             chuThichNeuCo
         case "ghiam":
             GhiAmTinView(url: diaChiFile)
@@ -119,6 +122,9 @@ struct MessageBubble: View {
     @ViewBuilder
     private var menu: some View {
         Button { vm.chonTraLoi(t) } label: { Label("Trả lời", systemImage: "arrowshape.turn.up.left") }
+        if t.kieu == "video", let u = diaChiFile {
+            Button { videoDangXem = VideoXemToan(url: u, msgId: t.msgId) } label: { Label("Xem video", systemImage: "play.fill") }
+        }
         if t.duocChuyenTiep {
             Button { chonChuyenTiep?(t) } label: { Label("Chuyển tiếp", systemImage: "arrowshape.turn.up.right") }
         }

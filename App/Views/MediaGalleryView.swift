@@ -6,12 +6,6 @@ import SwiftUI
 import QuickLook
 import AVKit
 
-struct VideoXemToan: Identifiable {
-    let url: URL
-    let msgId: String
-    var id: String { msgId }
-}
-
 struct MediaGalleryView: View {
     @EnvironmentObject var env: AppEnvironment
     @Environment(\.dismiss) private var dismiss
@@ -308,45 +302,3 @@ struct FileGalleryRow: View {
     }
 }
 
-// ---------------------------------------------------------------- Trình phát Video toàn màn hình
-struct TrinhPhatVideoView: View {
-    @Environment(\.dismiss) private var dismiss
-    let url: URL
-    @State private var player: AVPlayer?
-
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Color.black.ignoresSafeArea()
-            if let player {
-                VideoPlayer(player: player)
-                    .ignoresSafeArea()
-            }
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 28))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .padding()
-            }
-        }
-        .onAppear {
-            if let cucBo = MediaDiskCache.shared.layFileCucBo(cho: url) {
-                let p = AVPlayer(url: cucBo)
-                player = p
-                p.play()
-            } else {
-                let p = AVPlayer(url: url)
-                player = p
-                p.play()
-                Task.detached(priority: .background) {
-                    _ = await MediaDiskCache.shared.taiVaLuuVideo(tu: url)
-                }
-            }
-        }
-        .onDisappear {
-            player?.pause()
-            player = nil
-        }
-    }
-}

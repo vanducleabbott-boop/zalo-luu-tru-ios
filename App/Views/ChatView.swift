@@ -38,6 +38,7 @@ private struct ChatContentView: View {
     @ObservedObject var vm: ChatViewModel
     @FocusState private var daFocusNhap: Bool
     @State private var anhDangXem: AnhXemToan?
+    @State private var videoDangXem: VideoXemToan?
     @State private var tinChuyenTiep: Tin?
     @State private var hienKho = false
     @State private var hienTimTrong = false
@@ -57,7 +58,8 @@ private struct ChatContentView: View {
                                           laNhom: vm.cuoc.laNhomBool,
                                           chamTrichDan: { denTin($0) },
                                           chonChuyenTiep: { tinChuyenTiep = $0 },
-                                          anhDangXem: $anhDangXem)
+                                          anhDangXem: $anhDangXem,
+                                          videoDangXem: $videoDangXem)
                                 .id(t.msgId)
                                 .listRowSeparator(.hidden).listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
                                 .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
@@ -148,6 +150,7 @@ private struct ChatContentView: View {
         .sheet(isPresented: $hienTimTrong) { SearchInConversationView(vm: vm) }
         .sheet(item: $tinChuyenTiep) { t in ForwardMessageView(tin: t, cuocGocId: vm.cuoc.id) }
         .sheet(item: $anhDangXem) { a in ImageViewerView(anh: a) }
+        .fullScreenCover(item: $videoDangXem) { v in TrinhPhatVideoView(url: v.url) }
         .alert("Lỗi", isPresented: Binding(get: { vm.loi != nil }, set: { if !$0 { vm.loi = nil } })) {
             Button("Đóng", role: .cancel) {}
         } message: { Text(vm.loi ?? "") }

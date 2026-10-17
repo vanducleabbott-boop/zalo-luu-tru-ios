@@ -141,29 +141,110 @@ private extension Date { static let zalo1970 = Date(timeIntervalSince1970: 0) }
 // ---------------------------------------------------------------- video
 struct VideoTinView: View {
     let url: URL?
-    // Giữ AVPlayer trong @State (không tạo mới mỗi lần body chạy lại) để video khỏi bị chạy lại từ đầu
-    // mỗi khi màn chat vẽ lại (vd: có tin khác vừa cập nhật cảm xúc).
-    @State private var player: AVPlayer?
+    var chamDeXem: (() -> Void)? = nil
+
+    @State private var anhBia: UIImage?
+    @State private var daCoSan = false
 
     var body: some View {
         if let url {
-            VideoPlayer(player: player)
-                .frame(width: 260, height: 220)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .onAppear {
-                    if player == nil {
-                        if let cucBo = MediaDiskCache.shared.layFileCucBo(cho: url) {
-                            player = AVPlayer(url: cucBo)
-                        } else {
-                            player = AVPlayer(url: url)
-                            Task.detached(priority: .background) {
-                                _ = await MediaDiskCache.shared.taiVaLuuVideo(tu: url)
-                            }
-                        }
+            Button {
+                chamDeXem?()
+            } label: {
+                ZStack {
+                    if let img = anhBia {
+                        Image(uiImage: img)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 240, height: 180)
+                            .clipped()
+                    } else {
+                        Rectangle()
+                            .fill(Color(.systemGray5))
+                            .frame(width: 240, height: 180)
+                            .overlay(
+                                Image(systemName: "video.fill")
+                                    .font(.system(size: 32))
+                                    .foregroundStyle(.secondary)
+                            )
                     }
+
+                    // Nút Play tròn nổi bật
+                    Circle()
+                        .fill(.black.opacity(0.65))
+                        .frame(width: 52, height: 52)
+                        .overlay(
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 22))
+                                .foregroundStyle(.white)
+                                .offset(x: 2)
+                        )
+
+                    // Nhãn trạng thái góc dưới
+                    HStack(spacing: 4) {
+                        Image(systemName: "video")
+                            .font(.caption2)
+                        Text(daCoSan ? "Sẵn sàng" : "Video")
+                            .font(.caption2.weight(.medium))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(.black.opacity(0.6), in: Capsule())
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .padding(8)
                 }
+                .frame(width: 240, height: 180)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onAppear {
+                kiemTraVaNapAnhBia()
+            }
         } else {
             Text("Đang tải video về máy chủ…").font(.footnote).foregroundStyle(.secondary)
+        }
+    }
+
+    private func kiemTraVaNapAnhBia() {
+        guard let url else { return }
+        if MediaDiskCache.shared.daCo(cho: url) {
+            daCoSan = true
+        }
+        Task(priority: .background) {
+            if let cucBo = MediaDiskCache.shared.layFileCucBo(cho: url) {
+                if let thumb = await taoAnhThuNho(tu: cucBo) {
+                    await MainActor.run { self.anhBia = thumb }
+                }
+            } else {
+                // Tải trước ngầm
+                _ = await MediaDiskCache.shared.taiVaLuuVideo(tu: url)
+                if let cucBo = MediaDiskCache.shared.layFileCucBo(cho: url),
+                   let thumb = await taoAnhThuNho(tu: cucBo) {
+                    await MainActor.run {
+                        self.daCoSan = true
+                        self.anhBia = thumb
+                    }
+                }
+            }
+        }
+    }
+
+    private func taoAnhThuNho(tu fileUrl: URL) async -> UIImage? {
+        let asset = AVURLAsset(url: fileUrl)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 480, height: 360)
+        let time = CMTime(seconds: 0.1, preferredTimescale: 600)
+        return try? await withCheckedThrowingContinuation { continuation in
+            generator.generateCGImagesAsynchronously(forTimes: [NSValue(time: time)]) { _, image, _, result, error in
+                if let image = image, result == .succeeded {
+                    continuation.resume(returning: UIImage(cgImage: image))
+                } else {
+                    continuation.resume(returning: nil)
+                }
+            }
         }
     }
 }

@@ -46,7 +46,14 @@ final class MediaDiskCache {
             let tenSanitized = tg.components(separatedBy: CharacterSet(charactersIn: "/\\:?*\"<>|")).joined(separator: "_")
             return "\(khoa)_\(tenSanitized)"
         }
-        let ext = url.pathExtension.isEmpty ? "dat" : url.pathExtension
+        var ext = url.pathExtension.isEmpty ? "" : url.pathExtension
+        if ext.isEmpty || ext.lowercased() == "dat" {
+            if url.path.contains("video") || url.absoluteString.contains("video") {
+                ext = "mp4"
+            } else if ext.isEmpty {
+                ext = "dat"
+            }
+        }
         let tenUrlGoc = (url.lastPathComponent as NSString).deletingPathExtension
         let tenRutGon = String(tenUrlGoc.prefix(24)).replacingOccurrences(of: "/", with: "_")
         return "\(khoa)_\(tenRutGon).\(ext)"
@@ -129,7 +136,10 @@ final class MediaDiskCache {
 
     /// Tải video về lưu đĩa iPhone để xem offline và xem tức thì
     func taiVaLuuVideo(tu url: URL) async -> URL? {
-        await taiVaLuuFile(tu: url, tenFile: nil)
+        let ext = (url.pathExtension.isEmpty || url.pathExtension.lowercased() == "dat") ? "mp4" : url.pathExtension
+        let tenGoc = (url.lastPathComponent as NSString).deletingPathExtension
+        let ten = "\(tenGoc.isEmpty ? "video" : tenGoc).\(ext)"
+        return await taiVaLuuFile(tu: url, tenFile: ten)
     }
 
     /// Tải trước ảnh hoặc video ở chế độ ngầm nếu trong vòng 1 tháng
