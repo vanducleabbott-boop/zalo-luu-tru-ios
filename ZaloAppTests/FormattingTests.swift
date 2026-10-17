@@ -129,4 +129,18 @@ final class FormattingTests: XCTestCase {
         let s = DinhDang.gioNgan(Int64(homQua.timeIntervalSince1970 * 1000), bayGio: bayGio)
         XCTAssertEqual(s, "Hôm qua")
     }
+
+    func testDuoiFile_VaTenHienThiFile() {
+        // Kiểm tra nhận diện phần mở rộng Word, Excel, PowerPoint chuẩn xác (cả khi có hậu tố .tai)
+        XCTAssertEqual(DinhDang.duoiFile("bao_cao.docx"), "docx")
+        XCTAssertEqual(DinhDang.duoiFile("bang_tinh.xlsx"), "xlsx")
+        XCTAssertEqual(DinhDang.duoiFile("thuyet_trinh.pptx"), "pptx")
+        XCTAssertEqual(DinhDang.duoiFile("tai_lieu.pdf"), "pdf")
+        XCTAssertEqual(DinhDang.duoiFile("thuyet_trinh.pptx.tai"), "pptx")
+        XCTAssertEqual(DinhDang.duoiFile("word_doc.docx.tai"), "docx")
+
+        // Tên hiển thị sạch
+        XCTAssertEqual(DinhDang.tenHienThiFile("bao_cao.docx.tai"), "bao_cao.docx")
+        XCTAssertEqual(DinhDang.tenHienThiFile("thuyet_trinh.pptx"), "thuyet_trinh.pptx")
+    }
 }

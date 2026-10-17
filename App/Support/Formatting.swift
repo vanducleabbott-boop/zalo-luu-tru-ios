@@ -47,8 +47,34 @@ enum DinhDang {
     }
 
     static func duoiFile(_ ten: String?) -> String {
-        guard let ten, let dau = ten.lastIndex(of: ".") else { return "" }
+        guard var ten, !ten.isEmpty else { return "" }
+        if ten.lowercased().hasSuffix(".tai") {
+            ten = String(ten.dropLast(4))
+        }
+        guard let dau = ten.lastIndex(of: ".") else { return "" }
         return String(ten[ten.index(after: dau)...]).lowercased()
+    }
+
+    /// Tên hiển thị sạch cho người dùng (bỏ đuôi tạm .tai nếu có)
+    static func tenHienThiFile(_ ten: String?) -> String {
+        guard var ten, !ten.isEmpty else { return "Tệp tin" }
+        if ten.lowercased().hasSuffix(".tai") {
+            ten = String(ten.dropLast(4))
+        }
+        return ten
+    }
+
+    /// Tên loại tài liệu hiển thị
+    static func tenLoaiTaiLieu(_ duoi: String) -> String {
+        switch duoi.uppercased() {
+        case "DOC", "DOCX": return "Microsoft Word"
+        case "XLS", "XLSX", "CSV": return "Microsoft Excel"
+        case "PPT", "PPTX": return "Microsoft PowerPoint"
+        case "PDF": return "Tài liệu PDF"
+        case "ZIP", "RAR", "7Z": return "Tệp nén"
+        case "TXT", "RTF": return "Văn bản"
+        default: return "Tệp tin"
+        }
     }
 }
 

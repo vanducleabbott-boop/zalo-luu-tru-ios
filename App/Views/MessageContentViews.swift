@@ -282,26 +282,62 @@ struct FileTinView: View {
     @State private var dangTai = false
     @State private var daCoSan = false
     @State private var loi: String?
+    @State private var hienLoiChuaLuu = false
 
+    private var tenHienThi: String { DinhDang.tenHienThiFile(tenFile) }
     private var duoi: String { DinhDang.duoiFile(tenFile).uppercased() }
+
     private var mauBieu: Color {
-        ["PDF": Color.red, "DOC": .blue, "DOCX": .blue, "XLS": .green, "XLSX": .green, "CSV": .green,
-         "PPT": .orange, "PPTX": .orange, "ZIP": .brown, "RAR": .brown][duoi] ?? ZaloMau.chuPhu
+        switch duoi {
+        case "PDF": return Color(red: 0.90, green: 0.20, blue: 0.20)
+        case "DOC", "DOCX": return Color(red: 0.12, green: 0.45, blue: 0.90) // Word
+        case "XLS", "XLSX", "CSV": return Color(red: 0.13, green: 0.65, blue: 0.35) // Excel
+        case "PPT", "PPTX": return Color(red: 0.95, green: 0.42, blue: 0.12) // PowerPoint
+        case "ZIP", "RAR", "7Z", "TAR": return Color(red: 0.60, green: 0.42, blue: 0.25)
+        case "TXT", "RTF", "LOG": return Color(red: 0.45, green: 0.50, blue: 0.55)
+        default: return ZaloMau.xanh
+        }
+    }
+
+    private var iconBieuTuong: String {
+        switch duoi {
+        case "PDF": return "doc.text.fill"
+        case "DOC", "DOCX": return "doc.richtext.fill"
+        case "XLS", "XLSX", "CSV": return "tablecells.fill"
+        case "PPT", "PPTX": return "rectangle.inset.filled.and.person.filled"
+        case "ZIP", "RAR", "7Z": return "doc.zipper"
+        default: return "doc.fill"
+        }
     }
 
     var body: some View {
-        Button { Task { await taiVeVaXem() } } label: {
+        Button {
+            xuLyBam()
+        } label: {
             HStack(spacing: 10) {
-                RoundedRectangle(cornerRadius: 6).fill(mauBieu).frame(width: 40, height: 48)
-                    .overlay(Text(duoi.isEmpty ? "FILE" : String(duoi.prefix(4))).font(.system(size: 10, weight: .bold)).foregroundStyle(.white))
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(mauBieu)
+                    .frame(width: 44, height: 50)
+                    .overlay(
+                        VStack(spacing: 2) {
+                            Image(systemName: iconBieuTuong)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(.white)
+                            Text(duoi.isEmpty ? "FILE" : String(duoi.prefix(4)))
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                    )
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(tenFile ?? "Tệp").font(.system(size: 14, weight: .medium)).lineLimit(2)
-                    if dangTai {
+                    Text(tenHienThi).font(.system(size: 14, weight: .medium)).lineLimit(2)
+                    if url == nil {
+                        Text("\(DinhDang.kichCo(kichThuoc)) · Chưa lưu trên máy chủ").font(.caption).foregroundStyle(.secondary)
+                    } else if dangTai {
                         Text("Đang tải…").font(.caption).foregroundStyle(.secondary)
                     } else if daCoSan {
                         Text("\(DinhDang.kichCo(kichThuoc)) · Đã lưu trên iPhone").font(.caption).foregroundStyle(.secondary)
                     } else {
-                        Text(DinhDang.kichCo(kichThuoc)).font(.caption).foregroundStyle(.secondary)
+                        Text("\(DinhDang.kichCo(kichThuoc)) · Chạm để xem trước").font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 Spacer(minLength: 0)
@@ -311,14 +347,23 @@ struct FileTinView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.footnote)
                         .foregroundStyle(ZaloMau.xanh)
+                } else if url != nil {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
             .frame(minWidth: 220, maxWidth: 300)
         }
         .buttonStyle(.plain)
-        .disabled(url == nil || dangTai)
+        .disabled(dangTai)
         .onAppear {
             kiemTraFileSanCo()
+        }
+        .alert("Tệp tin chưa có trên máy chủ", isPresented: $hienLoiChuaLuu) {
+            Button("Đóng", role: .cancel) {}
+        } message: {
+            Text("Tệp \"\(tenHienThi)\" chưa từng được tải về máy chủ lưu trữ (chỉ có thông tin tin nhắn từ Zalo). Bạn chỉ có thể xem các tệp đã được lưu trong kho.")
         }
         .alert("Không tải được file", isPresented: Binding(get: { loi != nil }, set: { if !$0 { loi = nil } })) {
             Button("Đóng", role: .cancel) {}
@@ -330,6 +375,14 @@ struct FileTinView: View {
         if MediaDiskCache.shared.daCo(cho: url, tenFile: tenFile) {
             daCoSan = true
         }
+    }
+
+    private func xuLyBam() {
+        guard url != nil else {
+            hienLoiChuaLuu = true
+            return
+        }
+        Task { await taiVeVaXem() }
     }
 
     private func taiVeVaXem() async {

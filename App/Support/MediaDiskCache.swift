@@ -46,24 +46,50 @@ final class MediaDiskCache {
         return String(format: "%016llx", hash)
     }
 
-    /// Tên file lưu trên đĩa kèm tên gốc và đuôi mở rộng để hệ thống (QuickLook) nhận diện chính xác
+    /// Tên file lưu trên đĩa kèm tên gốc và đuôi mở rộng chuẩn (Word, Excel, PPT, PDF...) để QuickLook nhận diện chính xác
     func tenFile(tu url: URL, tenGoc: String? = nil) -> String {
         let khoa = khoaCache(tu: url)
-        if let tg = tenGoc, !tg.isEmpty {
-            let tenSanitized = tg.components(separatedBy: CharacterSet(charactersIn: "/\\:?*\"<>|")).joined(separator: "_")
-            return "\(khoa)_\(tenSanitized)"
+        var ext = ""
+        var tenKhongExt = ""
+
+        if var tg = tenGoc, !tg.isEmpty {
+            if tg.lowercased().hasSuffix(".tai") {
+                tg = String(tg.dropLast(4))
+            }
+            let nsTg = tg as NSString
+            ext = nsTg.pathExtension.lowercased()
+            tenKhongExt = nsTg.deletingPathExtension
         }
-        var ext = url.pathExtension.isEmpty ? "" : url.pathExtension
-        if ext.isEmpty || ext.lowercased() == "dat" {
+
+        if ext.isEmpty {
+            var urlPath = url.path
+            if urlPath.lowercased().hasSuffix(".tai") {
+                urlPath = String(urlPath.dropLast(4))
+            }
+            let nsUrl = (urlPath as NSString).lastPathComponent as NSString
+            ext = nsUrl.pathExtension.lowercased()
+            if tenKhongExt.isEmpty {
+                tenKhongExt = nsUrl.deletingPathExtension
+            }
+        }
+
+        if ext.isEmpty || ext == "dat" {
             if url.path.contains("video") || url.absoluteString.contains("video") {
                 ext = "mp4"
-            } else if ext.isEmpty {
+            } else {
                 ext = "dat"
             }
         }
-        let tenUrlGoc = (url.lastPathComponent as NSString).deletingPathExtension
-        let tenRutGon = String(tenUrlGoc.prefix(24)).replacingOccurrences(of: "/", with: "_")
-        return "\(khoa)_\(tenRutGon).\(ext)"
+
+        // Loại bỏ ký tự đặc biệt nguy hiểm cho đường dẫn file iOS (đặc biệt #, %, ?, ...)
+        let kyTuCam = CharacterSet(charactersIn: "/\\:?*\"<>|#%{}[]^`~")
+        var tenSanitized = tenKhongExt.components(separatedBy: kyTuCam).joined(separator: "_")
+        tenSanitized = String(tenSanitized.prefix(48)).trimmingCharacters(in: .whitespacesAndNewlines)
+        if tenSanitized.isEmpty {
+            tenSanitized = "file"
+        }
+
+        return "\(khoa)_\(tenSanitized).\(ext)"
     }
 
     func duongDanFile(cho url: URL, tenFile: String? = nil) -> URL {
