@@ -103,13 +103,15 @@ final class ZaloAPI {
                     }
                 }
             }
-            if let u = resp.url, let fields = http.allHeaderFields as? [String: String] {
-                let cookies = HTTPCookie.cookiesWithResponseHeaderFields(fields, for: u)
-                for c in cookies {
-                    HTTPCookieStorage.shared.setCookie(c)
-                    if c.name == "zw" {
-                        UserDefaults.standard.set(c.value, forKey: "zl_session_zw")
-                    }
+            if let token = UserDefaults.standard.string(forKey: "zl_session_zw"), let u = resp.url, let host = u.host {
+                let props: [HTTPCookiePropertyKey: Any] = [
+                    .name: "zw",
+                    .value: token,
+                    .domain: host,
+                    .path: "/",
+                ]
+                if let cookie = HTTPCookie(properties: props) {
+                    HTTPCookieStorage.shared.setCookie(cookie)
                 }
             }
             return true
