@@ -74,8 +74,14 @@ final class SSEManager: ObservableObject {
         daKetNoi = true
         switch sk.loai {
         case "tin", "sua":
-            guard let data = sk.data.data(using: .utf8), let p = try? JSONDecoder().decode(PayloadTin.self, from: data) else { return }
-            suKien.send(.tinMoi(cuocId: p.cuocId, tin: p.tin, laTinMoi: sk.loai == "tin"))
+            guard let data = sk.data.data(using: .utf8) else { return }
+            do {
+                let p = try JSONDecoder().decode(PayloadTin.self, from: data)
+                print("[SSE] Nhan tin moi thanh cong cho cuoc:", p.cuocId, "msgId:", p.tin.msgId)
+                suKien.send(.tinMoi(cuocId: p.cuocId, tin: p.tin, laTinMoi: sk.loai == "tin"))
+            } catch {
+                print("[SSE] Loi giai ma PayloadTin:", error.localizedDescription)
+            }
         case "doc":
             let p = sk.data.data(using: .utf8).flatMap { try? JSONDecoder().decode(PayloadDoc.self, from: $0) }
             suKien.send(.daDoc(cuocId: p?.cuocId))

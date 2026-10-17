@@ -202,7 +202,11 @@ final class ZaloAPI {
     }
 
     /// URL kèm cookie phiên (để tải file nhị phân qua URLSession.shared.download, hoặc dùng SSE endpoint)
-    func diaChiSuKien() throws -> URL { try url("/api/su-kien") }
+    func diaChiSuKien() throws -> URL {
+        var query: [String: String?] = [:]
+        if let zw = giaTriCookiePhien() { query["zw"] = zw }
+        return try url("/api/su-kien", query: query)
+    }
 }
 
 // Hộp bọc để JSONEncoder nhận Encodable kiểu tồn tại (existential) mà vẫn encode đúng kiểu cụ thể bên trong.

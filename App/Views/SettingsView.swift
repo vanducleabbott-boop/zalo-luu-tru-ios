@@ -49,6 +49,9 @@ struct SettingsView: View {
                             }
                         }
                     }
+                    Button("Gửi thông báo thử nghiệm (sau 2 giây)") {
+                        NotificationManager.shared.guiThongBaoThu()
+                    }
                 }
                 Section("Giao diện") {
                     Text("Theo hệ thống (Cài đặt > Màn hình & Độ sáng của iPhone)").font(.footnote).foregroundStyle(.secondary)
@@ -57,7 +60,7 @@ struct SettingsView: View {
                     HStack {
                         Text("Phiên bản")
                         Spacer()
-                        Text("1.3 (Build 4)").foregroundStyle(.secondary)
+                        Text("1.4 (Build 5)").foregroundStyle(.secondary)
                     }
                 }
                 Section {

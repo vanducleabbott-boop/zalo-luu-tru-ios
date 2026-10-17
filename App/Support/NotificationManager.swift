@@ -37,14 +37,37 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     /// Gọi khi nhận tin mới qua SSE. Chỉ báo khi: không phải tin của mình và nhóm chưa bị tắt thông báo.
     /// Cho phép thông báo cả khi app đang mở hoặc đang chạy nền.
     func baoTinMoiNeuCan(cuocId: String, tin: Tin, tenCuoc: String, laNhom: Bool, daTatThongBaoNhom: Bool) {
-        guard !tin.laToi, !daTatThongBaoNhom else { return }
+        guard !tin.laToi, !daTatThongBaoNhom else {
+            print("[Notification] Bo qua tin: laToi=\(tin.laToi), daTatTb=\(daTatThongBaoNhom)")
+            return
+        }
         let nd = UNMutableNotificationContent()
         nd.title = tenCuoc
         nd.body = xemTruoc(tin)
         nd.sound = .default
         nd.userInfo = ["cuoc": cuocId]
         let yc = UNNotificationRequest(identifier: "tin-\(tin.msgId)", content: nd, trigger: nil)
-        UNUserNotificationCenter.current().add(yc)
+        UNUserNotificationCenter.current().add(yc) { loi in
+            if let loi {
+                print("[Notification] Loi hien thong bao tin moi:", loi.localizedDescription)
+            } else {
+                print("[Notification] Da them thong bao tin moi:", tin.msgId, "tu:", tenCuoc)
+            }
+        }
+    }
+
+    func guiThongBaoThu() {
+        let nd = UNMutableNotificationContent()
+        nd.title = "Thông báo thử nghiệm"
+        nd.body = "Hệ thống thông báo của Zalo lưu trữ đang hoạt động tốt!"
+        nd.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+        let yc = UNNotificationRequest(identifier: "test-\(UUID().uuidString)", content: nd, trigger: trigger)
+        UNUserNotificationCenter.current().add(yc) { loi in
+            if let loi {
+                print("[Notification] Loi gui thong bao thu:", loi.localizedDescription)
+            }
+        }
     }
 
     private func xemTruoc(_ t: Tin) -> String {
