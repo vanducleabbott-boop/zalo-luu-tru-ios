@@ -28,6 +28,13 @@ struct SettingsView: View {
                 Section("Giao diện") {
                     Text("Theo hệ thống (Cài đặt > Màn hình & Độ sáng của iPhone)").font(.footnote).foregroundStyle(.secondary)
                 }
+                Section("Thông tin ứng dụng") {
+                    HStack {
+                        Text("Phiên bản")
+                        Spacer()
+                        Text("1.1 (Build 2)").foregroundStyle(.secondary)
+                    }
+                }
                 Section {
                     Button("Đăng xuất", role: .destructive) { hienXacNhanDangXuat = true }
                 }
