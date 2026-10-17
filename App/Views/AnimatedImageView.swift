@@ -114,6 +114,18 @@ final class AnimatedUIImageViewWrapper: UIView {
             return
         }
 
+        // Kiểm tra bộ nhớ đệm đĩa cục bộ (1 tháng)
+        if let diskData = MediaDiskCache.shared.layDuLieu(cho: url),
+           let decoded = Self.giaiMaAnh(data: diskData) {
+            ImageCacheManager.shared.luuAnh(decoded, url: url, dungLuong: diskData.count)
+            indicator.stopAnimating()
+            imageView.image = decoded
+            if let count = decoded.images?.count, count > 1 {
+                imageView.startAnimating()
+            }
+            return
+        }
+
         imageView.image = nil
         indicator.startAnimating()
 
@@ -122,6 +134,10 @@ final class AnimatedUIImageViewWrapper: UIView {
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)
                 guard !Task.isCancelled else { return }
+
+                // Lưu tạm vào đĩa iPhone (hạn 1 tháng)
+                MediaDiskCache.shared.luuDuLieu(data, cho: url)
+
                 let decoded = Self.giaiMaAnh(data: data)
 
                 if let decoded = decoded {

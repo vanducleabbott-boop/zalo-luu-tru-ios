@@ -336,9 +336,18 @@ struct TrinhPhatVideoView: View {
             }
         }
         .onAppear {
-            let p = AVPlayer(url: url)
-            player = p
-            p.play()
+            if let cucBo = MediaDiskCache.shared.layFileCucBo(cho: url) {
+                let p = AVPlayer(url: cucBo)
+                player = p
+                p.play()
+            } else {
+                let p = AVPlayer(url: url)
+                player = p
+                p.play()
+                Task.detached(priority: .background) {
+                    _ = await MediaDiskCache.shared.taiVaLuuVideo(tu: url)
+                }
+            }
         }
         .onDisappear {
             player?.pause()

@@ -9,6 +9,8 @@ struct SettingsView: View {
     @State private var trangThaiThongBao = "Đang kiểm tra..."
     @State private var daCapQuyenThongBao = false
     @State private var canMoCaiDat = false
+    @State private var dungLuongCache = "0 MB"
+    @State private var hienXacNhanXoaCache = false
 
     var body: some View {
         NavigationStack {
@@ -69,11 +71,25 @@ struct SettingsView: View {
                 Section("Giao diện") {
                     Text("Theo hệ thống (Cài đặt > Màn hình & Độ sáng của iPhone)").font(.footnote).foregroundStyle(.secondary)
                 }
+                Section("Bộ nhớ đệm iPhone") {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Ảnh & video tạm")
+                            Text("Tự lưu trữ trong 30 ngày để tải tức thì").font(.caption2).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text(dungLuongCache).foregroundStyle(.secondary)
+                    }
+                    Button("Xoá bộ nhớ đệm") {
+                        hienXacNhanXoaCache = true
+                    }
+                    .font(.footnote)
+                }
                 Section("Thông tin ứng dụng") {
                     HStack {
                         Text("Phiên bản")
                         Spacer()
-                        Text("2.0 (Build 11)").foregroundStyle(.secondary)
+                        Text("2.1 (Build 12)").foregroundStyle(.secondary)
                     }
                 }
                 Section {
@@ -81,12 +97,20 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Cá nhân")
+            .confirmationDialog("Xoá toàn bộ bộ nhớ đệm ảnh & video?", isPresented: $hienXacNhanXoaCache, titleVisibility: .visible) {
+                Button("Xoá bộ nhớ đệm", role: .destructive) {
+                    MediaDiskCache.shared.xoaToanBoCache()
+                    dungLuongCache = MediaDiskCache.shared.dungLuongDinhDang()
+                }
+                Button("Huỷ", role: .cancel) {}
+            }
             .confirmationDialog("Đăng xuất khỏi Zalo lưu trữ?", isPresented: $hienXacNhanDangXuat, titleVisibility: .visible) {
                 Button("Đăng xuất", role: .destructive) { env.dangXuat() }
                 Button("Huỷ", role: .cancel) {}
             }
             .onAppear {
                 kiemTraTrangThaiThongBao()
+                dungLuongCache = MediaDiskCache.shared.dungLuongDinhDang()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 kiemTraTrangThaiThongBao()

@@ -112,7 +112,18 @@ struct VideoTinView: View {
             VideoPlayer(player: player)
                 .frame(width: 260, height: 220)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
-                .onAppear { if player == nil { player = AVPlayer(url: url) } }
+                .onAppear {
+                    if player == nil {
+                        if let cucBo = MediaDiskCache.shared.layFileCucBo(cho: url) {
+                            player = AVPlayer(url: cucBo)
+                        } else {
+                            player = AVPlayer(url: url)
+                            Task.detached(priority: .background) {
+                                _ = await MediaDiskCache.shared.taiVaLuuVideo(tu: url)
+                            }
+                        }
+                    }
+                }
         } else {
             Text("Đang tải video về máy chủ…").font(.footnote).foregroundStyle(.secondary)
         }

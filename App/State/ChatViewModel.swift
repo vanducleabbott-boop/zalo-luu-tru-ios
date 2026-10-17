@@ -43,6 +43,7 @@ final class ChatViewModel: ObservableObject {
             tinDangXem = kq.tin
             heTin = kq.tin.count < 60
             await napNguoiLienQuan(kq.tin)
+            taiTruocMediaTrongVong1Thang(kq.tin)
             if let sangMsgId { cuonToiMsgId = sangMsgId } else { cuonToiMsgId = "__cuoi__" }
             if quanh == nil && cuoc.chuaDoc > 0 { danhDauDaDoc() }
         } catch { loi = error.localizedDescription }
@@ -58,6 +59,7 @@ final class ChatViewModel: ObservableObject {
             tinDangXem = ds
             heTin = het
             await napNguoiLienQuan(kq.tin)
+            taiTruocMediaTrongVong1Thang(kq.tin)
         } catch { loi = error.localizedDescription }
     }
 
@@ -72,6 +74,23 @@ final class ChatViewModel: ObservableObject {
             return u
         }
         await env.napNguoi(uids)
+    }
+
+    private func taiTruocMediaTrongVong1Thang(_ ds: [Tin]) {
+        let moc1Thang = Date().addingTimeInterval(-30 * 24 * 3600).timeIntervalSince1970 * 1000
+        let tin1Thang = ds.filter { $0.ts >= Int64(moc1Thang) }
+        for t in tin1Thang {
+            guard let f = t.file, let url = env.api.diaChiMedia(f) else { continue }
+            if ["anh", "gif", "sticker"].contains(t.kieu) {
+                MediaDiskCache.shared.taiTruoc(url: url)
+            } else if t.kieu == "video" {
+                if !MediaDiskCache.shared.daCo(cho: url) {
+                    Task(priority: .background) {
+                        _ = await MediaDiskCache.shared.taiVaLuuVideo(tu: url)
+                    }
+                }
+            }
+        }
     }
 
     // ---------------------------------------------------------------- gửi
@@ -122,6 +141,7 @@ final class ChatViewModel: ObservableObject {
             guard cuocId == cuoc.id, !cheDoQuanh else { return }
             tinDangXem = PhanTrang.ganTin(tinDangXem, tin)
             Task { await napNguoiLienQuan([tin]) }
+            taiTruocMediaTrongVong1Thang([tin])
             if laTinMoi { cuonToiMsgId = "__cuoi_neu_sat_day__" }
             if laTinMoi && !tin.laToi { danhDauDaDoc() }
         case .daDoc, .ghimDoiThayDoi:
@@ -145,6 +165,7 @@ final class ChatViewModel: ObservableObject {
                 for t in kq.tin { tinDangXem = PhanTrang.ganTin(tinDangXem, t) }
             }
             await napNguoiLienQuan(kq.tin)
+            taiTruocMediaTrongVong1Thang(kq.tin)
             if coMoi { cuonToiMsgId = "__cuoi_neu_sat_day__"; danhDauDaDoc() }
         } catch { /* mat mang tam thoi - bo qua, SSE se tu noi lai */ }
     }
