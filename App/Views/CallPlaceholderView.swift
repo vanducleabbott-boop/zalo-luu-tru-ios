@@ -8,9 +8,13 @@ import WebKit
 struct CallPlaceholderView: View {
     @EnvironmentObject var env: AppEnvironment
 
+    private var callURL: URL {
+        URL(string: "https://desktop-krdjkc2.tailbd558a.ts.net:3456")!
+    }
+
     var body: some View {
         NavigationStack {
-            CallWebView(url: env.settings.baseURL)
+            CallWebView(url: callURL)
                 .navigationTitle("Cuộc gọi")
                 .navigationBarTitleDisplayMode(.inline)
         }
