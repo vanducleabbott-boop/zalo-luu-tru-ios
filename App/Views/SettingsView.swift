@@ -1,10 +1,14 @@
 import SwiftUI
+import UserNotifications
 
 struct SettingsView: View {
     @EnvironmentObject var env: AppEnvironment
     @State private var diaChi = ""
     @State private var dangSua = false
     @State private var hienXacNhanDangXuat = false
+    @State private var trangThaiThongBao = "Đang kiểm tra..."
+    @State private var daCapQuyenThongBao = false
+    @State private var canMoCaiDat = false
 
     var body: some View {
         NavigationStack {
@@ -25,6 +29,27 @@ struct SettingsView: View {
                         }
                     }
                 }
+                Section("Thông báo") {
+                    HStack {
+                        Text("Trạng thái")
+                        Spacer()
+                        Text(trangThaiThongBao)
+                            .foregroundStyle(mauTrangThaiThongBao)
+                    }
+                    if canMoCaiDat {
+                        Button("Mở Cài đặt hệ thống để cấp quyền") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                    } else if !daCapQuyenThongBao {
+                        Button("Bật thông báo ngay") {
+                            NotificationManager.shared.xinQuyen { chapNhan in
+                                kiemTraTrangThaiThongBao()
+                            }
+                        }
+                    }
+                }
                 Section("Giao diện") {
                     Text("Theo hệ thống (Cài đặt > Màn hình & Độ sáng của iPhone)").font(.footnote).foregroundStyle(.secondary)
                 }
@@ -32,7 +57,7 @@ struct SettingsView: View {
                     HStack {
                         Text("Phiên bản")
                         Spacer()
-                        Text("1.2 (Build 3)").foregroundStyle(.secondary)
+                        Text("1.3 (Build 4)").foregroundStyle(.secondary)
                     }
                 }
                 Section {
@@ -43,6 +68,39 @@ struct SettingsView: View {
             .confirmationDialog("Đăng xuất khỏi Zalo lưu trữ?", isPresented: $hienXacNhanDangXuat, titleVisibility: .visible) {
                 Button("Đăng xuất", role: .destructive) { env.dangXuat() }
                 Button("Huỷ", role: .cancel) {}
+            }
+            .onAppear {
+                kiemTraTrangThaiThongBao()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                kiemTraTrangThaiThongBao()
+            }
+        }
+    }
+
+    private var mauTrangThaiThongBao: Color {
+        daCapQuyenThongBao ? .green : .secondary
+    }
+
+    private func kiemTraTrangThaiThongBao() {
+        NotificationManager.shared.kiemTraQuyen { status in
+            switch status {
+            case .authorized, .provisional:
+                trangThaiThongBao = "Đang bật"
+                daCapQuyenThongBao = true
+                canMoCaiDat = false
+            case .denied:
+                trangThaiThongBao = "Bị tắt trong Cài đặt iPhone"
+                daCapQuyenThongBao = false
+                canMoCaiDat = true
+            case .notDetermined:
+                trangThaiThongBao = "Chưa cấp quyền"
+                daCapQuyenThongBao = false
+                canMoCaiDat = false
+            @unknown default:
+                trangThaiThongBao = "Không rõ"
+                daCapQuyenThongBao = false
+                canMoCaiDat = false
             }
         }
     }

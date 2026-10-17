@@ -5,18 +5,39 @@ import Foundation
 import UserNotifications
 import UIKit
 
-final class NotificationManager {
+final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
-    private init() {}
-
-    func xinQuyen() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+    private override init() {
+        super.init()
+        UNUserNotificationCenter.current().delegate = self
     }
 
-    /// Gọi khi nhận tin mới qua SSE. Chỉ báo khi: không phải tin của mình, app đang ở nền, nhóm chưa bị tắt thông báo.
+    func xinQuyen(completion: ((Bool) -> Void)? = nil) {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { chapNhan, loi in
+            print("[Notification] Xin quyen:", chapNhan, loi?.localizedDescription ?? "")
+            DispatchQueue.main.async {
+                completion?(chapNhan)
+            }
+        }
+    }
+
+    func kiemTraQuyen(completion: @escaping (UNAuthorizationStatus) -> Void) {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                completion(settings.authorizationStatus)
+            }
+        }
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound, .badge, .list])
+    }
+
+    /// Gọi khi nhận tin mới qua SSE. Chỉ báo khi: không phải tin của mình và nhóm chưa bị tắt thông báo.
+    /// Cho phép thông báo cả khi app đang mở hoặc đang chạy nền.
     func baoTinMoiNeuCan(cuocId: String, tin: Tin, tenCuoc: String, laNhom: Bool, daTatThongBaoNhom: Bool) {
         guard !tin.laToi, !daTatThongBaoNhom else { return }
-        guard UIApplication.shared.applicationState != .active else { return }
         let nd = UNMutableNotificationContent()
         nd.title = tenCuoc
         nd.body = xemTruoc(tin)
