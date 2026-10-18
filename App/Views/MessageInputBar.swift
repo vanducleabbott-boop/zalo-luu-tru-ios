@@ -2,6 +2,7 @@
 
 import SwiftUI
 import PhotosUI
+import UIKit
 
 struct MessageInputBar: View {
     @ObservedObject var vm: ChatViewModel
