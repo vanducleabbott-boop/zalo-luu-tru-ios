@@ -12,8 +12,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.guava948.kale5858
         PRODUCT_NAME: ZaloLuuTru
-        MARKETING_VERSION: "2.12"
-        CURRENT_PROJECT_VERSION: "23"
+        MARKETING_VERSION: "3.0"
+        CURRENT_PROJECT_VERSION: "24"
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_VERSION: "5.0"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -28,8 +28,8 @@ targets:
         UIRequiresFullScreen: false
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         UIBackgroundModes: [audio]
-        NSMicrophoneUsageDescription: "Dùng mic để nghe gọi Zalo qua máy tính."
-        NSCameraUsageDescription: "Dùng camera để chụp ảnh gửi Zalo."
+        NSMicrophoneUsageDescription: "Dùng micro để quay video và nghe gọi Zalo."
+        NSCameraUsageDescription: "Dùng camera để chụp ảnh và quay video gửi Zalo."
         NSPhotoLibraryUsageDescription: "Chọn ảnh để gửi Zalo."
         NSPhotoLibraryAddUsageDescription: "Lưu ảnh từ Zalo về máy."
         UIFileSharingEnabled: true

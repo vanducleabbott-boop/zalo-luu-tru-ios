@@ -10,7 +10,7 @@ struct YeuCauMoCuoc: Hashable, Identifiable {
     let cuoc: Cuoc
     var quanhTs: Int64? = nil
     var sangMsgId: String? = nil
-    var id: String { cuoc.id + (sangMsgId ?? "") }
+    var id: String { cuoc.id + (sangMsgId ?? "") + (quanhTs.map { "_\($0)" } ?? "") }
 }
 
 struct ThongTinCuocGoi: Equatable {
@@ -164,7 +164,7 @@ final class AppEnvironment: ObservableObject {
                     dsCuocCache[cuocId] = tim
                 } else {
                     let laNhom = cuocId.contains("@g.us") || cuocId.count > 16 ? 1 : 0
-                    cuocMucTieu = Cuoc(id: cuocId, laNhom: laNhom, ten: cuocId == "so_tay" ? "Cloud của tôi" : cuocId,
+                    cuocMucTieu = Cuoc(id: cuocId, laNhom: laNhom, ten: (cuocId == "so-tay" || cuocId == "so_tay") ? "📒 Sổ tay" : cuocId,
                                        anh: nil, tinCuoiTs: nil, tinCuoi: nil, chuaDoc: 0, capNhatLuc: nil,
                                        ghim: nil, tatTb: nil)
                 }
@@ -174,8 +174,35 @@ final class AppEnvironment: ObservableObject {
 
             await MainActor.run {
                 var moi = NavigationPath()
-                moi.append(YeuCauMoCuoc(cuoc: cuoc, sangMsgId: nil))
+                moi.append(YeuCauMoCuoc(cuoc: cuoc, sangMsgId: msgId))
                 self.duongDanChat = moi
+            }
+        }
+    }
+
+    /// Nhảy trực tiếp tới cuộc trò chuyện (từ Sổ tay hoặc nhắc hẹn). Pushes onto current NavigationStack.
+    func moCuocHoiThoai(cuocId: String, tenCuoc: String? = nil, msgId: String? = nil, quanhTs: Int64? = nil) {
+        guard !cuocId.isEmpty else { return }
+        tabChon = 0
+        Task {
+            var cuocMucTieu = dsCuocCache[cuocId]
+            if cuocMucTieu == nil {
+                if let ds = try? await api.dsCuoc(), let tim = ds.first(where: { $0.id == cuocId }) {
+                    cuocMucTieu = tim
+                    dsCuocCache[cuocId] = tim
+                } else {
+                    let laNhom = cuocId.contains("@g.us") || cuocId.count > 16 ? 1 : 0
+                    let ten = tenCuoc ?? ((cuocId == "so-tay" || cuocId == "so_tay") ? "📒 Sổ tay" : cuocId)
+                    cuocMucTieu = Cuoc(id: cuocId, laNhom: laNhom, ten: ten,
+                                       anh: nil, tinCuoiTs: nil, tinCuoi: nil, chuaDoc: 0, capNhatLuc: nil,
+                                       ghim: nil, tatTb: nil)
+                }
+            }
+
+            guard let cuoc = cuocMucTieu else { return }
+
+            await MainActor.run {
+                self.duongDanChat.append(YeuCauMoCuoc(cuoc: cuoc, quanhTs: quanhTs, sangMsgId: msgId))
             }
         }
     }

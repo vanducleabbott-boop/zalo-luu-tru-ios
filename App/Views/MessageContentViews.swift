@@ -470,7 +470,9 @@ struct FileTinView: View {
 
 // ---------------------------------------------------------------- lịch hẹn
 struct LichHenTinView: View {
+    @EnvironmentObject var env: AppEnvironment
     let lich: LichHen
+    var cuocHienTaiId: String? = nil
     var onXoa: (() -> Void)? = nil
 
     @State private var hienXacNhanXoa = false
@@ -493,52 +495,93 @@ struct LichHenTinView: View {
         lich.daXoa != true && (lich.rieng == true || lich.cuaToi != false) && onXoa != nil
     }
 
+    private var cuocMucTieuId: String? {
+        if let nguon = lich.cuocNguon, !nguon.isEmpty, nguon != cuocHienTaiId {
+            return nguon
+        }
+        if let cuocLich = lich.cuocLich, !cuocLich.isEmpty, cuocLich != "so-tay", cuocLich != "so_tay", cuocLich != cuocHienTaiId {
+            return cuocLich
+        }
+        return nil
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 10) {
-                Text(lich.emoji ?? "⏰")
-                    .font(.system(size: 28))
-                    .frame(width: 38, height: 38)
-                    .background(Color(.systemGray5), in: Circle())
+            // Phần thẻ thông tin lịch hẹn: có thể nhấn để nhảy về cuộc trò chuyện gốc
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top, spacing: 10) {
+                    Text(lich.emoji ?? "⏰")
+                        .font(.system(size: 28))
+                        .frame(width: 38, height: 38)
+                        .background(Color(.systemGray5), in: Circle())
 
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Text(lich.tieuDe ?? "Lịch hẹn")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(lich.daXoa == true ? .secondary : .primary)
-                            .strikethrough(lich.daXoa == true)
-                            .lineLimit(2)
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 6) {
+                            Text(lich.tieuDe ?? "Lịch hẹn")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(lich.daXoa == true ? .secondary : .primary)
+                                .strikethrough(lich.daXoa == true)
+                                .lineLimit(2)
 
-                        Spacer(minLength: 0)
+                            Spacer(minLength: 0)
 
-                        Text(lich.rieng == true ? "🔒 Riêng" : "Zalo")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(lich.rieng == true ? .secondary : ZaloMau.xanh)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(lich.rieng == true ? Color(.systemGray5) : ZaloMau.xanhNhat, in: Capsule())
+                            Text(lich.rieng == true ? "🔒 Riêng" : "Zalo")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(lich.rieng == true ? .secondary : ZaloMau.xanh)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(lich.rieng == true ? Color(.systemGray5) : ZaloMau.xanhNhat, in: Capsule())
+                        }
+
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock")
+                                .font(.system(size: 11))
+                            Text(lich.daXoa == true ? "Đã xoá lịch" : thoiGian)
+                                .font(.caption)
+                        }
+                        .foregroundStyle(lich.daXoa == true ? .secondary : (daQua ? .secondary : ZaloMau.xanh))
+                        .strikethrough(lich.daXoa == true)
+
+                        if let chuLap, lich.daXoa != true {
+                            Text(chuLap)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if let tenCuoc = lich.tenCuoc, !tenCuoc.isEmpty {
+                            Text("Từ: \(tenCuoc)")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
                     }
+                }
 
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.system(size: 11))
-                        Text(lich.daXoa == true ? "Đã xoá lịch" : thoiGian)
-                            .font(.caption)
+                // Nút / hiển thị nhảy tới cuộc trò chuyện
+                if let mucTieu = cuocMucTieuId {
+                    Divider()
+                    Button {
+                        env.moCuocHoiThoai(cuocId: mucTieu, tenCuoc: lich.tenCuoc, msgId: lich.msgNguon, quanhTs: lich.taoLuc)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "bubble.left.and.bubble.right.fill")
+                                .font(.system(size: 12))
+                            Text(lich.tenCuoc.flatMap { !$0.isEmpty ? "Tới trò chuyện: \($0)" : nil } ?? "Tới cuộc trò chuyện")
+                                .font(.caption.weight(.medium))
+                                .lineLimit(1)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .foregroundStyle(ZaloMau.xanh)
+                        .padding(.vertical, 2)
                     }
-                    .foregroundStyle(lich.daXoa == true ? .secondary : (daQua ? .secondary : ZaloMau.xanh))
-                    .strikethrough(lich.daXoa == true)
-
-                    if let chuLap, lich.daXoa != true {
-                        Text(chuLap)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if let tenCuoc = lich.tenCuoc, !tenCuoc.isEmpty {
-                        Text("Từ: \(tenCuoc)")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if let mucTieu = cuocMucTieuId {
+                    env.moCuocHoiThoai(cuocId: mucTieu, tenCuoc: lich.tenCuoc, msgId: lich.msgNguon, quanhTs: lich.taoLuc)
                 }
             }
 

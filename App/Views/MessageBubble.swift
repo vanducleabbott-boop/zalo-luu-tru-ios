@@ -110,13 +110,37 @@ struct MessageBubble: View {
             chuThichNeuCo
         case "lich":
             if let l = t.phu?.lich {
-                LichHenTinView(lich: l, onXoa: {
+                LichHenTinView(lich: l, cuocHienTaiId: vm.cuoc.id, onXoa: {
                     guard let id = l.id else { return }
                     Task { await vm.xoaLichHen(id: id, cuocId: l.cuocLich) }
                 })
             } else { Text(t.chu ?? "") }
         default:
-            VanBanTinView(chu: t.chu ?? "", tags: t.phu?.tag)
+            VStack(alignment: .leading, spacing: 4) {
+                VanBanTinView(chu: t.chu ?? "", tags: t.phu?.tag)
+                nhayVeCuocNguonNeuCo
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var nhayVeCuocNguonNeuCo: some View {
+        if let nguon = t.phu?.cuocNguon, !nguon.isEmpty, nguon != vm.cuoc.id {
+            Button {
+                env.moCuocHoiThoai(cuocId: nguon)
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                        .font(.system(size: 11))
+                    Text("Tới cuộc trò chuyện gốc")
+                        .font(.caption2.weight(.medium))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .bold))
+                }
+                .foregroundStyle(ZaloMau.xanh)
+                .padding(.top, 2)
+            }
+            .buttonStyle(.plain)
         }
     }
 

@@ -138,6 +138,7 @@ struct Phu: Codable, Equatable, Hashable {
     let ms: Int?                // sticker dong: thoi gian 1 khung (mili giay)
     let lich: LichHen?
     let tag: [TagMark]?
+    let cuocNguon: String?
 }
 
 // ---------------------------------------------------------------- 1 tin nhắn
