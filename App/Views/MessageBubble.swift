@@ -52,7 +52,7 @@ struct MessageBubble: View {
 
     @ViewBuilder
     private var nutTraLoiNho: some View {
-        if !t.thuHoi {
+        if !t.thuHoi || (env.hienTinThuHoi && coNoiDungLuu) {
             Button {
                 vm.chonTraLoi(t)
             } label: {
@@ -72,8 +72,38 @@ struct MessageBubble: View {
     private var bongBong: some View {
         VStack(alignment: .leading, spacing: 4) {
             if t.thuHoi {
-                Text(t.laToi ? "↩ Bạn đã thu hồi tin này" : "↩ Tin đã bị thu hồi")
-                    .font(.caption.italic()).foregroundStyle(ZaloMau.mauDo)
+                if env.hienTinThuHoi && coNoiDungLuu {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.uturn.backward.circle.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(t.laToi ? "Bạn đã thu hồi tin này (bản lưu)" : "Tin đã bị thu hồi (bản lưu)")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundStyle(Color.red)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.red.opacity(0.12), in: Capsule())
+                    .padding(.bottom, 2)
+
+                    if let q = t.quote {
+                        TrichDanXemTruoc(q: q)
+                            .onTapGesture { chamTrichDan(q.msgId ?? "") }
+                    }
+                    noiDung
+                    if cuoiNhom && !trongSuot {
+                        HStack(spacing: 4) {
+                            Text(DinhDang.gioPhut(t.ts))
+                                .font(.caption2)
+                                .foregroundStyle(ZaloMau.chuPhu)
+                            Text("• Đã thu hồi")
+                                .font(.caption2.italic())
+                                .foregroundStyle(Color.red.opacity(0.85))
+                        }
+                    }
+                } else {
+                    Text(t.laToi ? "↩ Bạn đã thu hồi tin này" : "↩ Tin đã bị thu hồi")
+                        .font(.caption.italic()).foregroundStyle(ZaloMau.mauDo)
+                }
             } else {
                 if let q = t.quote { TrichDanXemTruoc(q: q).onTapGesture { chamTrichDan(q.msgId ?? "") } }
                 noiDung
@@ -81,11 +111,26 @@ struct MessageBubble: View {
             }
         }
         .padding(trongSuot ? 0 : 10)
-        .background(trongSuot ? AnyView(Color.clear) : AnyView(RoundedRectangle(cornerRadius: 12).fill(t.laToi ? ZaloMau.bongToi : ZaloMau.bongHo)))
+        .background(
+            trongSuot
+                ? AnyView(Color.clear)
+                : AnyView(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(t.laToi ? ZaloMau.bongToi : ZaloMau.bongHo)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .strokeBorder(t.thuHoi ? Color.red.opacity(0.35) : Color.clear, lineWidth: 1)
+                        )
+                )
+        )
+    }
+
+    private var coNoiDungLuu: Bool {
+        !(t.chu ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || t.file != nil || t.quote != nil
     }
 
     private var trongSuot: Bool {
-        t.kieu == "sticker" || (["anh", "gif", "video"].contains(t.kieu) && (t.chu ?? "").isEmpty && t.quote == nil && !t.thuHoi && t.file != nil)
+        !t.thuHoi && (t.kieu == "sticker" || (["anh", "gif", "video"].contains(t.kieu) && (t.chu ?? "").isEmpty && t.quote == nil && t.file != nil))
     }
 
     @ViewBuilder

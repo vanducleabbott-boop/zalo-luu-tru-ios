@@ -34,6 +34,11 @@ final class AppEnvironment: ObservableObject {
     @Published var duongDanChat = NavigationPath()
     @Published var cuocGoiHienTai: ThongTinCuocGoi? = nil
     @Published var dangXuLyCuocGoi = false
+    @Published var hienTinThuHoi: Bool = UserDefaults.standard.object(forKey: "hienTinThuHoi") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(hienTinThuHoi, forKey: "hienTinThuHoi")
+        }
+    }
     let sse = SSEManager()
     private var huyTheoDoiThongBao: AnyCancellable?
 

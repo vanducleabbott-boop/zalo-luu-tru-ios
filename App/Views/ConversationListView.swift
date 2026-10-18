@@ -170,7 +170,7 @@ struct KetQuaTimTinRow: View {
             AvatarView(ten: t.tenCuoc ?? t.cuocId ?? "", anh: nil, khoa: t.cuocId ?? "", kichThuoc: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text(t.tenCuoc ?? t.cuocId ?? "").font(.system(size: 15)).lineLimit(1)
-                Text("\(t.laToi ? "Bạn" : (t.tenNguoi ?? "")): \(t.chu ?? t.tenFile ?? "")")
+                Text("\(t.laToi ? "Bạn" : (t.tenNguoi ?? "")): \(t.thuHoi ? "(đã thu hồi) " : "")\(t.chu ?? t.tenFile ?? "")")
                     .font(.system(size: 13)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer()

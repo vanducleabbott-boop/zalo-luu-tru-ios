@@ -68,8 +68,12 @@ struct SettingsView: View {
                         NotificationManager.shared.guiThongBaoThu()
                     }
                 }
-                Section("Giao diện") {
-                    Text("Theo hệ thống (Cài đặt > Màn hình & Độ sáng của iPhone)").font(.footnote).foregroundStyle(.secondary)
+                Section("Giao diện & Tin nhắn") {
+                    Text("Giao diện: Theo hệ thống (Cài đặt > Màn hình & Độ sáng của iPhone)").font(.footnote).foregroundStyle(.secondary)
+                    Toggle("Xem tin nhắn đã thu hồi", isOn: $env.hienTinThuHoi)
+                    Text("Tự động lưu và hiển thị toàn bộ nội dung tin nhắn, ảnh, video của người khác ngay cả khi họ đã bấm thu hồi.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
                 Section("Bộ nhớ đệm iPhone") {
                     HStack {
@@ -89,7 +93,7 @@ struct SettingsView: View {
                     HStack {
                         Text("Phiên bản")
                         Spacer()
-                        Text("3.1 (Build 27)").foregroundStyle(.secondary)
+                        Text("3.2 (Build 28)").foregroundStyle(.secondary)
                     }
                 }
                 Section {
