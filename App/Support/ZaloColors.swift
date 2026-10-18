@@ -9,6 +9,7 @@ enum ZaloMau {
     }
 
     static let xanh = thich(UIColor(red: 0, green: 0.408, blue: 1, alpha: 1), UIColor(red: 0.239, green: 0.545, blue: 1, alpha: 1))
+    static let xanhNhat = thich(UIColor(red: 0.898, green: 0.937, blue: 1, alpha: 1), UIColor(red: 0.106, green: 0.184, blue: 0.302, alpha: 1))
     /// Bong bóng tin của mình
     static let bongToi = thich(UIColor(red: 0.898, green: 0.937, blue: 1, alpha: 1), UIColor(red: 0.106, green: 0.184, blue: 0.302, alpha: 1))
     /// Bong bóng tin của người khác
