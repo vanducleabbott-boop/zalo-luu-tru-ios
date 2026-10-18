@@ -211,6 +211,8 @@ final class ChatViewModel: ObservableObject {
             break
         case .ketNoiLai:
             Task { await taiBu() }
+        default:
+            break
         }
     }
 

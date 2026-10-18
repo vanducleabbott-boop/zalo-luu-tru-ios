@@ -154,6 +154,8 @@ final class ConversationListViewModel: ObservableObject {
             henTaiLaiDanhSach()
         case .daDoc, .ghimDoiThayDoi, .ketNoiLai:
             henTaiLaiDanhSach()
+        default:
+            break
         }
     }
 
