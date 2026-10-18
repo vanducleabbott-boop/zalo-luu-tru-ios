@@ -91,6 +91,29 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
+    /// Phát thông báo cuộc gọi đến trên Zalo PC với mức ưu tiên cao
+    func baoCuocGoiDen(nguon: String?, chiTiet: String?) {
+        let nd = UNMutableNotificationContent()
+        nd.title = "📞 Có cuộc gọi Zalo đến!"
+        let chiTietText = chiTiet != nil ? " (\(chiTiet!))" : ""
+        nd.body = "Đang đổ chuông trên Zalo PC\(chiTietText). Mở app để bốc máy hoặc từ chối."
+        nd.sound = .default
+        nd.userInfo = ["loai": "cuoc_goi"]
+        let yc = UNNotificationRequest(identifier: "cuoc-goi-den", content: nd, trigger: nil)
+        UNUserNotificationCenter.current().add(yc) { loi in
+            if let loi {
+                print("[Notification] Loi phat chuong cuoc goi:", loi.localizedDescription)
+            } else {
+                print("[Notification] Da them thong bao cuoc goi den!")
+            }
+        }
+    }
+
+    func xoaBaoCuocGoi() {
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["cuoc-goi-den"])
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["cuoc-goi-den"])
+    }
+
     private func xemTruoc(_ t: Tin) -> String {
         let tenGui = t.tenNguoi.map { $0 + ": " } ?? ""
         switch t.kieu {

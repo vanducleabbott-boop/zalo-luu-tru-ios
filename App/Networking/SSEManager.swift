@@ -10,6 +10,8 @@ enum SuKienZalo {
     case daDoc(cuocId: String?)
     case ghimDoiThayDoi
     case ketNoiLai   // vua mo lai ket noi -> noi goi tai bu nhu web (taiBu())
+    case cuocGoiDen(nguon: String?, chiTiet: String?, thoiGian: Date)
+    case cuocGoiKetThuc
 }
 
 private struct PayloadTin: Decodable {
@@ -118,8 +120,27 @@ final class SSEManager: ObservableObject {
             suKien.send(.ghimDoiThayDoi)
         case "lich":
             suKien.send(.ketNoiLai)
+        case "cuoc-goi", "goi":
+            guard let data = sk.data.data(using: .utf8) else { return }
+            struct PayloadGoi: Decodable {
+                let loai: String?
+                let tu: String?
+                let nguon: String?
+                let chiTiet: String?
+            }
+            if let p = try? JSONDecoder().decode(PayloadGoi.self, from: data) {
+                let laBatDau = (p.loai == "goi-den" || p.loai == "chuong-bat-dau")
+                let laKetThuc = (p.loai == "ket-thuc" || p.loai == "chuong-ket-thuc" || p.loai == "da-tu-choi" || p.loai == "ngat")
+                if laBatDau {
+                    print("[SSE] PHAT HIEN CUOC GOI DEN tu:", p.nguon ?? p.tu ?? "Zalo PC")
+                    suKien.send(.cuocGoiDen(nguon: p.nguon ?? p.tu, chiTiet: p.chiTiet, thoiGian: Date()))
+                } else if laKetThuc {
+                    print("[SSE] CUOC GOI KET THUC")
+                    suKien.send(.cuocGoiKetThuc)
+                }
+            }
         default:
-            break   // "nhip" chi de cap nhat lastHeard; "goi" (cuoc goi WebRTC) la giai doan 2, chua xu ly
+            break   // "nhip" chi de cap nhat lastHeard
         }
     }
 

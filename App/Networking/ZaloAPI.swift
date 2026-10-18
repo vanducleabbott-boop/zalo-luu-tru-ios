@@ -279,6 +279,15 @@ final class ZaloAPI {
         if let zw = giaTriCookiePhien() { query["zw"] = zw }
         return try url("/api/su-kien", query: query)
     }
+
+    // ---------------------------------------------------------------- điều khiển cuộc gọi Zalo PC
+    func traLoiCuocGoi() async throws {
+        _ = try await goi("/api/cuoc-goi/tra-loi", method: "POST")
+    }
+
+    func tuChoiCuocGoi() async throws {
+        _ = try await goi("/api/cuoc-goi/tu-choi", method: "POST")
+    }
 }
 
 // Hộp bọc để JSONEncoder nhận Encodable kiểu tồn tại (existential) mà vẫn encode đúng kiểu cụ thể bên trong.

@@ -13,6 +13,12 @@ struct YeuCauMoCuoc: Hashable, Identifiable {
     var id: String { cuoc.id + (sangMsgId ?? "") }
 }
 
+struct ThongTinCuocGoi: Equatable {
+    let nguon: String?
+    let chiTiet: String?
+    let thoiGian: Date
+}
+
 @MainActor
 final class AppEnvironment: ObservableObject {
     @Published private(set) var settings: AppSettings
@@ -26,6 +32,8 @@ final class AppEnvironment: ObservableObject {
     @Published var dsCuocCache: [String: Cuoc] = [:]
     @Published var tabChon: Int = 0
     @Published var duongDanChat = NavigationPath()
+    @Published var cuocGoiHienTai: ThongTinCuocGoi? = nil
+    @Published var dangXuLyCuocGoi = false
     let sse = SSEManager()
     private var huyTheoDoiThongBao: AnyCancellable?
 
@@ -48,11 +56,49 @@ final class AppEnvironment: ObservableObject {
     }
 
     private func xuLyThongBaoNen(_ sk: SuKienZalo) {
-        guard case .tinMoi(let cuocId, let tin, let laTinMoi) = sk, laTinMoi else { return }
-        let c = dsCuocCache[cuocId]
-        let ten = c?.ten ?? tin.tenNguoi ?? tin.tenCuoc ?? (cuocId == "so_tay" ? "Cloud của tôi" : "Tin nhắn Zalo")
-        NotificationManager.shared.baoTinMoiNeuCan(cuocId: cuocId, tin: tin, tenCuoc: ten,
-                                                    laNhom: c?.laNhomBool ?? false, daTatThongBaoNhom: c?.daTatThongBao ?? false)
+        switch sk {
+        case .tinMoi(let cuocId, let tin, let laTinMoi):
+            guard laTinMoi else { return }
+            let c = dsCuocCache[cuocId]
+            let ten = c?.ten ?? tin.tenNguoi ?? tin.tenCuoc ?? (cuocId == "so_tay" ? "Cloud của tôi" : "Tin nhắn Zalo")
+            NotificationManager.shared.baoTinMoiNeuCan(cuocId: cuocId, tin: tin, tenCuoc: ten,
+                                                        laNhom: c?.laNhomBool ?? false, daTatThongBaoNhom: c?.daTatThongBao ?? false)
+        case .cuocGoiDen(let nguon, let chiTiet, let thoiGian):
+            self.cuocGoiHienTai = ThongTinCuocGoi(nguon: nguon, chiTiet: chiTiet, thoiGian: thoiGian)
+            NotificationManager.shared.baoCuocGoiDen(nguon: nguon, chiTiet: chiTiet)
+        case .cuocGoiKetThuc:
+            self.cuocGoiHienTai = nil
+            NotificationManager.shared.xoaBaoCuocGoi()
+        default:
+            break
+        }
+    }
+
+    func bocMayTrenPC() {
+        guard !dangXuLyCuocGoi else { return }
+        dangXuLyCuocGoi = true
+        Task {
+            _ = try? await api.traLoiCuocGoi()
+            await MainActor.run {
+                self.dangXuLyCuocGoi = false
+                self.cuocGoiHienTai = nil
+                self.tabChon = 2 // Sang tab Cuộc gọi để đàm thoại 2 chiều
+                NotificationManager.shared.xoaBaoCuocGoi()
+            }
+        }
+    }
+
+    func tuChoiCuocGoi() {
+        guard !dangXuLyCuocGoi else { return }
+        dangXuLyCuocGoi = true
+        Task {
+            _ = try? await api.tuChoiCuocGoi()
+            await MainActor.run {
+                self.dangXuLyCuocGoi = false
+                self.cuocGoiHienTai = nil
+                NotificationManager.shared.xoaBaoCuocGoi()
+            }
+        }
     }
 
     func doiMayChu(_ diaChi: String) {
