@@ -76,6 +76,7 @@ final class AppEnvironment: ObservableObject {
             self.cuocGoiHienTai = nil
             RingtoneManager.shared.tatChuong()
             NotificationManager.shared.xoaBaoCuocGoi()
+            BackgroundAudioManager.shared.batDauChayNen()
         default:
             break
         }
@@ -86,6 +87,7 @@ final class AppEnvironment: ObservableObject {
         dangXuLyCuocGoi = true
         RingtoneManager.shared.tatChuong()
         NotificationManager.shared.xoaBaoCuocGoi()
+        BackgroundAudioManager.shared.tamDungChoCuocGoi()
         Task {
             _ = try? await api.traLoiCuocGoi()
             await MainActor.run {

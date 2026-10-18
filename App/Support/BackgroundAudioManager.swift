@@ -47,6 +47,11 @@ final class BackgroundAudioManager {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
+    /// Tạm dừng phát tiếng tĩnh để nhường trọn vẹn luồng AudioSession / Micro cho đàm thoại cuộc gọi
+    func tamDungChoCuocGoi() {
+        audioPlayer?.pause()
+    }
+
     /// Tạo 1 giây file âm thanh WAV hoàn toàn tĩnh (im lặng - PCM số 0) trong bộ nhớ RAM (chỉ ~16KB)
     private func taoDuLieuWavYenLang() -> Data {
         let sampleRate: Int32 = 8000

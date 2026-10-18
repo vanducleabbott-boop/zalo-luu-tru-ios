@@ -6,7 +6,10 @@ struct CallPlaceholderView: View {
     @EnvironmentObject var env: AppEnvironment
 
     private var callURL: URL {
-        URL(string: "https://desktop-krdjkc2.tailbd558a.ts.net:3456")!
+        if let host = env.settings.baseURL.host {
+            return URL(string: "https://\(host):3456") ?? URL(string: "https://desktop-krdjkc2.tailbd558a.ts.net:3456")!
+        }
+        return URL(string: "https://desktop-krdjkc2.tailbd558a.ts.net:3456")!
     }
 
     var body: some View {
