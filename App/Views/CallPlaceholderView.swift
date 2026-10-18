@@ -23,8 +23,8 @@ struct CallPlaceholderView: View {
     private func cauHinhAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
-            try session.setActive(true)
+            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP])
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
         } catch {
             print("Lỗi cấu hình AVAudioSession: \(error)")
         }
@@ -44,6 +44,7 @@ private struct CallWebView: UIViewRepresentable {
         cauHinh.mediaTypesRequiringUserActionForPlayback = []
         let web = WKWebView(frame: .zero, configuration: cauHinh)
         web.uiDelegate = context.coordinator
+        web.navigationDelegate = context.coordinator
         taiTrang(web)
         return web
     }
@@ -60,7 +61,7 @@ private struct CallWebView: UIViewRepresentable {
         nhom.notify(queue: .main) { web.load(URLRequest(url: url)) }
     }
 
-    class Coordinator: NSObject, WKUIDelegate {
+    class Coordinator: NSObject, WKUIDelegate, WKNavigationDelegate {
         @available(iOS 15.0, *)
         func webView(
             _ webView: WKWebView,
@@ -70,6 +71,10 @@ private struct CallWebView: UIViewRepresentable {
             decisionHandler: @escaping (WKPermissionDecision) -> Void
         ) {
             decisionHandler(.grant)
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            webView.evaluateJavaScript("if (window.moKhoaToanBo) window.moKhoaToanBo();")
         }
     }
 }
