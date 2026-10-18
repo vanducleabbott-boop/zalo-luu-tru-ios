@@ -89,7 +89,7 @@ struct SettingsView: View {
                     HStack {
                         Text("Phiên bản")
                         Spacer()
-                        Text("2.7 (Build 18)").foregroundStyle(.secondary)
+                        Text("2.8 (Build 19)").foregroundStyle(.secondary)
                     }
                 }
                 Section {

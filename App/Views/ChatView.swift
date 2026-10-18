@@ -44,6 +44,7 @@ private struct ChatContentView: View {
     @State private var tinChuyenTiep: Tin?
     @State private var hienKho = false
     @State private var hienTimTrong = false
+    @State private var hienTaoLich = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -113,7 +114,7 @@ private struct ChatContentView: View {
                 }
             }
             if let traLoi = vm.traLoi { ThanhTraLoiView(t: traLoi) { vm.boTraLoi() } }
-            MessageInputBar(vm: vm, daFocus: $daFocusNhap)
+            MessageInputBar(vm: vm, daFocus: $daFocusNhap, onMoLichHen: { hienTaoLich = true })
         }
         .navigationTitle(vm.cuoc.ten ?? vm.cuoc.id)
         .navigationBarTitleDisplayMode(.inline)
@@ -130,6 +131,7 @@ private struct ChatContentView: View {
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
+                    Button { hienTaoLich = true } label: { Label("Đặt lịch hẹn", systemImage: "calendar.badge.clock") }
                     Button { hienTimTrong = true } label: { Label("Tìm tin nhắn", systemImage: "magnifyingglass") }
                     Button { hienKho = true } label: { Label("Ảnh, file, link đã gửi", systemImage: "photo.on.rectangle") }
                     if vm.cuoc.id != "so-tay" {
@@ -145,6 +147,7 @@ private struct ChatContentView: View {
                 } label: { Image(systemName: "ellipsis.circle") }
             }
         }
+        .sheet(isPresented: $hienTaoLich) { TaoLichHenView(vm: vm) }
         .sheet(isPresented: $hienKho) {
             MediaGalleryView(cuocId: vm.cuoc.id) { tinChon in
                 denTin(tinChon.msgId, ts: tinChon.ts)

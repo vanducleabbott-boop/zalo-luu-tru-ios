@@ -116,6 +116,8 @@ final class SSEManager: ObservableObject {
             suKien.send(.daDoc(cuocId: p?.cuocId))
         case "ghim":
             suKien.send(.ghimDoiThayDoi)
+        case "lich":
+            suKien.send(.ketNoiLai)
         default:
             break   // "nhip" chi de cap nhat lastHeard; "goi" (cuoc goi WebRTC) la giai doan 2, chua xu ly
         }

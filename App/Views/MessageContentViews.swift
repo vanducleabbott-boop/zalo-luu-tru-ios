@@ -471,24 +471,105 @@ struct FileTinView: View {
 // ---------------------------------------------------------------- lịch hẹn
 struct LichHenTinView: View {
     let lich: LichHen
+    var onXoa: (() -> Void)? = nil
+
+    @State private var hienXacNhanXoa = false
+
+    private var daQua: Bool {
+        guard let bd = lich.batDau else { return false }
+        return bd < Int64(Date().timeIntervalSince1970 * 1000)
+    }
+
+    private var chuLap: String? {
+        switch lich.lap {
+        case 1: return "Lặp hằng ngày"
+        case 2: return "Lặp hằng tuần"
+        case 3: return "Lặp hằng tháng"
+        default: return nil
+        }
+    }
+
+    private var coTheXoa: Bool {
+        lich.daXoa != true && (lich.rieng == true || lich.cuaToi != false) && onXoa != nil
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 10) {
-                Text(lich.emoji ?? "⏰").font(.system(size: 26))
-                VStack(alignment: .leading, spacing: 2) {
+                Text(lich.emoji ?? "⏰")
+                    .font(.system(size: 28))
+                    .frame(width: 38, height: 38)
+                    .background(Color(.systemGray5), in: Circle())
+
+                VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text(lich.tieuDe ?? "").font(.system(size: 14, weight: .semibold))
-                        Text(lich.rieng == true ? "🔒 Riêng" : "Zalo").font(.system(size: 10))
-                            .padding(.horizontal, 5).padding(.vertical, 1).background(.quaternary, in: Capsule())
+                        Text(lich.tieuDe ?? "Lịch hẹn")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(lich.daXoa == true ? .secondary : .primary)
+                            .strikethrough(lich.daXoa == true)
+                            .lineLimit(2)
+
+                        Spacer(minLength: 0)
+
+                        Text(lich.rieng == true ? "🔒 Riêng" : "Zalo")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(lich.rieng == true ? .secondary : ZaloMau.xanh)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(lich.rieng == true ? Color(.systemGray5) : ZaloMau.xanhNhat, in: Capsule())
                     }
-                    Text(lich.daXoa == true ? "Đã xoá" : thoiGian)
-                        .font(.caption).foregroundStyle(lich.daXoa == true ? .secondary : .primary)
-                        .strikethrough(lich.daXoa == true)
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock")
+                            .font(.system(size: 11))
+                        Text(lich.daXoa == true ? "Đã xoá lịch" : thoiGian)
+                            .font(.caption)
+                    }
+                    .foregroundStyle(lich.daXoa == true ? .secondary : (daQua ? .secondary : ZaloMau.xanh))
+                    .strikethrough(lich.daXoa == true)
+
+                    if let chuLap, lich.daXoa != true {
+                        Text(chuLap)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if let tenCuoc = lich.tenCuoc, !tenCuoc.isEmpty {
+                        Text("Từ: \(tenCuoc)")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+
+            if coTheXoa {
+                Divider()
+                HStack {
+                    Spacer()
+                    Button(role: .destructive) {
+                        hienXacNhanXoa = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 11))
+                            Text("Xoá lịch hẹn")
+                                .font(.caption.weight(.medium))
+                        }
+                        .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
-        .frame(minWidth: 220, maxWidth: 300, alignment: .leading)
+        .padding(10)
+        .frame(minWidth: 230, maxWidth: 300, alignment: .leading)
+        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+        .confirmationDialog("Xoá lịch hẹn \"\(lich.tieuDe ?? "")\"?", isPresented: $hienXacNhanXoa, titleVisibility: .visible) {
+            Button("Xoá lịch hẹn", role: .destructive) {
+                onXoa?()
+            }
+            Button("Huỷ", role: .cancel) {}
+        }
     }
 
     private var thoiGian: String {

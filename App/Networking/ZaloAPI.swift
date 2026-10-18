@@ -221,6 +221,33 @@ final class ZaloAPI {
         try await goiJSON("/api/danh-ba", method: "POST")
     }
 
+    // ---------------------------------------------------------------- đặt lịch hẹn (nhắc hẹn)
+    struct ThamSoTaoLich: Encodable {
+        let tieuDe: String
+        let batDau: Int64
+        let lap: Int
+        let emoji: String
+        let chiaSe: Bool
+    }
+
+    struct KetQuaTaoLich: Decodable {
+        let id: String?
+        let tieuDe: String?
+        let batDau: Int64?
+        let emoji: String?
+        let dienThoai: Bool?
+    }
+
+    @discardableResult
+    func taoLichHen(cuoc: String, tieuDe: String, batDau: Int64, lap: Int = 0, emoji: String = "⏰", chiaSe: Bool = true) async throws -> KetQuaTaoLich {
+        let body = ThamSoTaoLich(tieuDe: tieuDe, batDau: batDau, lap: lap, emoji: emoji, chiaSe: chiaSe)
+        return try await goiJSON("/api/lich", method: "POST", query: ["cuoc": cuoc], jsonBody: body)
+    }
+
+    func xoaLichHen(cuoc: String, id: String) async throws {
+        _ = try await goi("/api/lich/xoa", method: "POST", query: ["cuoc": cuoc, "id": id])
+    }
+
     func giaTriCookiePhien() -> String? {
         if let v = UserDefaults.standard.string(forKey: "zl_session_zw"), !v.isEmpty {
             return v

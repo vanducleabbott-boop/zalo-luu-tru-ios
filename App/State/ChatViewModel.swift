@@ -181,6 +181,21 @@ final class ChatViewModel: ObservableObject {
     }
     func boTraLoi() { traLoi = nil }
 
+    // ---------------------------------------------------------------- lịch hẹn (nhắc hẹn)
+    func taoLichHen(tieuDe: String, batDau: Date, lap: Int, emoji: String, chiaSe: Bool) async throws {
+        let batDauMs = Int64(batDau.timeIntervalSince1970 * 1000)
+        _ = try await env.api.taoLichHen(cuoc: cuoc.id, tieuDe: tieuDe, batDau: batDauMs, lap: lap, emoji: emoji, chiaSe: chiaSe)
+        cuonToiMsgId = "__cuoi__"
+    }
+
+    func xoaLichHen(id: String, cuocId: String? = nil) async {
+        do {
+            try await env.api.xoaLichHen(cuoc: cuocId ?? cuoc.id, id: id)
+        } catch {
+            loi = "Không thể xoá lịch hẹn: " + error.localizedDescription
+        }
+    }
+
     // ---------------------------------------------------------------- realtime
     private func xuLySuKien(_ sk: SuKienZalo) {
         switch sk {

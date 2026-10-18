@@ -109,7 +109,12 @@ struct MessageBubble: View {
             }
             chuThichNeuCo
         case "lich":
-            if let l = t.phu?.lich { LichHenTinView(lich: l) } else { Text(t.chu ?? "") }
+            if let l = t.phu?.lich {
+                LichHenTinView(lich: l, onXoa: {
+                    guard let id = l.id else { return }
+                    Task { await vm.xoaLichHen(id: id, cuocId: l.cuocLich) }
+                })
+            } else { Text(t.chu ?? "") }
         default:
             VanBanTinView(chu: t.chu ?? "", tags: t.phu?.tag)
         }

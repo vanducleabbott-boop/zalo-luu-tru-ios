@@ -6,6 +6,7 @@ import PhotosUI
 struct MessageInputBar: View {
     @ObservedObject var vm: ChatViewModel
     @FocusState.Binding var daFocus: Bool
+    var onMoLichHen: (() -> Void)? = nil
     @State private var vanBan = ""
     @State private var dangGui = false
     @State private var anhDaChon: PhotosPickerItem?
@@ -18,6 +19,14 @@ struct MessageInputBar: View {
             }
             .disabled(dangGuiAnh)
             .onChange(of: anhDaChon) { item in Task { await guiAnhDaChon(item) } }
+
+            Button {
+                onMoLichHen?()
+            } label: {
+                Image(systemName: "calendar.badge.clock")
+                    .font(.system(size: 20))
+                    .foregroundStyle(ZaloMau.xanh)
+            }
 
             TextField(vm.cuoc.id == "so-tay" ? "Ghi chú…" : "Nhập tin nhắn…", text: $vanBan, axis: .vertical)
                 .focused($daFocus)
