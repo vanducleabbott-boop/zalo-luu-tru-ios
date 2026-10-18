@@ -65,9 +65,11 @@ final class AppEnvironment: ObservableObject {
                                                         laNhom: c?.laNhomBool ?? false, daTatThongBaoNhom: c?.daTatThongBao ?? false)
         case .cuocGoiDen(let nguon, let chiTiet, let thoiGian):
             self.cuocGoiHienTai = ThongTinCuocGoi(nguon: nguon, chiTiet: chiTiet, thoiGian: thoiGian)
+            RingtoneManager.shared.batDauChuong()
             NotificationManager.shared.baoCuocGoiDen(nguon: nguon, chiTiet: chiTiet)
         case .cuocGoiKetThuc:
             self.cuocGoiHienTai = nil
+            RingtoneManager.shared.tatChuong()
             NotificationManager.shared.xoaBaoCuocGoi()
         default:
             break
@@ -77,13 +79,14 @@ final class AppEnvironment: ObservableObject {
     func bocMayTrenPC() {
         guard !dangXuLyCuocGoi else { return }
         dangXuLyCuocGoi = true
+        RingtoneManager.shared.tatChuong()
+        NotificationManager.shared.xoaBaoCuocGoi()
         Task {
             _ = try? await api.traLoiCuocGoi()
             await MainActor.run {
                 self.dangXuLyCuocGoi = false
                 self.cuocGoiHienTai = nil
                 self.tabChon = 2 // Sang tab Cuộc gọi để đàm thoại 2 chiều
-                NotificationManager.shared.xoaBaoCuocGoi()
             }
         }
     }
@@ -91,12 +94,13 @@ final class AppEnvironment: ObservableObject {
     func tuChoiCuocGoi() {
         guard !dangXuLyCuocGoi else { return }
         dangXuLyCuocGoi = true
+        RingtoneManager.shared.tatChuong()
+        NotificationManager.shared.xoaBaoCuocGoi()
         Task {
             _ = try? await api.tuChoiCuocGoi()
             await MainActor.run {
                 self.dangXuLyCuocGoi = false
                 self.cuocGoiHienTai = nil
-                NotificationManager.shared.xoaBaoCuocGoi()
             }
         }
     }

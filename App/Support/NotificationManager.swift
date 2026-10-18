@@ -97,14 +97,14 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         nd.title = "📞 Có cuộc gọi Zalo đến!"
         let chiTietText = chiTiet != nil ? " (\(chiTiet!))" : ""
         nd.body = "Đang đổ chuông trên Zalo PC\(chiTietText). Mở app để bốc máy hoặc từ chối."
-        nd.sound = .default
+        nd.sound = UNNotificationSound(named: UNNotificationSoundName("ringtone.wav"))
         nd.userInfo = ["loai": "cuoc_goi"]
         let yc = UNNotificationRequest(identifier: "cuoc-goi-den", content: nd, trigger: nil)
         UNUserNotificationCenter.current().add(yc) { loi in
             if let loi {
                 print("[Notification] Loi phat chuong cuoc goi:", loi.localizedDescription)
             } else {
-                print("[Notification] Da them thong bao cuoc goi den!")
+                print("[Notification] Da them thong bao cuoc goi den voi nhac chuong dai!")
             }
         }
     }
@@ -112,6 +112,9 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     func xoaBaoCuocGoi() {
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["cuoc-goi-den"])
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["cuoc-goi-den"])
+        Task { @MainActor in
+            RingtoneManager.shared.tatChuong()
+        }
     }
 
     private func xemTruoc(_ t: Tin) -> String {
