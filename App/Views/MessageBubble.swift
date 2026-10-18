@@ -125,7 +125,16 @@ struct MessageBubble: View {
         if let c = t.chu, !c.isEmpty { VanBanTinView(chu: c, tags: t.phu?.tag).padding(.top, 2) }
     }
 
-    private var diaChiFile: URL? { t.file.flatMap { env.api.diaChiMedia($0) } }
+    private var diaChiFile: URL? {
+        guard let f = t.file else { return nil }
+        if f.hasPrefix("file://") {
+            return URL(string: f)
+        }
+        if f.hasPrefix("/") {
+            return URL(fileURLWithPath: f)
+        }
+        return env.api.diaChiMedia(f)
+    }
 
     @ViewBuilder
     private var menu: some View {

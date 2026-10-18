@@ -96,8 +96,23 @@ final class MediaDiskCache {
         thuMucCache.appendingPathComponent(self.tenFile(tu: url, tenGoc: tenFile))
     }
 
+    /// Lưu file tạm thời trên đĩa để hiển thị tức thì (optimistic preview)
+    func luuMediaCucBo(data: Data, tenFile: String) -> URL {
+        let ext = (tenFile as NSString).pathExtension
+        let safeExt = ext.isEmpty ? "dat" : ext
+        let f = thuMucCache.appendingPathComponent("opt_\(UUID().uuidString).\(safeExt)")
+        try? data.write(to: f)
+        return f
+    }
+
     /// Tìm file cục bộ đã có trên máy
     func layFileCucBo(cho url: URL, tenFile: String? = nil) -> URL? {
+        if url.isFileURL || url.scheme == "file" {
+            if fileManager.fileExists(atPath: url.path) {
+                return url
+            }
+        }
+
         khoaLock.lock()
         defer { khoaLock.unlock() }
 

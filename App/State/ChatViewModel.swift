@@ -154,11 +154,68 @@ final class ChatViewModel: ObservableObject {
 
     func guiFile(duLieu: Data, tenFile: String) async {
         let trich = traLoi?.msgId
+        traLoi = nil
+
+        // 1. Phân loại kiểu tin (ảnh / video / file)
+        let ext = (tenFile as NSString).pathExtension.lowercased()
+        let kieu: String
+        if ["jpg", "jpeg", "png", "webp", "gif"].contains(ext) {
+            kieu = "anh"
+        } else if ["mp4", "mov"].contains(ext) {
+            kieu = "video"
+        } else {
+            kieu = "file"
+        }
+
+        // 2. Lưu đĩa cục bộ tức thì để hiển thị ngay 0ms không cần chờ server tải về
+        let localURL = MediaDiskCache.shared.luuMediaCucBo(data: duLieu, tenFile: tenFile)
+
+        // Nếu là ảnh, cache sẵn trong RAM để hiển thị tức thì không khựng
+        if kieu == "anh", let img = UIImage(data: duLieu) {
+            let khoa = MediaDiskCache.shared.khoaCache(tu: localURL)
+            ImageCacheManager.shared.luuAnh(img, khoa: khoa, dungLuong: duLieu.count)
+        }
+
+        // 3. Tạo tin nhắn tạm (optimistic preview) chèn ngay vào danh sách chat
+        let tempId = "temp_\(UUID().uuidString)"
+        let trichDan = trich.flatMap { msgId in
+            tinDangXem.first(where: { $0.msgId == msgId }).map {
+                TrichDan(ten: $0.tenNguoi, chu: $0.chu ?? $0.tenFile, msgId: $0.msgId)
+            }
+        }
+        let tinTam = Tin(
+            msgId: tempId,
+            cliMsgId: tempId,
+            cuocId: cuoc.id,
+            uid: env.uidToi,
+            tenNguoi: "Tôi",
+            laToi: true,
+            ts: Int64(Date().timeIntervalSince1970 * 1000),
+            loai: "gui",
+            kieu: kieu,
+            chu: nil,
+            url: nil,
+            file: localURL.absoluteString,
+            tenFile: tenFile,
+            kichThuoc: Int64(duLieu.count),
+            quote: trichDan,
+            thuHoi: false,
+            phu: nil,
+            camXuc: [],
+            tenCuoc: nil,
+            laNhomCuoc: nil
+        )
+
+        tinDangXem = PhanTrang.ganTin(tinDangXem, tinTam)
+        cuonToiMsgId = "__cuoi__"
+
+        // 4. Gửi file lên server ngầm
         do {
             try await env.api.guiFile(cuoc: cuoc.id, duLieu: duLieu, tenFile: tenFile, trichMsgId: trich)
-            traLoi = nil
-            cuonToiMsgId = "__cuoi__"
-        } catch { loi = "Không gửi được \(tenFile): " + error.localizedDescription }
+        } catch {
+            loi = "Không gửi được \(tenFile): " + error.localizedDescription
+            tinDangXem.removeAll(where: { $0.msgId == tempId })
+        }
     }
 
     // ---------------------------------------------------------------- thao tác trên 1 tin
@@ -201,6 +258,25 @@ final class ChatViewModel: ObservableObject {
         switch sk {
         case .tinMoi(let cuocId, let tin, let laTinMoi):
             guard cuocId == cuoc.id, !cheDoQuanh else { return }
+
+            // Nếu là tin tôi vừa gửi, chuyển bộ đệm từ tin tạm sang URL chính thức của server
+            if tin.laToi {
+                if let idx = tinDangXem.firstIndex(where: { $0.msgId.hasPrefix("temp_") && ($0.tenFile == tin.tenFile || $0.kieu == tin.kieu) }) {
+                    let tinTam = tinDangXem[idx]
+                    if let tempPath = tinTam.file, let tempURL = URL(string: tempPath),
+                       let serverURL = tin.file.flatMap({ env.api.diaChiMedia($0) }) {
+                        if let data = try? Data(contentsOf: tempURL) {
+                            MediaDiskCache.shared.luuDuLieu(data, cho: serverURL)
+                            if tin.kieu == "anh", let img = UIImage(data: data) {
+                                let khoa = MediaDiskCache.shared.khoaCache(tu: serverURL)
+                                ImageCacheManager.shared.luuAnh(img, khoa: khoa, dungLuong: data.count)
+                            }
+                        }
+                    }
+                    tinDangXem.remove(at: idx)
+                }
+            }
+
             tinDangXem = PhanTrang.ganTin(tinDangXem, tin)
             TinNhanDiskCache.shared.capNhatTinMoi(tin: tin, cuocId: cuoc.id)
             Task { await napNguoiLienQuan([tin]) }
