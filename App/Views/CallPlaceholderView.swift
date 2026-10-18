@@ -1,9 +1,6 @@
-// GIAI ĐOẠN 2 (chưa làm ở bản này): cuộc gọi qua cầu nối /api/goi/* đang được hoàn thiện ở phía máy chủ/web
-// (KHÔNG đụng tới web_zalo.mjs / web/index.html trong lượt việc này). Tạm thời mở trang web cũ
-// (đã có sẵn nút "📞 Cuộc gọi Zalo PC") trong WKWebView, đồng bộ cookie phiên để khỏi đăng nhập lại.
-
 import SwiftUI
 import WebKit
+import AVFoundation
 
 struct CallPlaceholderView: View {
     @EnvironmentObject var env: AppEnvironment
@@ -18,17 +15,35 @@ struct CallPlaceholderView: View {
                 .navigationTitle("Cuộc gọi")
                 .navigationBarTitleDisplayMode(.inline)
         }
+        .onAppear {
+            cauHinhAudioSession()
+        }
+    }
+
+    private func cauHinhAudioSession() {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
+            try session.setActive(true)
+        } catch {
+            print("Lỗi cấu hình AVAudioSession: \(error)")
+        }
     }
 }
 
 private struct CallWebView: UIViewRepresentable {
     let url: URL
 
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeUIView(context: Context) -> WKWebView {
         let cauHinh = WKWebViewConfiguration()
         cauHinh.allowsInlineMediaPlayback = true
         cauHinh.mediaTypesRequiringUserActionForPlayback = []
         let web = WKWebView(frame: .zero, configuration: cauHinh)
+        web.uiDelegate = context.coordinator
         taiTrang(web)
         return web
     }
@@ -43,5 +58,18 @@ private struct CallWebView: UIViewRepresentable {
         let nhom = DispatchGroup()
         for c in coKhop { nhom.enter(); kho.setCookie(c) { nhom.leave() } }
         nhom.notify(queue: .main) { web.load(URLRequest(url: url)) }
+    }
+
+    class Coordinator: NSObject, WKUIDelegate {
+        @available(iOS 15.0, *)
+        func webView(
+            _ webView: WKWebView,
+            requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+            initiatedByFrame frame: WKFrameInfo,
+            type: WKMediaCaptureType,
+            decisionHandler: @escaping (WKPermissionDecision) -> Void
+        ) {
+            decisionHandler(.grant)
+        }
     }
 }
