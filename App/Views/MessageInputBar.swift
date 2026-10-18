@@ -1,69 +1,76 @@
-// Ô soạn tin: nhiều dòng, nút gửi, nút ảnh (PhotosPicker) - khớp phần .soan trong web/index.html.
+// Ô soạn tin: nút dấu cộng (+) mở menu tính năng, ô nhập văn bản, nút gửi.
 
 import SwiftUI
 import PhotosUI
 import UIKit
+import UniformTypeIdentifiers
 
 struct MessageInputBar: View {
     @ObservedObject var vm: ChatViewModel
     @FocusState.Binding var daFocus: Bool
     var onMoLichHen: (() -> Void)? = nil
+
     @State private var vanBan = ""
     @State private var dangGui = false
     @State private var anhDaChon: PhotosPickerItem?
-    @State private var dangGuiAnh = false
+    @State private var dangGuiMedia = false
     @State private var cheDoCameraDangMo: CameraCheDo? = nil
+    @State private var hienThuVienAnh = false
+    @State private var hienChonFile = false
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            // Nút chụp ảnh trực tiếp bằng Camera
-            Button {
-                cheDoCameraDangMo = .caHai
-            } label: {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 19))
-                    .foregroundStyle(ZaloMau.xanh)
-            }
-            .disabled(dangGuiAnh)
+            // Nút dấu cộng (+) duy nhất ở bên trái ô chat
+            Menu {
+                Button {
+                    cheDoCameraDangMo = .photo
+                } label: {
+                    Label("Chụp ảnh", systemImage: "camera")
+                }
 
-            // Nút quay video trực tiếp và gửi ngay
-            Button {
-                cheDoCameraDangMo = .video
-            } label: {
-                Image(systemName: "video.fill")
-                    .font(.system(size: 19))
-                    .foregroundStyle(ZaloMau.xanh)
-            }
-            .disabled(dangGuiAnh)
+                Button {
+                    cheDoCameraDangMo = .video
+                } label: {
+                    Label("Quay video", systemImage: "video")
+                }
 
-            // Nút chọn ảnh / video từ Thư viện
-            PhotosPicker(selection: $anhDaChon, matching: .any(of: [.images, .videos])) {
-                if dangGuiAnh {
+                Button {
+                    hienThuVienAnh = true
+                } label: {
+                    Label("Thư viện ảnh & video", systemImage: "photo.on.rectangle")
+                }
+
+                Button {
+                    hienChonFile = true
+                } label: {
+                    Label("Gửi file / Tài liệu", systemImage: "doc")
+                }
+
+                Button {
+                    onMoLichHen?()
+                } label: {
+                    Label("Đặt lịch hẹn", systemImage: "calendar.badge.clock")
+                }
+            } label: {
+                if dangGuiMedia {
                     ProgressView()
-                        .frame(width: 19, height: 19)
+                        .frame(width: 26, height: 26)
                 } else {
-                    Image(systemName: "photo.on.rectangle")
-                        .font(.system(size: 19))
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 26))
                         .foregroundStyle(ZaloMau.xanh)
                 }
             }
-            .disabled(dangGuiAnh)
-            .onChange(of: anhDaChon) { item in Task { await guiAnhDaChon(item) } }
+            .disabled(dangGuiMedia)
 
-            Button {
-                onMoLichHen?()
-            } label: {
-                Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 19))
-                    .foregroundStyle(ZaloMau.xanh)
-            }
-
+            // Ô nhập văn bản
             TextField((vm.cuoc.id == "so-tay" || vm.cuoc.id == "so_tay") ? "Ghi chú…" : "Nhập tin nhắn…", text: $vanBan, axis: .vertical)
                 .focused($daFocus)
                 .lineLimit(1...5)
                 .padding(.horizontal, 12).padding(.vertical, 8)
                 .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 18))
 
+            // Nút gửi tin nhắn
             Button { Task { await gui() } } label: {
                 if dangGui { ProgressView() } else { Image(systemName: "paperplane.fill") }
             }
@@ -71,6 +78,7 @@ struct MessageInputBar: View {
         }
         .padding(.horizontal, 10).padding(.vertical, 8)
         .background(.bar)
+        // Máy ảnh / Máy quay trực tiếp
         .sheet(item: $cheDoCameraDangMo) { cheDo in
             CameraPickerView(cheDo: cheDo, onChupAnh: { capturedImage in
                 Task {
@@ -82,6 +90,19 @@ struct MessageInputBar: View {
                 }
             })
         }
+        // Thư viện ảnh / video hệ thống
+        .photosPicker(isPresented: $hienThuVienAnh, selection: $anhDaChon, matching: .any(of: [.images, .videos]))
+        .onChange(of: anhDaChon) { item in Task { await guiAnhDaChon(item) } }
+        // Chọn file / tài liệu từ Files app
+        .fileImporter(isPresented: $hienChonFile, allowedContentTypes: [.item], allowsMultipleSelection: false) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                Task { await xuLyGuiFileTuFiles(url) }
+            case .failure(let error):
+                print("Lỗi chọn file: \(error.localizedDescription)")
+            }
+        }
     }
 
     private func gui() async {
@@ -92,16 +113,16 @@ struct MessageInputBar: View {
     }
 
     private func xuLyChupAnh(_ image: UIImage) async {
-        dangGuiAnh = true
-        defer { dangGuiAnh = false }
+        dangGuiMedia = true
+        defer { dangGuiMedia = false }
         guard let jpeg = image.jpegData(compressionQuality: 0.85) else { return }
         let ten = "chup_anh_\(Int(Date().timeIntervalSince1970)).jpg"
         await vm.guiFile(duLieu: jpeg, tenFile: ten)
     }
 
     private func xuLyQuayVideo(_ sourceURL: URL) async {
-        dangGuiAnh = true
-        defer { dangGuiAnh = false }
+        dangGuiMedia = true
+        defer { dangGuiMedia = false }
         do {
             let (mp4Data, _) = try await VideoHelper.chuyenSangMP4(from: sourceURL)
             let ten = "video_quay_\(Int(Date().timeIntervalSince1970)).mp4"
@@ -115,10 +136,37 @@ struct MessageInputBar: View {
         }
     }
 
+    private func xuLyGuiFileTuFiles(_ url: URL) async {
+        dangGuiMedia = true
+        defer { dangGuiMedia = false }
+        guard url.startAccessingSecurityScopedResource() else { return }
+        defer { url.stopAccessingSecurityScopedResource() }
+
+        do {
+            let tenFile = url.lastPathComponent
+            let duoi = url.pathExtension.lowercased()
+
+            // Nếu người dùng chọn file video từ tệp -> tự động chuyển MP4 để Zalo xem inline được
+            let laVideo = ["mov", "mp4", "m4v", "3gp", "avi", "webm", "mkv"].contains(duoi)
+            if laVideo {
+                if let (mp4Data, _) = try? await VideoHelper.chuyenSangMP4(from: url) {
+                    let tenMP4 = (tenFile as NSString).deletingPathExtension + ".mp4"
+                    await vm.guiFile(duLieu: mp4Data, tenFile: tenMP4)
+                    return
+                }
+            }
+
+            let duLieu = try Data(contentsOf: url)
+            await vm.guiFile(duLieu: duLieu, tenFile: tenFile)
+        } catch {
+            print("Không thể đọc file: \(error)")
+        }
+    }
+
     private func guiAnhDaChon(_ item: PhotosPickerItem?) async {
         guard let item else { return }
-        dangGuiAnh = true
-        defer { dangGuiAnh = false; anhDaChon = nil }
+        dangGuiMedia = true
+        defer { dangGuiMedia = false; anhDaChon = nil }
 
         // 1. Kiểm tra nếu là Video -> chuyển đổi chuẩn sang MP4 (H.264/AAC) để Zalo xem được trực tiếp
         let laVideo = item.supportedContentTypes.contains(where: {
