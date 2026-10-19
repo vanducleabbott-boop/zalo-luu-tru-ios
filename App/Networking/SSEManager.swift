@@ -11,6 +11,7 @@ enum SuKienZalo {
     case ghimDoiThayDoi
     case ketNoiLai   // vua mo lai ket noi -> noi goi tai bu nhu web (taiBu())
     case cuocGoiDen(nguon: String?, chiTiet: String?, thoiGian: Date)
+    case cuocGoiDaTraLoi
     case cuocGoiKetThuc
 }
 
@@ -130,10 +131,14 @@ final class SSEManager: ObservableObject {
             }
             if let p = try? JSONDecoder().decode(PayloadGoi.self, from: data) {
                 let laBatDau = (p.loai == "goi-den" || p.loai == "chuong-bat-dau")
+                let laDaTraLoi = (p.loai == "da-tra-loi")
                 let laKetThuc = (p.loai == "ket-thuc" || p.loai == "chuong-ket-thuc" || p.loai == "da-tu-choi" || p.loai == "ngat")
                 if laBatDau {
                     print("[SSE] PHAT HIEN CUOC GOI DEN tu:", p.nguon ?? p.tu ?? "Zalo PC")
                     suKien.send(.cuocGoiDen(nguon: p.nguon ?? p.tu, chiTiet: p.chiTiet, thoiGian: Date()))
+                } else if laDaTraLoi {
+                    print("[SSE] CUOC GOI DA DUOC TRA LOI")
+                    suKien.send(.cuocGoiDaTraLoi)
                 } else if laKetThuc {
                     print("[SSE] CUOC GOI KET THUC")
                     suKien.send(.cuocGoiKetThuc)

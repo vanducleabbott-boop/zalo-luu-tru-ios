@@ -33,6 +33,7 @@ final class AppEnvironment: ObservableObject {
     @Published var tabChon: Int = 0
     @Published var duongDanChat = NavigationPath()
     @Published var cuocGoiHienTai: ThongTinCuocGoi? = nil
+    @Published var dangTrongCuocGoi = false
     @Published var dangXuLyCuocGoi = false
     @Published var hienTinThuHoi: Bool = UserDefaults.standard.object(forKey: "hienTinThuHoi") as? Bool ?? true {
         didSet {
@@ -69,11 +70,18 @@ final class AppEnvironment: ObservableObject {
             NotificationManager.shared.baoTinMoiNeuCan(cuocId: cuocId, tin: tin, tenCuoc: ten,
                                                         laNhom: c?.laNhomBool ?? false, daTatThongBaoNhom: c?.daTatThongBao ?? false)
         case .cuocGoiDen(let nguon, let chiTiet, let thoiGian):
+            guard !dangTrongCuocGoi else { return }
             self.cuocGoiHienTai = ThongTinCuocGoi(nguon: nguon, chiTiet: chiTiet, thoiGian: thoiGian)
             RingtoneManager.shared.batDauChuong()
             NotificationManager.shared.baoCuocGoiDen(nguon: nguon, chiTiet: chiTiet)
+        case .cuocGoiDaTraLoi:
+            self.cuocGoiHienTai = nil
+            self.dangTrongCuocGoi = true
+            RingtoneManager.shared.tatChuong()
+            NotificationManager.shared.xoaBaoCuocGoi()
         case .cuocGoiKetThuc:
             self.cuocGoiHienTai = nil
+            self.dangTrongCuocGoi = false
             RingtoneManager.shared.tatChuong()
             NotificationManager.shared.xoaBaoCuocGoi()
             BackgroundAudioManager.shared.batDauChayNen()
@@ -85,6 +93,8 @@ final class AppEnvironment: ObservableObject {
     func bocMayTrenPC() {
         guard !dangXuLyCuocGoi else { return }
         dangXuLyCuocGoi = true
+        dangTrongCuocGoi = true
+        self.cuocGoiHienTai = nil
         RingtoneManager.shared.tatChuong()
         NotificationManager.shared.xoaBaoCuocGoi()
         BackgroundAudioManager.shared.tamDungChoCuocGoi()
@@ -92,7 +102,6 @@ final class AppEnvironment: ObservableObject {
             _ = try? await api.traLoiCuocGoi()
             await MainActor.run {
                 self.dangXuLyCuocGoi = false
-                self.cuocGoiHienTai = nil
                 self.tabChon = 2 // Sang tab Cuộc gọi để đàm thoại 2 chiều
             }
         }
@@ -101,13 +110,14 @@ final class AppEnvironment: ObservableObject {
     func tuChoiCuocGoi() {
         guard !dangXuLyCuocGoi else { return }
         dangXuLyCuocGoi = true
+        dangTrongCuocGoi = false
+        self.cuocGoiHienTai = nil
         RingtoneManager.shared.tatChuong()
         NotificationManager.shared.xoaBaoCuocGoi()
         Task {
             _ = try? await api.tuChoiCuocGoi()
             await MainActor.run {
                 self.dangXuLyCuocGoi = false
-                self.cuocGoiHienTai = nil
             }
         }
     }
