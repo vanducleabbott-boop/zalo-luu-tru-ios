@@ -49,8 +49,10 @@ final class AppEnvironment: ObservableObject {
         api = ZaloAPI(baseURL: s.baseURL)
         NotificationManager.shared.xinQuyen()
         BackgroundAudioManager.shared.batDauChayNen()
+        ViTriGiuNen.shared.batDau()   // đường giữ nền chính (vị trí), tiếng tĩnh là lớp phụ
         NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
             BackgroundAudioManager.shared.batDauChayNen()
+            ViTriGiuNen.shared.batDau()
         }
         huyTheoDoiThongBao = sse.suKien.receive(on: DispatchQueue.main).sink { [weak self] sk in self?.xuLyThongBaoNen(sk) }
         NotificationCenter.default.addObserver(forName: .moCuocTuThongBao, object: nil, queue: .main) { [weak self] notif in
