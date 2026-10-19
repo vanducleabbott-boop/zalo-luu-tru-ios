@@ -150,7 +150,9 @@ private struct SpriteStickerView: View {
                         .frame(width: oCanh * CGFloat(khung), height: oCanh)
                         .offset(x: -CGFloat(idx) * oCanh)
                 }
-                .frame(width: oCanh, height: oCanh)
+                // alignment .leading: dải sprite phải sát MÉP TRÁI ô rồi mới dịch. Để mặc định (giữa) thì sticker có số
+                // khung CHẴN bị cắt đúng ranh giới 2 khung -> hiện 2 nửa mặt ghép nhau (lỗi 20/10/2026, v4.2).
+                .frame(width: oCanh, height: oCanh, alignment: .leading)
                 .clipped()
             } else {
                 ProgressView()
