@@ -11,7 +11,21 @@ final class BackgroundAudioManager {
     private var audioPlayer: AVAudioPlayer?
     private var daKhoiTao = false
 
-    private init() {}
+    private init() {
+        // 19/10/2026: cuộc gọi điện thoại thật / Siri / app khác làm iOS DỪNG tiếng tĩnh (interruption) mà trước đây
+        // không ai phát lại -> app bị treo ở nền, SSE chết, không nhận chuông. Hết gián đoạn thì phát lại.
+        let nc = NotificationCenter.default
+        nc.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] n in
+            guard let raw = n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  AVAudioSession.InterruptionType(rawValue: raw) == .ended else { return }
+            try? AVAudioSession.sharedInstance().setActive(true)
+            self?.batDauChayNen()
+        }
+        nc.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.daKhoiTao = false
+            self?.batDauChayNen()
+        }
+    }
 
     func batDauChayNen() {
         guard !daKhoiTao else {

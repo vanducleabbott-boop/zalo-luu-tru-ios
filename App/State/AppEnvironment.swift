@@ -100,7 +100,9 @@ final class AppEnvironment: ObservableObject {
         self.cuocGoiHienTai = nil
         RingtoneManager.shared.tatChuong()
         NotificationManager.shared.xoaBaoCuocGoi()
-        BackgroundAudioManager.shared.tamDungChoCuocGoi()
+        // 19/10/2026: KHÔNG tạm dừng tiếng tĩnh giữ nền nữa (tiếng tĩnh mixWithOthers không chiếm micro).
+        // Trước đây dừng ở đây rồi chỉ bật lại khi SSE báo "kết thúc" -> app bị treo ở nền thì không bao giờ nhận
+        // được "kết thúc" -> treo luôn, mọi cuộc gọi sau không reo.
         Task {
             _ = try? await api.traLoiCuocGoi()
             await MainActor.run {

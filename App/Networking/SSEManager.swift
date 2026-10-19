@@ -154,7 +154,10 @@ final class SSEManager: ObservableObject {
         vongLap = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
-                guard let self, UIApplication.shared.applicationState == .active else { continue }
+                guard let self else { continue }
+                // 19/10/2026: chạy cả khi app ở nền (app được giữ sống bằng tiếng tĩnh) - trước chỉ chạy khi app
+                // trên màn hình nên SSE chết lúc ở nền là mất chuông tới khi mở app. Kèm đảm bảo tiếng tĩnh còn phát.
+                BackgroundAudioManager.shared.batDauChayNen()
                 if canReconnectSSE(lastHeard: self.lastHeard, now: Date()) { self.noiLaiNeuCan() }
             }
         }
