@@ -93,7 +93,9 @@ struct SettingsView: View {
                     HStack {
                         Text("Phiên bản")
                         Spacer()
-                        Text("3.4 (Build 30)").foregroundStyle(.secondary)
+                        // đọc từ Info.plist (trước viết cứng "3.4 (Build 30)" nên cài bản nào cũng hiện 3.4)
+                        Text("\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?") (Build \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"))")
+                            .foregroundStyle(.secondary)
                     }
                 }
                 Section {
