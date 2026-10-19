@@ -1,5 +1,6 @@
 // Giữ app chạy nền bằng chế độ theo dõi vị trí (UIBackgroundModes: location) - cách Apple cho phép chính thức,
-// không bị YouTube/nhạc/cuộc gọi thật làm gián đoạn như tiếng tĩnh (BackgroundAudioManager vẫn giữ làm lớp phụ).
+// không bị YouTube/nhạc/cuộc gọi thật làm gián đoạn như tiếng tĩnh. Từ v3.9 đây là cách giữ nền DUY NHẤT
+// (tiếng tĩnh của BackgroundAudioManager đã tắt).
 // Độ chính xác thấp nhất (~3 km, sóng di động/Wi-Fi, không bật GPS) + distanceFilter tối đa để đỡ pin.
 // Vị trí KHÔNG dùng, KHÔNG gửi đi đâu - chỉ cần luồng cập nhật vị trí còn chạy là iOS không treo app. (19/10/2026)
 
@@ -34,7 +35,9 @@ final class ViTriGiuNen: NSObject, CLLocationManagerDelegate {
     private func chay() {
         // allowsBackgroundLocationUpdates chỉ đặt được khi Info.plist có UIBackgroundModes location (đã khai trong project.yml)
         quanLy.allowsBackgroundLocationUpdates = true
-        quanLy.showsBackgroundLocationIndicator = true
+        // false: có quyền "Luôn luôn" thì iOS không hiện viên xanh/mũi tên báo app dùng vị trí ở nền (người dùng
+        // muốn giống app clipboard). Chỉ có quyền "Khi dùng app" thì iOS vẫn bắt hiện.
+        quanLy.showsBackgroundLocationIndicator = false
         quanLy.startUpdatingLocation()
         if !dangChay { print("[ViTriGiuNen] Da bat theo doi vi tri giu nen") }
         dangChay = true

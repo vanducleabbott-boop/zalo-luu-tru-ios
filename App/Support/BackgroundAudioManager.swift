@@ -33,7 +33,12 @@ final class BackgroundAudioManager {
     /// (log 19/10/2026: "mic track MUTE" + "AudioContext -> interrupted" 2s sau khi bắt đầu). Giữ nền lúc gọi = vị trí.
     private(set) var dangGoi = false
 
+    /// 19/10/2026 (v3.9): TẮT hẳn tiếng tĩnh theo yêu cầu người dùng - giữ nền CHỈ bằng vị trí (ViTriGiuNen).
+    /// Giữ UIBackgroundModes audio trong Info.plist vì chuông + đàm thoại lúc app ở nền vẫn cần.
+    static let batTiengTinh = false
+
     func batDauChayNen() {
+        guard Self.batTiengTinh else { return }
         guard !dangGoi else { return }
         guard !daKhoiTao else {
             if let p = audioPlayer, !p.isPlaying {
