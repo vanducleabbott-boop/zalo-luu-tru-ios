@@ -70,7 +70,10 @@ final class AppEnvironment: ObservableObject {
             NotificationManager.shared.baoTinMoiNeuCan(cuocId: cuocId, tin: tin, tenCuoc: ten,
                                                         laNhom: c?.laNhomBool ?? false, daTatThongBaoNhom: c?.daTatThongBao ?? false)
         case .cuocGoiDen(let nguon, let chiTiet, let thoiGian):
-            guard !dangTrongCuocGoi else { return }
+            // PC (bot_zalo.mjs) chỉ phát chuông khi chính nó KHÔNG ở trong cuộc gọi -> tin PC, gỡ cờ cũ.
+            // 19/10/2026: cờ dangTrongCuocGoi từng kẹt true (bốc máy trượt, lỡ tín hiệu kết thúc lúc app ở nền)
+            // -> app im lặng với mọi cuộc gọi sau, kể cả khi đang mở app.
+            self.dangTrongCuocGoi = false
             self.cuocGoiHienTai = ThongTinCuocGoi(nguon: nguon, chiTiet: chiTiet, thoiGian: thoiGian)
             RingtoneManager.shared.batDauChuong()
             NotificationManager.shared.baoCuocGoiDen(nguon: nguon, chiTiet: chiTiet)
