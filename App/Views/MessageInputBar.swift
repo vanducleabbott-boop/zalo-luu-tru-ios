@@ -17,6 +17,7 @@ struct MessageInputBar: View {
     @State private var cheDoCameraDangMo: CameraCheDo? = nil
     @State private var hienThuVienAnh = false
     @State private var hienChonFile = false
+    @State private var hienSticker = false
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -70,6 +71,14 @@ struct MessageInputBar: View {
                 .padding(.horizontal, 12).padding(.vertical, 8)
                 .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 18))
 
+            // Nút sticker (như Zalo) - mở bảng chọn các bộ sticker đã tải sẵn
+            Button { hienSticker = true } label: {
+                Image(systemName: "face.smiling")
+                    .font(.system(size: 24))
+                    .foregroundStyle(ZaloMau.xanh)
+            }
+            .accessibilityLabel("Sticker")
+
             // Nút gửi tin nhắn
             Button { Task { await gui() } } label: {
                 if dangGui { ProgressView() } else { Image(systemName: "paperplane.fill") }
@@ -90,6 +99,7 @@ struct MessageInputBar: View {
                 }
             })
         }
+        .sheet(isPresented: $hienSticker) { StickerPickerView(vm: vm) }
         // Thư viện ảnh / video hệ thống
         .photosPicker(isPresented: $hienThuVienAnh, selection: $anhDaChon, matching: .any(of: [.images, .videos]))
         .onChange(of: anhDaChon) { item in Task { await guiAnhDaChon(item) } }

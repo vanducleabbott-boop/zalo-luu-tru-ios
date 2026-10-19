@@ -28,7 +28,7 @@ struct MessageBubble: View {
                     Color.clear.frame(width: 28, height: 28)
                 }
             } else {
-                nutTraLoiNho
+                // 19/10/2026 (v4.1): bỏ nút trả lời nhỏ cạnh MỌI tin - trả lời bằng ẤN GIỮ tin -> "Trả lời" (menu)
                 Spacer(minLength: 30)
             }
 
@@ -43,29 +43,10 @@ struct MessageBubble: View {
                 }
             }
             if !t.laToi {
-                nutTraLoiNho
                 Spacer(minLength: 30)
             }
         }
         .padding(.top, dauNhom ? 8 : 1)
-    }
-
-    @ViewBuilder
-    private var nutTraLoiNho: some View {
-        if !t.thuHoi || (env.hienTinThuHoi && coNoiDungLuu) {
-            Button {
-                vm.chonTraLoi(t)
-            } label: {
-                Image(systemName: "arrowshape.turn.up.left.fill")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color(.secondaryLabel))
-                    .frame(width: 26, height: 26)
-                    .background(Color(.systemGray5).opacity(0.8), in: Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Trả lời")
-            .padding(.bottom, 2)
-        }
     }
 
     @ViewBuilder

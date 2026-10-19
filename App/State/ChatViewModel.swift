@@ -239,6 +239,15 @@ final class ChatViewModel: ObservableObject {
     }
     func boTraLoi() { traLoi = nil }
 
+    /// Gửi sticker từ bảng chọn. Zalo không cho trích dẫn kèm sticker -> đang trả lời thì sticker gửi thành tin thường.
+    func guiSticker(_ s: StickerTrongKho) async {
+        do {
+            try await env.api.guiSticker(cuoc: cuoc.id, id: s.id)
+            traLoi = nil
+            cuonToiMsgId = "__cuoi__"
+        } catch { loi = "Không gửi được sticker: " + error.localizedDescription }
+    }
+
     // ---------------------------------------------------------------- lịch hẹn (nhắc hẹn)
     func taoLichHen(tieuDe: String, batDau: Date, lap: Int, emoji: String, chiaSe: Bool) async throws {
         let batDauMs = Int64(batDau.timeIntervalSince1970 * 1000)

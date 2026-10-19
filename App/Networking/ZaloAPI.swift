@@ -185,6 +185,18 @@ final class ZaloAPI {
                            rawBody: duLieu, headers: ["X-Ten-File": tenMaHoa])
     }
 
+    // ---------------------------------------------------------------- sticker (v4.1, 19/10/2026)
+    /// Các bộ sticker máy chủ đã tải sẵn thành GIF động, bộ dùng gần nhất trước (GET /api/sticker/kho).
+    func khoSticker() async throws -> [BoSticker] {
+        try await goiJSON("/api/sticker/kho")
+    }
+
+    /// Gửi 1 sticker (Zalo không cho trích dẫn kèm sticker).
+    func guiSticker(cuoc: String, id: Int) async throws {
+        struct Than: Encodable { let id: Int }
+        _ = try await goi("/api/gui-sticker", method: "POST", query: ["cuoc": cuoc], jsonBody: Than(id: id))
+    }
+
     // ---------------------------------------------------------------- thao tác trên 1 tin
     func thaCamXuc(cuoc: String, msg: String, icon: String) async throws {
         struct Than: Encodable { let icon: String }
