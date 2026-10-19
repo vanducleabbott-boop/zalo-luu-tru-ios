@@ -76,6 +76,7 @@ final class AppEnvironment: ObservableObject {
             // 19/10/2026: cờ dangTrongCuocGoi từng kẹt true (bốc máy trượt, lỡ tín hiệu kết thúc lúc app ở nền)
             // -> app im lặng với mọi cuộc gọi sau, kể cả khi đang mở app.
             self.dangTrongCuocGoi = false
+            BackgroundAudioManager.shared.tiepTucSauCuocGoi()   // lỡ tín hiệu kết thúc cuộc trước thì gỡ ở đây
             self.cuocGoiHienTai = ThongTinCuocGoi(nguon: nguon, chiTiet: chiTiet, thoiGian: thoiGian)
             RingtoneManager.shared.batDauChuong()
             NotificationManager.shared.baoCuocGoiDen(nguon: nguon, chiTiet: chiTiet)
@@ -89,7 +90,7 @@ final class AppEnvironment: ObservableObject {
             self.dangTrongCuocGoi = false
             RingtoneManager.shared.tatChuong()
             NotificationManager.shared.xoaBaoCuocGoi()
-            BackgroundAudioManager.shared.batDauChayNen()
+            BackgroundAudioManager.shared.tiepTucSauCuocGoi()
         default:
             break
         }
@@ -100,11 +101,11 @@ final class AppEnvironment: ObservableObject {
         dangXuLyCuocGoi = true
         dangTrongCuocGoi = true
         self.cuocGoiHienTai = nil
+        // 19/10/2026 (v3.8): DỪNG tiếng tĩnh TRƯỚC khi tắt chuông (tatChuong gọi batDauChayNen). Đang gọi mà app
+        // đụng âm thanh thì iOS ngắt mic + loa của trang Cuộc gọi. Giữ nền lúc gọi đã có ViTriGiuNen (vị trí).
+        BackgroundAudioManager.shared.tamDungChoCuocGoi()
         RingtoneManager.shared.tatChuong()
         NotificationManager.shared.xoaBaoCuocGoi()
-        // 19/10/2026: KHÔNG tạm dừng tiếng tĩnh giữ nền nữa (tiếng tĩnh mixWithOthers không chiếm micro).
-        // Trước đây dừng ở đây rồi chỉ bật lại khi SSE báo "kết thúc" -> app bị treo ở nền thì không bao giờ nhận
-        // được "kết thúc" -> treo luôn, mọi cuộc gọi sau không reo.
         Task {
             _ = try? await api.traLoiCuocGoi()
             await MainActor.run {

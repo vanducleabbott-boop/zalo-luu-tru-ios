@@ -17,7 +17,8 @@ final class BackgroundAudioManager {
         let nc = NotificationCenter.default
         nc.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] n in
             guard let raw = n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
-                  AVAudioSession.InterruptionType(rawValue: raw) == .ended else { return }
+                  AVAudioSession.InterruptionType(rawValue: raw) == .ended,
+                  self?.dangGoi == false else { return }   // đang gọi: để trang Cuộc gọi tự lo âm thanh
             try? AVAudioSession.sharedInstance().setActive(true)
             self?.batDauChayNen()
         }
@@ -27,7 +28,13 @@ final class BackgroundAudioManager {
         }
     }
 
+    /// Đang trong cuộc gọi: KHÔNG được đụng AVAudioSession / phát tiếng tĩnh. Trang Cuộc gọi (WKWebView) dùng chung
+    /// audio session của app - app phát/kích hoạt âm thanh giữa cuộc gọi làm iOS NGẮT mic + loa của trang
+    /// (log 19/10/2026: "mic track MUTE" + "AudioContext -> interrupted" 2s sau khi bắt đầu). Giữ nền lúc gọi = vị trí.
+    private(set) var dangGoi = false
+
     func batDauChayNen() {
+        guard !dangGoi else { return }
         guard !daKhoiTao else {
             if let p = audioPlayer, !p.isPlaying {
                 p.play()
@@ -63,7 +70,14 @@ final class BackgroundAudioManager {
 
     /// Tạm dừng phát tiếng tĩnh để nhường trọn vẹn luồng AudioSession / Micro cho đàm thoại cuộc gọi
     func tamDungChoCuocGoi() {
+        dangGoi = true
         audioPlayer?.pause()
+    }
+
+    /// Hết cuộc gọi (hoặc có cuộc gọi mới đến) -> phát lại tiếng tĩnh giữ nền.
+    func tiepTucSauCuocGoi() {
+        dangGoi = false
+        batDauChayNen()
     }
 
     /// Tạo 1 giây file âm thanh WAV hoàn toàn tĩnh (im lặng - PCM số 0) trong bộ nhớ RAM (chỉ ~16KB)
