@@ -15,7 +15,9 @@ final class ViTriGiuNen: NSObject, CLLocationManagerDelegate {
     private override init() {
         super.init()
         quanLy.delegate = self
-        quanLy.desiredAccuracy = kCLLocationAccuracyThreeKilometers
+        // v4.0: vị trí GẦN ĐÚNG (giống app Clip của Riley Testut - rileytestut/Clip LocationManager.swift) + khoá
+        // NSLocationDefaultAccuracyReduced trong Info.plist: không hiện mũi tên định vị như vị trí chính xác.
+        quanLy.desiredAccuracy = kCLLocationAccuracyReduced
         quanLy.distanceFilter = CLLocationDistanceMax
         quanLy.pausesLocationUpdatesAutomatically = false   // để mặc định thì iOS tự dừng khi máy đứng yên -> app bị treo
         quanLy.activityType = .other

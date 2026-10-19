@@ -49,7 +49,8 @@ final class AppEnvironment: ObservableObject {
         api = ZaloAPI(baseURL: s.baseURL)
         NotificationManager.shared.xinQuyen()
         BackgroundAudioManager.shared.batDauChayNen()
-        ViTriGiuNen.shared.batDau()   // đường giữ nền chính (vị trí), tiếng tĩnh là lớp phụ
+        ViTriGiuNen.shared.batDau()   // giữ nền DUY NHẤT bằng vị trí (tiếng tĩnh đã tắt từ v3.9)
+        BaoAppDaTat.shared.batDau()   // app bị tắt -> 6s sau hiện thông báo "ZaloCall đã ngừng chạy"
         NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
             BackgroundAudioManager.shared.batDauChayNen()
             ViTriGiuNen.shared.batDau()
