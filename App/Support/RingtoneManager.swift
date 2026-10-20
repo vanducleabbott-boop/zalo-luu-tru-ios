@@ -9,6 +9,7 @@ final class RingtoneManager: NSObject, AVAudioPlayerDelegate {
 
     private var player: AVAudioPlayer?
     private var rungTimer: Timer?
+    private var tuDongTatTimer: Timer?
     private(set) var dangDoChuong = false
 
     private override init() {
@@ -57,6 +58,16 @@ final class RingtoneManager: NSObject, AVAudioPlayerDelegate {
                 self?.kichHoatRung()
             }
         }
+
+        // 4. Tự động ngắt chuông sau 30 giây nếu người dùng không bấm (tránh reo vô tận khi không có người)
+        tuDongTatTimer?.invalidate()
+        tuDongTatTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                print("[Ringtone] Het 30s tu dong tat chuong")
+                self?.tatChuong()
+                NotificationManager.shared.xoaBaoCuocGoi()
+            }
+        }
     }
 
     func tatChuong() {
@@ -68,6 +79,9 @@ final class RingtoneManager: NSObject, AVAudioPlayerDelegate {
 
         rungTimer?.invalidate()
         rungTimer = nil
+
+        tuDongTatTimer?.invalidate()
+        tuDongTatTimer = nil
 
         print("[Ringtone] Da tat chuong cuoc goi")
 

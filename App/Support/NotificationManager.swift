@@ -10,6 +10,23 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     private override init() {
         super.init()
         UNUserNotificationCenter.current().delegate = self
+        dangKyCategory()
+    }
+
+    private func dangKyCategory() {
+        // Nút bấm "Tắt chuông" ngay trên thông báo màn hình khoá
+        let actionTatChuong = UNNotificationAction(
+            identifier: "TAT_CHUONG",
+            title: "Tắt chuông",
+            options: [] // Bấm được ngay không cần mở khoá máy
+        )
+        let category = UNNotificationCategory(
+            identifier: "CUOC_GOI",
+            actions: [actionTatChuong],
+            intentIdentifiers: [],
+            options: [.customDismissAction] // Gạt bỏ thông báo cũng kích hoạt để tắt chuông
+        )
+        UNUserNotificationCenter.current().setNotificationCategories([category])
     }
 
     func xinQuyen(completion: ((Bool) -> Void)? = nil) {
@@ -36,7 +53,24 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
+        let actionId = response.actionIdentifier
+        let reqId = response.notification.request.identifier
         let userInfo = response.notification.request.content.userInfo
+        let loai = userInfo["loai"] as? String
+
+        // Chạm vào thông báo cuộc gọi, bấm nút "Tắt chuông", hoặc gạt bỏ thông báo:
+        // Đều tắt chuông iPhone ngay lập tức mà không tác động tới cuộc gọi trên PC.
+        if loai == "cuoc_goi" || reqId == "cuoc-goi-den" || actionId == "TAT_CHUONG" || actionId == UNNotificationDismissActionIdentifier {
+            print("[Notification] Nguoi dung tat chuong/xoa thong bao cuoc goi (action=\(actionId))")
+            Task { @MainActor in
+                RingtoneManager.shared.tatChuong()
+                NotificationManager.shared.xoaBaoCuocGoi()
+                NotificationCenter.default.post(name: .tatChuongCuocGoiTuThongBao, object: nil)
+            }
+            completionHandler()
+            return
+        }
+
         if let cuocId = userInfo["cuoc"] as? String {
             let msgId = userInfo["msgId"] as? String
             print("[Notification] Nguoi dung an vao thong bao: cuoc=\(cuocId), msgId=\(msgId ?? "nil")")
@@ -96,8 +130,9 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         let nd = UNMutableNotificationContent()
         nd.title = "📞 Có cuộc gọi Zalo đến!"
         let chiTietText = chiTiet != nil ? " (\(chiTiet!))" : ""
-        nd.body = "Đang đổ chuông trên Zalo PC\(chiTietText). Mở app để bốc máy hoặc từ chối."
+        nd.body = "Đang đổ chuông trên Zalo PC\(chiTietText). Chạm hoặc bấm 'Tắt chuông' để tắt âm báo."
         nd.sound = UNNotificationSound(named: UNNotificationSoundName("ringtone.wav"))
+        nd.categoryIdentifier = "CUOC_GOI"
         nd.userInfo = ["loai": "cuoc_goi"]
         let yc = UNNotificationRequest(identifier: "cuoc-goi-den", content: nd, trigger: nil)
         UNUserNotificationCenter.current().add(yc) { loi in
@@ -134,5 +169,6 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
 
 extension Notification.Name {
     static let moCuocTuThongBao = Notification.Name("moCuocTuThongBao")
+    static let tatChuongCuocGoiTuThongBao = Notification.Name("tatChuongCuocGoiTuThongBao")
 }
 

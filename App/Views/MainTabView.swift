@@ -70,16 +70,16 @@ struct CuocGoiDenBannerView: View {
                 Button {
                     env.tatChuongCucBo()
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 5) {
                         Image(systemName: "speaker.slash.fill")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 13, weight: .bold))
                         Text("Tắt chuông")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 13, weight: .bold))
                     }
                     .foregroundColor(.white)
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(Color.secondary.opacity(0.85))
+                    .background(Color.red)
                     .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -93,6 +93,10 @@ struct CuocGoiDenBannerView: View {
             )
             .padding(.horizontal, 12)
             .padding(.top, 4)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                env.tatChuongCucBo()
+            }
         }
     }
 }

@@ -62,6 +62,9 @@ final class AppEnvironment: ObservableObject {
             let msgId = notif.userInfo?["msgId"] as? String
             self.moCuocTuThongBao(cuocId: cuocId, msgId: msgId)
         }
+        NotificationCenter.default.addObserver(forName: .tatChuongCuocGoiTuThongBao, object: nil, queue: .main) { [weak self] _ in
+            self?.tatChuongCucBo()
+        }
     }
 
     private func xuLyThongBaoNen(_ sk: SuKienZalo) {
