@@ -1,5 +1,6 @@
 // Màn hình chọn người và nhóm để chuyển tiếp tin nhắn.
-// Cho phép chuyển tiếp tới các đoạn chat lẻ HOẶC chọn nhóm phân loại để gửi hàng loạt tới mọi đoạn chat trong nhóm.
+// Cho phép chuyển tiếp tới các đoạn chat lẻ HOẶC chọn nhóm phân loại để gửi hàng loạt.
+// Hỗ trợ bớt người nhận: qua dải chip xoa nhanh, qua nút "Xem/Bớt" trong nhóm, hoặc bỏ chọn ở tab Đoạn chat.
 
 import SwiftUI
 
@@ -15,24 +16,11 @@ struct ForwardMessageView: View {
     @State private var tuKhoa = ""
     @State private var cheDoTab = 0 // 0: Đoạn chat, 1: Nhóm phân loại
     @State private var daChonCuoc = Set<String>()
-    @State private var daChonNhom = Set<String>()
+    @State private var nhomDangXemThanhVien: NhomTuyChon?
     @State private var loiNhan = ""
     @State private var dangGui = false
     @State private var dangTaiDs = true
     @State private var thongBaoLoi: String?
-
-    /// Tập hợp các ID cuộc trò chuyện duy nhất sẽ nhận tin nhắn
-    private var dsCuocNhanTin: [String] {
-        var tapHop = daChonCuoc
-        for nhomId in daChonNhom {
-            if let nhom = nhomManager.dsNhom.first(where: { $0.id == nhomId }) {
-                for cid in nhom.dsCuocId {
-                    tapHop.insert(cid)
-                }
-            }
-        }
-        return Array(tapHop)
-    }
 
     var body: some View {
         NavigationStack {
@@ -42,12 +30,17 @@ struct ForwardMessageView: View {
 
                 // Tab chọn: Đoạn chat lẻ vs Nhóm phân loại
                 Picker("Chế độ chọn", selection: $cheDoTab) {
-                    Text("Đoạn chat (\(dsCuocNhanLeCount))").tag(0)
-                    Text("Nhóm phân loại (\(daChonNhom.count))").tag(1)
+                    Text("Đoạn chat (\(dsCuocDaChonCount))").tag(0)
+                    Text("Nhóm phân loại (\(soNhomDangChon))").tag(1)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
+
+                // Dải chip hiển thị người nhận đã chọn - bấm x để bớt nhanh người nhận
+                if !daChonCuoc.isEmpty {
+                    daiChipNguoiNhan
+                }
 
                 Divider()
 
@@ -65,7 +58,7 @@ struct ForwardMessageView: View {
                 }
 
                 // Thanh nhập lời nhắn gửi kèm nếu đã chọn ít nhất 1 người
-                if !dsCuocNhanTin.isEmpty {
+                if !daChonCuoc.isEmpty {
                     thanhGuiLoiNhan
                 }
             }
@@ -77,14 +70,14 @@ struct ForwardMessageView: View {
                         .disabled(dangGui)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    if !dsCuocNhanTin.isEmpty {
+                    if !daChonCuoc.isEmpty {
                         Button {
                             Task { await thucHienChuyenTiep() }
                         } label: {
                             if dangGui {
                                 ProgressView()
                             } else {
-                                Text("Gửi (\(dsCuocNhanTin.count))")
+                                Text("Gửi (\(daChonCuoc.count))")
                                     .bold()
                             }
                         }
@@ -95,6 +88,12 @@ struct ForwardMessageView: View {
             .task {
                 await napDanhSachCuoc()
             }
+            .sheet(item: $nhomDangXemThanhVien) { nhom in
+                ChiTietThanhVienForwardSheet(
+                    nhom: nhom,
+                    daChonCuoc: $daChonCuoc
+                )
+            }
             .alert("Lỗi chuyển tiếp", isPresented: Binding(get: { thongBaoLoi != nil }, set: { if !$0 { thongBaoLoi = nil } })) {
                 Button("Đóng", role: .cancel) {}
             } message: {
@@ -103,18 +102,70 @@ struct ForwardMessageView: View {
         }
     }
 
-    private var dsCuocNhanLeCount: Int {
+    private var dsCuocDaChonCount: Int {
         daChonCuoc.count
+    }
+
+    private var soNhomDangChon: Int {
+        nhomManager.dsNhom.filter { nhom in
+            !nhom.dsCuocId.isEmpty && nhom.dsCuocId.allSatisfy { daChonCuoc.contains($0) }
+        }.count
+    }
+
+    // MARK: - Dải chip hiển thị người nhận đã chọn (cho phép bớt nhanh bằng nút x)
+    private var daiChipNguoiNhan: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Người nhận (\(daChonCuoc.count)):")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Bỏ chọn hết") {
+                    daChonCuoc.removeAll()
+                }
+                .font(.caption)
+                .foregroundStyle(.red)
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 4)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(Array(daChonCuoc), id: \.self) { cid in
+                        let c = env.dsCuocCache[cid]
+                        let ten = c?.ten ?? cid
+
+                        HStack(spacing: 4) {
+                            Text((c?.laNhomBool == true ? "👥 " : "") + ten)
+                                .font(.caption)
+                                .lineLimit(1)
+
+                            Button {
+                                daChonCuoc.remove(cid)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(.systemGray5), in: Capsule())
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 6)
+            }
+        }
+        .background(Color(.secondarySystemBackground))
     }
 
     // MARK: - Danh sách đoạn chat lẻ
     private var danhSachDoanChat: some View {
         List {
             ForEach(dsLoc) { c in
-                let daChonTrucTiep = daChonCuoc.contains(c.id)
-                let daChonQuaNhom = !daChonTrucTiep && daChonNhom.contains { nid in
-                    nhomManager.dsNhom.first(where: { $0.id == nid })?.dsCuocId.contains(c.id) == true
-                }
+                let daChon = daChonCuoc.contains(c.id)
 
                 HStack(spacing: 12) {
                     AvatarView(ten: c.ten ?? c.id, anh: c.anh, khoa: c.id, kichThuoc: 44)
@@ -123,27 +174,24 @@ struct ForwardMessageView: View {
                         Text((c.laNhomBool ? "👥 " : "") + (c.ten ?? c.id))
                             .font(.system(size: 15, weight: .medium))
                             .lineLimit(1)
-                        HStack(spacing: 4) {
-                            Text(c.laNhomBool ? "Nhóm Zalo" : "Cá nhân")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            if daChonQuaNhom {
-                                Text("• Đã chọn qua Nhóm")
-                                    .font(.caption)
-                                    .foregroundStyle(ZaloMau.xanh)
-                            }
-                        }
+                        Text(c.laNhomBool ? "Nhóm Zalo" : "Trò chuyện cá nhân")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
 
                     Spacer()
 
-                    Image(systemName: (daChonTrucTiep || daChonQuaNhom) ? "checkmark.circle.fill" : "circle")
+                    Image(systemName: daChon ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 22))
-                        .foregroundStyle((daChonTrucTiep || daChonQuaNhom) ? ZaloMau.xanh : Color(.systemGray4))
+                        .foregroundStyle(daChon ? ZaloMau.xanh : Color(.systemGray4))
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    toggleChonCuoc(c.id)
+                    if daChon {
+                        daChonCuoc.remove(c.id)
+                    } else {
+                        daChonCuoc.insert(c.id)
+                    }
                 }
             }
         }
@@ -171,7 +219,10 @@ struct ForwardMessageView: View {
             } else {
                 List {
                     ForEach(dsNhomLoc) { nhom in
-                        let daChon = daChonNhom.contains(nhom.id)
+                        let soLuong = nhom.dsCuocId.count
+                        let soDaChon = nhom.dsCuocId.filter { daChonCuoc.contains($0) }.count
+                        let daChonHet = soLuong > 0 && soDaChon == soLuong
+                        let daChonMotPhan = soDaChon > 0 && soDaChon < soLuong
 
                         HStack(spacing: 12) {
                             ZStack {
@@ -187,22 +238,58 @@ struct ForwardMessageView: View {
                                 Text(nhom.ten)
                                     .font(.system(size: 15, weight: .semibold))
                                     .lineLimit(1)
-                                Text(tenCacCuocTrongNhom(nhom))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
+
+                                HStack(spacing: 4) {
+                                    if soLuong == 0 {
+                                        Text("Chưa có đoạn chat")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        Text("\(soDaChon)/\(soLuong) đã chọn")
+                                            .font(.caption)
+                                            .foregroundStyle(daChonMotPhan ? .orange : (daChonHet ? ZaloMau.xanh : .secondary))
+
+                                        if daChonMotPhan {
+                                            Text("• Đã bớt \(soLuong - soDaChon)")
+                                                .font(.caption)
+                                                .foregroundStyle(.orange)
+                                        }
+                                    }
+                                }
                             }
 
                             Spacer()
 
-                            Image(systemName: daChon ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 22))
-                                .foregroundStyle(daChon ? ZaloMau.xanh : Color(.systemGray4))
+                            // Nút mở xem thành viên để thêm/bớt từng người trong nhóm này
+                            if soLuong > 0 {
+                                Button {
+                                    nhomDangXemThanhVien = nhom
+                                } label: {
+                                    HStack(spacing: 2) {
+                                        Text("Xem/Bớt")
+                                            .font(.system(size: 12, weight: .semibold))
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 10, weight: .bold))
+                                    }
+                                    .foregroundStyle(ZaloMau.xanh)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 5)
+                                    .background(Color.blue.opacity(0.08), in: Capsule())
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            // Nút tích chọn / bỏ chọn cả nhóm
+                            Button {
+                                toggleChonCaNhom(nhom)
+                            } label: {
+                                Image(systemName: daChonHet ? "checkmark.circle.fill" : (daChonMotPhan ? "minus.circle.fill" : "circle"))
+                                    .font(.system(size: 24))
+                                    .foregroundStyle(daChonHet ? ZaloMau.xanh : (daChonMotPhan ? .orange : Color(.systemGray4)))
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            toggleChonNhom(nhom.id)
-                        }
+                        .padding(.vertical, 2)
                     }
                 }
                 .listStyle(.plain)
@@ -300,32 +387,21 @@ struct ForwardMessageView: View {
         return nhomManager.dsNhom.filter { $0.ten.lowercased().contains(q) }
     }
 
-    private func tenCacCuocTrongNhom(_ nhom: NhomTuyChon) -> String {
-        let ten = nhom.dsCuocId.compactMap { cid -> String? in
-            guard let c = env.dsCuocCache[cid] else { return nil }
-            return c.ten ?? c.id
-        }
-        if ten.isEmpty { return "Chưa có đoạn chat nào" }
-        let hienThi = ten.prefix(3).joined(separator: ", ")
-        if ten.count > 3 {
-            return "\(ten.count) đoạn chat: \(hienThi), …"
-        }
-        return "\(ten.count) đoạn chat: \(hienThi)"
-    }
+    private func toggleChonCaNhom(_ nhom: NhomTuyChon) {
+        let cacCuoc = nhom.dsCuocId
+        guard !cacCuoc.isEmpty else { return }
 
-    private func toggleChonCuoc(_ id: String) {
-        if daChonCuoc.contains(id) {
-            daChonCuoc.remove(id)
+        let daChonHet = cacCuoc.allSatisfy { daChonCuoc.contains($0) }
+        if daChonHet {
+            // Đang chọn hết -> bỏ chọn toàn bộ nhóm này
+            for cid in cacCuoc {
+                daChonCuoc.remove(cid)
+            }
         } else {
-            daChonCuoc.insert(id)
-        }
-    }
-
-    private func toggleChonNhom(_ nhomId: String) {
-        if daChonNhom.contains(nhomId) {
-            daChonNhom.remove(nhomId)
-        } else {
-            daChonNhom.insert(nhomId)
+            // Chưa chọn hết -> thêm toàn bộ nhóm này vào danh sách nhận
+            for cid in cacCuoc {
+                daChonCuoc.insert(cid)
+            }
         }
     }
 
@@ -353,7 +429,7 @@ struct ForwardMessageView: View {
     }
 
     private func thucHienChuyenTiep() async {
-        let danhSachDich = dsCuocNhanTin
+        let danhSachDich = Array(daChonCuoc)
         guard !danhSachDich.isEmpty else { return }
         dangGui = true
         defer { dangGui = false }
@@ -375,6 +451,77 @@ struct ForwardMessageView: View {
             dismiss()
         } catch {
             thongBaoLoi = "Không thể chuyển tiếp: " + error.localizedDescription
+        }
+    }
+}
+
+/// Sheet xem danh sách thành viên trong nhóm để bớt/thêm từng người nhận
+struct ChiTietThanhVienForwardSheet: View {
+    @EnvironmentObject var env: AppEnvironment
+    @Environment(\.dismiss) private var dismiss
+
+    let nhom: NhomTuyChon
+    @Binding var daChonCuoc: Set<String>
+
+    private var dsCuocTrongNhom: [Cuoc] {
+        nhom.dsCuocId.compactMap { env.dsCuocCache[$0] }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(dsCuocTrongNhom) { c in
+                        let daChon = daChonCuoc.contains(c.id)
+
+                        HStack(spacing: 12) {
+                            AvatarView(ten: c.ten ?? c.id, anh: c.anh, khoa: c.id, kichThuoc: 40)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text((c.laNhomBool ? "👥 " : "") + (c.ten ?? c.id))
+                                    .font(.system(size: 15, weight: .medium))
+                                    .lineLimit(1)
+                                Text(c.laNhomBool ? "Nhóm Zalo" : "Trò chuyện cá nhân")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Image(systemName: daChon ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 22))
+                                .foregroundStyle(daChon ? ZaloMau.xanh : Color(.systemGray4))
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if daChon {
+                                daChonCuoc.remove(c.id)
+                            } else {
+                                daChonCuoc.insert(c.id)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Thành viên nhóm \"\(nhom.ten)\"")
+                } footer: {
+                    Text("Bỏ tích các đoạn chat bạn KHÔNG muốn gửi đến lần này.")
+                }
+            }
+            .listStyle(.plain)
+            .navigationTitle(nhom.ten)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Chọn tất cả") {
+                        for cid in nhom.dsCuocId {
+                            daChonCuoc.insert(cid)
+                        }
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Xong") { dismiss() }
+                        .bold()
+                }
+            }
         }
     }
 }
