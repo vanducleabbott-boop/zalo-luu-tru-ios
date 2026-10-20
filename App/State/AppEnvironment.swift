@@ -97,38 +97,19 @@ final class AppEnvironment: ObservableObject {
         }
     }
 
-    func bocMayTrenPC() {
-        guard !dangXuLyCuocGoi else { return }
-        dangXuLyCuocGoi = true
-        dangTrongCuocGoi = true
+    func tatChuongCucBo() {
         self.cuocGoiHienTai = nil
-        // 19/10/2026 (v3.8): DỪNG tiếng tĩnh TRƯỚC khi tắt chuông (tatChuong gọi batDauChayNen). Đang gọi mà app
-        // đụng âm thanh thì iOS ngắt mic + loa của trang Cuộc gọi. Giữ nền lúc gọi đã có ViTriGiuNen (vị trí).
-        BackgroundAudioManager.shared.tamDungChoCuocGoi()
+        self.dangTrongCuocGoi = false
         RingtoneManager.shared.tatChuong()
         NotificationManager.shared.xoaBaoCuocGoi()
-        Task {
-            _ = try? await api.traLoiCuocGoi()
-            await MainActor.run {
-                self.dangXuLyCuocGoi = false
-                self.tabChon = 2 // Sang tab Cuộc gọi để đàm thoại 2 chiều
-            }
-        }
+    }
+
+    func bocMayTrenPC() {
+        tatChuongCucBo()
     }
 
     func tuChoiCuocGoi() {
-        guard !dangXuLyCuocGoi else { return }
-        dangXuLyCuocGoi = true
-        dangTrongCuocGoi = false
-        self.cuocGoiHienTai = nil
-        RingtoneManager.shared.tatChuong()
-        NotificationManager.shared.xoaBaoCuocGoi()
-        Task {
-            _ = try? await api.tuChoiCuocGoi()
-            await MainActor.run {
-                self.dangXuLyCuocGoi = false
-            }
-        }
+        tatChuongCucBo()
     }
 
     func doiMayChu(_ diaChi: String) {

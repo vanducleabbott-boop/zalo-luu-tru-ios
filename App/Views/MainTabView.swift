@@ -9,15 +9,9 @@ struct MainTabView: View {
                 ConversationListView()
                     .tabItem { Label("Tin nhắn", systemImage: "message.fill") }
                     .tag(0)
-                ContactsView()
-                    .tabItem { Label("Danh bạ", systemImage: "person.2.fill") }
-                    .tag(1)
-                CallPlaceholderView()
-                    .tabItem { Label("Cuộc gọi", systemImage: "phone.fill") }
-                    .tag(2)
                 SettingsView()
                     .tabItem { Label("Cá nhân", systemImage: "person.crop.circle.fill") }
-                    .tag(3)
+                    .tag(1)
             }
 
             if let cuocGoi = env.cuocGoiHienTai {
@@ -72,33 +66,20 @@ struct CuocGoiDenBannerView: View {
 
                 Spacer(minLength: 4)
 
-                // Nút từ chối
+                // Nút tắt chuông trên iPhone
                 Button {
-                    env.tuChoiCuocGoi()
-                } label: {
-                    Image(systemName: "phone.down.fill")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 34, height: 34)
-                        .background(Color.red)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-
-                // Nút bốc máy
-                Button {
-                    env.bocMayTrenPC()
+                    env.tatChuongCucBo()
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "phone.fill")
-                            .font(.system(size: 13, weight: .bold))
-                        Text("Bốc máy")
-                            .font(.system(size: 13, weight: .bold))
+                        Image(systemName: "speaker.slash.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("Tắt chuông")
+                            .font(.system(size: 13, weight: .semibold))
                     }
                     .foregroundColor(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)
-                    .background(Color.green)
+                    .background(Color.secondary.opacity(0.85))
                     .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
