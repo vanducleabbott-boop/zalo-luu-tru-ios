@@ -185,6 +185,21 @@ final class ZaloAPI {
                            rawBody: duLieu, headers: ["X-Ten-File": tenMaHoa])
     }
 
+    // ---------------------------------------------------------------- album (v4.3, 20/10/2026)
+    /// Tải 1 tệp lên máy chủ chờ gửi album, trả mã tạm (giữ 15 phút).
+    func taiLenTam(duLieu: Data, tenFile: String) async throws -> String {
+        struct KQ: Decodable { let ma: String }
+        let tenMaHoa = tenFile.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? tenFile
+        let kq: KQ = try await goiJSON("/api/tai-len", method: "POST", rawBody: duLieu, headers: ["X-Ten-File": tenMaHoa])
+        return kq.ma
+    }
+
+    /// Gửi các tệp đã tải lên thành 1 album (Zalo hiện 1 khung lưới như Zalo gốc).
+    func guiAlbum(cuoc: String, ma: [String]) async throws {
+        struct Than: Encodable { let ma: [String] }
+        _ = try await goi("/api/gui-album", method: "POST", query: ["cuoc": cuoc], jsonBody: Than(ma: ma))
+    }
+
     // ---------------------------------------------------------------- sticker (v4.1, 19/10/2026)
     /// Các bộ sticker máy chủ đã tải sẵn thành GIF động, bộ dùng gần nhất trước (GET /api/sticker/kho).
     func khoSticker() async throws -> [BoSticker] {

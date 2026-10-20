@@ -49,6 +49,54 @@ final class FormattingTests: XCTestCase {
         XCTAssertTrue(dauNhom2, "sang ngay moi phai la dau 1 nhom moi du cung nguoi gui")
     }
 
+    // ---------------------------------------------------------------- album (v4.3): nhiều ảnh gửi 1 lần -> 1 khung lưới
+    private func anhAlbum(id: String, uid: String = "u1", ts: Int64, album: String?, i: Int = 0, n: Int = 3) -> Tin {
+        Tin(msgId: id, cliMsgId: id, cuocId: "c1", uid: uid, tenNguoi: uid, laToi: false, ts: ts,
+            loai: nil, kieu: "anh", chu: "", url: nil, file: "media/x/\(id).jpg", tenFile: nil, kichThuoc: nil,
+            quote: nil, thuHoi: false,
+            phu: album.map { Phu(khung: nil, ms: nil, lich: nil, tag: nil, cuocNguon: nil, album: AlbumInfo(id: $0, i: i, n: n)) },
+            camXuc: [])
+    }
+
+    func testAlbum_GopTinCungAlbumThanh1MucVaSapTheoThuTu() {
+        let t0: Int64 = 1_700_000_000_000
+        // Zalo bao ve KHONG theo thu tu i (do that 20/10: 1,2,5,6,3,4...) -> phai sap lai theo i
+        let ds = [anhAlbum(id: "b", ts: t0, album: "A", i: 1), anhAlbum(id: "a", ts: t0 + 1, album: "A", i: 0),
+                  anhAlbum(id: "c", ts: t0 + 2, album: "A", i: 2)]
+        let muc = GomNhom.gomTheoNgay(ds)
+        XCTAssertEqual(muc.count, 2)   // ngay + 1 album
+        guard case .album(let tin, _, let cuoi) = muc[1] else { return XCTFail("phai la .album") }
+        XCTAssertEqual(tin.map(\.msgId), ["a", "b", "c"])
+        XCTAssertTrue(cuoi)
+    }
+
+    func testAlbum_KhacAlbumHoacKhacNguoiThiTach() {
+        let t0: Int64 = 1_700_000_000_000
+        let ds = [anhAlbum(id: "1", ts: t0, album: "A"), anhAlbum(id: "2", ts: t0 + 1, album: "A"),
+                  anhAlbum(id: "3", ts: t0 + 2, album: "B"), anhAlbum(id: "4", ts: t0 + 3, album: "B"),
+                  anhAlbum(id: "5", uid: "u2", ts: t0 + 4, album: "B"),
+                  anhAlbum(id: "6", ts: t0 + 5, album: nil)]
+        let muc = GomNhom.gomTheoNgay(ds).filter { if case .ngay = $0 { return false }; return true }
+        XCTAssertEqual(muc.count, 4)   // album A(2) + album B(2) + tin u2 + tin khong album
+        if case .album(let a, _, _) = muc[0] { XCTAssertEqual(a.count, 2) } else { XCTFail() }
+        if case .album(let b, _, _) = muc[1] { XCTAssertEqual(b.count, 2) } else { XCTFail() }
+        if case .tin = muc[2] {} else { XCTFail("album 1 anh cua nguoi khac la tin thuong") }
+        if case .tin = muc[3] {} else { XCTFail() }
+    }
+
+    func testAlbum_ChiaHangKhongCoHang1AnhLe() {
+        XCTAssertEqual(AlbumLuoiView.chiaHang(2), [2])
+        XCTAssertEqual(AlbumLuoiView.chiaHang(3), [3])
+        XCTAssertEqual(AlbumLuoiView.chiaHang(4), [2, 2])
+        XCTAssertEqual(AlbumLuoiView.chiaHang(5), [3, 2])
+        XCTAssertEqual(AlbumLuoiView.chiaHang(7), [3, 2, 2])
+        for n in 2...30 {
+            let h = AlbumLuoiView.chiaHang(n)
+            XCTAssertEqual(h.reduce(0, +), n, "n=\(n)")
+            XCTAssertFalse(h.contains(1), "n=\(n) khong duoc co hang 1 anh: \(h)")
+        }
+    }
+
     // ---------------------------------------------------------------- ghép tin realtime + phân trang (PhanTrang)
     func testGanTin_TinMoiDuocChenDungThuTu() {
         var ds = [tinMau(id: "1", uid: "u1", laToi: false, ts: 100), tinMau(id: "3", uid: "u1", laToi: false, ts: 300)]

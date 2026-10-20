@@ -239,6 +239,19 @@ final class ChatViewModel: ObservableObject {
     }
     func boTraLoi() { traLoi = nil }
 
+    /// Gửi nhiều ảnh/video 1 lần thành ALBUM (như Zalo gốc). 1 tệp thì gửi thường.
+    func guiAlbum(_ tep: [(duLieu: Data, tenFile: String)]) async {
+        guard !tep.isEmpty else { return }
+        if tep.count == 1 { await guiFile(duLieu: tep[0].duLieu, tenFile: tep[0].tenFile); return }
+        traLoi = nil   // Zalo không trích dẫn kèm album
+        do {
+            var ma: [String] = []
+            for t in tep { ma.append(try await env.api.taiLenTam(duLieu: t.duLieu, tenFile: t.tenFile)) }
+            try await env.api.guiAlbum(cuoc: cuoc.id, ma: ma)
+            cuonToiMsgId = "__cuoi__"
+        } catch { loi = "Không gửi được album: " + error.localizedDescription }
+    }
+
     /// Gửi sticker từ bảng chọn. Zalo không cho trích dẫn kèm sticker -> đang trả lời thì sticker gửi thành tin thường.
     func guiSticker(_ s: StickerTrongKho) async {
         do {

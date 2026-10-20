@@ -12,7 +12,7 @@ struct MessageInputBar: View {
 
     @State private var vanBan = ""
     @State private var dangGui = false
-    @State private var anhDaChon: PhotosPickerItem?
+    @State private var anhDaChon: [PhotosPickerItem] = []   // v4.3: chọn NHIỀU -> gửi 1 album như Zalo
     @State private var dangGuiMedia = false
     @State private var cheDoCameraDangMo: CameraCheDo? = nil
     @State private var hienThuVienAnh = false
@@ -101,8 +101,12 @@ struct MessageInputBar: View {
         }
         .sheet(isPresented: $hienSticker) { StickerPickerView(vm: vm) }
         // Thư viện ảnh / video hệ thống
-        .photosPicker(isPresented: $hienThuVienAnh, selection: $anhDaChon, matching: .any(of: [.images, .videos]))
-        .onChange(of: anhDaChon) { item in Task { await guiAnhDaChon(item) } }
+        .photosPicker(isPresented: $hienThuVienAnh, selection: $anhDaChon, maxSelectionCount: 30,
+                      selectionBehavior: .ordered, matching: .any(of: [.images, .videos]))
+        .onChange(of: anhDaChon) { ds in
+            guard !ds.isEmpty else { return }
+            Task { await guiCacAnhDaChon(ds) }
+        }
         // Chọn file / tài liệu từ Files app
         .fileImporter(isPresented: $hienChonFile, allowedContentTypes: [.item], allowsMultipleSelection: false) { result in
             switch result {
@@ -173,36 +177,33 @@ struct MessageInputBar: View {
         }
     }
 
-    private func guiAnhDaChon(_ item: PhotosPickerItem?) async {
-        guard let item else { return }
+    /// v4.3: nhiều ảnh/video chọn 1 lần -> 1 album (như Zalo gốc); chọn 1 thì gửi thường.
+    private func guiCacAnhDaChon(_ ds: [PhotosPickerItem]) async {
         dangGuiMedia = true
-        defer { dangGuiMedia = false; anhDaChon = nil }
+        defer { dangGuiMedia = false; anhDaChon = [] }
+        var tep: [(duLieu: Data, tenFile: String)] = []
+        for (i, item) in ds.enumerated() {
+            if let t = await chuanBiTep(item, thuTu: i) { tep.append(t) }
+        }
+        await vm.guiAlbum(tep)
+    }
 
-        // 1. Kiểm tra nếu là Video -> chuyển đổi chuẩn sang MP4 (H.264/AAC) để Zalo xem được trực tiếp
+    private func chuanBiTep(_ item: PhotosPickerItem, thuTu: Int) async -> (duLieu: Data, tenFile: String)? {
+        let dau = "\(Int(Date().timeIntervalSince1970))_\(thuTu + 1)"
+        // 1. Video -> chuyển chuẩn MP4 (H.264/AAC) để Zalo xem được trực tiếp
         let laVideo = item.supportedContentTypes.contains(where: {
             $0.conforms(to: .movie) || $0.conforms(to: .video) || $0.conforms(to: .quickTimeMovie) || $0.conforms(to: .mpeg4Movie)
         })
-
-        if laVideo {
-            if let movie = try? await item.loadTransferable(type: MovieFile.self) {
-                if let (mp4Data, _) = try? await VideoHelper.chuyenSangMP4(from: movie.url) {
-                    let ten = "video_\(Int(Date().timeIntervalSince1970)).mp4"
-                    await vm.guiFile(duLieu: mp4Data, tenFile: ten)
-                    return
-                }
-            }
+        if laVideo, let movie = try? await item.loadTransferable(type: MovieFile.self),
+           let (mp4Data, _) = try? await VideoHelper.chuyenSangMP4(from: movie.url) {
+            return (mp4Data, "video_\(dau).mp4")
         }
-
-        // 2. Nếu là Ảnh hoặc tệp thông thường
-        guard let data = try? await item.loadTransferable(type: Data.self) else { return }
-
+        // 2. Ảnh hoặc tệp thông thường
+        guard let data = try? await item.loadTransferable(type: Data.self) else { return nil }
         if let img = UIImage(data: data), let jpeg = img.jpegData(compressionQuality: 0.85) {
-            let ten = "anh_zalo_\(Int(Date().timeIntervalSince1970)).jpg"
-            await vm.guiFile(duLieu: jpeg, tenFile: ten)
-        } else {
-            let ext = item.supportedContentTypes.first?.preferredFilenameExtension ?? "dat"
-            let ten = "tep_\(Int(Date().timeIntervalSince1970)).\(ext)"
-            await vm.guiFile(duLieu: data, tenFile: ten)
+            return (jpeg, "anh_zalo_\(dau).jpg")
         }
+        let ext = item.supportedContentTypes.first?.preferredFilenameExtension ?? "dat"
+        return (data, "tep_\(dau).\(ext)")
     }
 }

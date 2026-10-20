@@ -139,6 +139,14 @@ struct Phu: Codable, Equatable, Hashable {
     let lich: LichHen?
     let tag: [TagMark]?
     let cuocNguon: String?
+    let album: AlbumInfo?       // anh/video gui 1 lan (Zalo hien 1 khung luoi) - v4.3
+}
+
+/// Album: cùng `id` = cùng 1 lần gửi nhiều ảnh/video; `i` thứ tự trong album, `n` tổng số (máy chủ lấy từ group_layout_id).
+struct AlbumInfo: Codable, Equatable, Hashable {
+    let id: String
+    let i: Int
+    let n: Int
 }
 
 // ---------------------------------------------------------------- 1 tin nhắn

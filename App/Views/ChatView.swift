@@ -67,6 +67,19 @@ private struct ChatContentView: View {
                                 .id(t.msgId)
                                 .listRowSeparator(.hidden).listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
                                 .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
+                        case .album(let ds, let dauNhom, let cuoiNhom):
+                            // v4.3: nhiều ảnh/video gửi 1 lần -> 1 khung lưới (id = tin cuối để cuộn xuống đáy đúng)
+                            MessageBubble(vm: vm, t: ds[0], dauNhom: dauNhom, cuoiNhom: cuoiNhom,
+                                          laNhom: vm.cuoc.laNhomBool,
+                                          chamTrichDan: { denTin($0) },
+                                          chonChuyenTiep: { tinChuyenTiep = $0 },
+                                          anhDangXem: $anhDangXem,
+                                          videoDangXem: $videoDangXem,
+                                          fileDangXem: $fileDangXem,
+                                          album: ds)
+                                .id(ds[ds.count - 1].msgId)
+                                .listRowSeparator(.hidden).listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
+                                .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
                         }
                     }
                     Color.clear.frame(height: 1).id("__day_chat__")

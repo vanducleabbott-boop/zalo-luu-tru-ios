@@ -14,6 +14,8 @@ struct MessageBubble: View {
     @Binding var anhDangXem: AnhXemToan?
     @Binding var videoDangXem: VideoXemToan?
     @Binding var fileDangXem: URL?
+    /// v4.3: >1 tin = 1 album (nhiều ảnh/video gửi 1 lần) -> vẽ 1 khung lưới như Zalo; `t` là tin đầu album.
+    var album: [Tin] = []
 
     private var tenGui: String {
         t.laToi ? "Bạn" : env.tenNguoi(uid: t.uid, macDinh: t.tenNguoi)
@@ -111,11 +113,22 @@ struct MessageBubble: View {
     }
 
     private var trongSuot: Bool {
-        !t.thuHoi && (t.kieu == "sticker" || (["anh", "gif", "video"].contains(t.kieu) && (t.chu ?? "").isEmpty && t.quote == nil && t.file != nil))
+        album.count > 1 || !t.thuHoi && (t.kieu == "sticker" || (["anh", "gif", "video"].contains(t.kieu) && (t.chu ?? "").isEmpty && t.quote == nil && t.file != nil))
     }
 
     @ViewBuilder
     private var noiDung: some View {
+        if album.count > 1 {
+            AlbumLuoiView(ds: album, diaChi: { diaChiCua($0) },
+                          chamAnh: { tin, u in anhDangXem = AnhXemToan(url: u, msgId: tin.msgId) },
+                          chamVideo: { tin, u in videoDangXem = VideoXemToan(url: u, msgId: tin.msgId) })
+        } else {
+            noiDungDon
+        }
+    }
+
+    @ViewBuilder
+    private var noiDungDon: some View {
         switch t.kieu {
         case "anh", "gif":
             AnhTinView(url: diaChiFile) { if let u = diaChiFile { anhDangXem = AnhXemToan(url: u, msgId: t.msgId) } }
@@ -175,7 +188,9 @@ struct MessageBubble: View {
         if let c = t.chu, !c.isEmpty { VanBanTinView(chu: c, tags: t.phu?.tag).padding(.top, 2) }
     }
 
-    private var diaChiFile: URL? {
+    private var diaChiFile: URL? { diaChiCua(t) }
+
+    private func diaChiCua(_ t: Tin) -> URL? {
         guard let f = t.file else { return nil }
         if f.hasPrefix("file://") {
             return URL(string: f)

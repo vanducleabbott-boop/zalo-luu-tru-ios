@@ -99,24 +99,44 @@ enum GomNhom {
     enum MucHienThi: Equatable {
         case ngay(String)
         case tin(Tin, dauNhom: Bool, cuoiNhom: Bool)
+        case album([Tin], dauNhom: Bool, cuoiNhom: Bool)   // v4.3: nhiều ảnh/video gửi 1 lần -> 1 khung lưới
+    }
+
+    /// Khoá album: cùng người gửi + cùng mã album (ảnh/video/gif chưa thu hồi, đã có file).
+    static func khoaAlbum(_ t: Tin) -> String? {
+        guard let a = t.phu?.album, !t.thuHoi, t.file != nil, ["anh", "video", "gif"].contains(t.kieu) else { return nil }
+        return "\(t.uid ?? "")|\(t.laToi)|\(a.id)"
     }
 
     static func gomTheoNgay(_ ds: [Tin]) -> [MucHienThi] {
+        // gom tin LIỀN KỀ cùng album thành 1 cụm (album 1 tin thì vẫn là tin thường)
+        var cum: [[Tin]] = []
+        for t in ds {
+            if let k = khoaAlbum(t), let cuoi = cum.last?.last, khoaAlbum(cuoi) == k { cum[cum.count - 1].append(t) }
+            else { cum.append([t]) }
+        }
         var ketQua: [MucHienThi] = []
         var ngayTruoc = ""
         let cal = Calendar.current
-        for (i, t) in ds.enumerated() {
+        for (i, c) in cum.enumerated() {
+            let t = c[0]
             let d = Date(timeIntervalSince1970: TimeInterval(t.ts) / 1000)
             let khoaNgay = cal.startOfDay(for: d).description
-            var truocLienKe: Tin? = i > 0 ? ds[i - 1] : nil
+            var truocLienKe: Tin? = i > 0 ? cum[i - 1].last : nil
             if khoaNgay != ngayTruoc {
                 ketQua.append(.ngay(DinhDang.ngayDai(t.ts)))
                 ngayTruoc = khoaNgay
                 truocLienKe = nil   // sang ngay moi thi khong gop nhom voi tin hom truoc
             }
             let dauNhom = !cungNhom(hienTai: t, truoc: truocLienKe)
-            let sau = i + 1 < ds.count ? ds[i + 1] : nil
-            ketQua.append(.tin(t, dauNhom: dauNhom, cuoiNhom: cuoiNhom(hienTai: t, sau: sau)))
+            let sau = i + 1 < cum.count ? cum[i + 1].first : nil
+            let cuoi = cuoiNhom(hienTai: c[c.count - 1], sau: sau)
+            if c.count > 1 {
+                ketQua.append(.album(c.sorted { ($0.phu?.album?.i ?? 0, $0.ts) < ($1.phu?.album?.i ?? 0, $1.ts) },
+                                     dauNhom: dauNhom, cuoiNhom: cuoi))
+            } else {
+                ketQua.append(.tin(t, dauNhom: dauNhom, cuoiNhom: cuoi))
+            }
         }
         return ketQua
     }
