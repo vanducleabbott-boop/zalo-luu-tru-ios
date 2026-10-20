@@ -9,9 +9,12 @@ struct MainTabView: View {
                 ConversationListView()
                     .tabItem { Label("Tin nhắn", systemImage: "message.fill") }
                     .tag(0)
+                GroupListView()
+                    .tabItem { Label("Nhóm", systemImage: "folder.fill") }
+                    .tag(1)
                 SettingsView()
                     .tabItem { Label("Cá nhân", systemImage: "person.crop.circle.fill") }
-                    .tag(1)
+                    .tag(2)
             }
 
             if let cuocGoi = env.cuocGoiHienTai {

@@ -34,6 +34,7 @@ struct ConversationListView: View {
 private struct ConversationListContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @ObservedObject var vm: ConversationListViewModel
+    @State private var cuocCanGanNhom: Cuoc?
 
     var body: some View {
         NavigationStack(path: $env.duongDanChat) {
@@ -64,6 +65,9 @@ private struct ConversationListContentView: View {
                                      chuaDoc: 0, capNhatLuc: nil, ghim: nil, tatTb: nil),
                          quanhTs: diem.tin.ts, sangMsgId: diem.tin.msgId)
             }
+            .sheet(item: $cuocCanGanNhom) { c in
+                ChonNhomChoCuocSheet(cuoc: c)
+            }
         }
     }
 
@@ -74,6 +78,28 @@ private struct ConversationListContentView: View {
             ForEach(vm.dsCuoc) { c in
                 NavigationLink(value: c) { ConversationRow(c: c) }
                     .swipeActions(edge: .trailing) { nutThaoTac(c) }
+                    .contextMenu {
+                        Button {
+                            cuocCanGanNhom = c
+                        } label: {
+                            Label("Thêm vào nhóm…", systemImage: "folder.badge.plus")
+                        }
+                        Divider()
+                        if c.id != "so-tay" {
+                            Button {
+                                Task { await vm.datGhim(c, bat: !c.daGhim) }
+                            } label: {
+                                Label(c.daGhim ? "Bỏ ghim" : "Ghim", systemImage: c.daGhim ? "pin.slash" : "pin")
+                            }
+                            if c.laNhomBool {
+                                Button {
+                                    Task { await vm.datTatThongBao(c, tat: !c.daTatThongBao) }
+                                } label: {
+                                    Label(c.daTatThongBao ? "Bật thông báo" : "Tắt thông báo", systemImage: c.daTatThongBao ? "bell" : "bell.slash")
+                                }
+                            }
+                        }
+                    }
             }
         }
         .listStyle(.plain)

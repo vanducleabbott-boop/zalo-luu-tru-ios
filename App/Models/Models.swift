@@ -266,3 +266,18 @@ struct ThanhVien: Codable, Equatable, Identifiable {
     let anh: String?
     var id: String { uid }
 }
+
+// ---------------------------------------------------------------- Nhóm tùy chọn (người dùng tự tạo: Đặt hàng, Nhóm, v.v.)
+struct NhomTuyChon: Codable, Equatable, Hashable, Identifiable {
+    var id: String
+    var ten: String
+    var dsCuocId: [String]
+    var ngayTao: Date
+
+    init(id: String = UUID().uuidString, ten: String, dsCuocId: [String] = [], ngayTao: Date = Date()) {
+        self.id = id
+        self.ten = ten
+        self.dsCuocId = dsCuocId
+        self.ngayTao = ngayTao
+    }
+}
