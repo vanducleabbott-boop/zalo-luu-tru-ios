@@ -168,7 +168,7 @@ private struct ChatContentView: View {
         }
         .sheet(isPresented: $hienTimTrong) { SearchInConversationView(vm: vm) }
         .sheet(item: $tinChuyenTiep) { t in ForwardMessageView(tin: t, cuocGocId: vm.cuoc.id) }
-        .sheet(item: $anhDangXem) { a in ImageViewerView(anh: a) }
+        .sheet(item: $anhDangXem) { a in ImageViewerView(anh: a, cuocId: vm.cuoc.id) }
         .fullScreenCover(item: $videoDangXem) { v in TrinhPhatVideoView(url: v.url) }
         .quickLookPreview($fileDangXem)
         .alert("Lỗi", isPresented: Binding(get: { vm.loi != nil }, set: { if !$0 { vm.loi = nil } })) {

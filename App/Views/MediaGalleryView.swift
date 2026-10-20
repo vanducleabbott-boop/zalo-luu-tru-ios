@@ -167,7 +167,7 @@ struct MediaGalleryView: View {
             .toolbar { ToolbarItem(placement: .navigationBarTrailing) { Button("Đóng") { dismiss() } } }
             .task { await taiLai() }
             .onChange(of: tab) { _ in Task { await taiLai() } }
-            .sheet(item: $anhDangXem) { a in ImageViewerView(anh: a) }
+            .sheet(item: $anhDangXem) { a in ImageViewerView(anh: a, cuocId: cuocId) }
             .fullScreenCover(item: $videoDangXem) { v in TrinhPhatVideoView(url: v.url) }
             .quickLookPreview($fileDangXem)
         }
