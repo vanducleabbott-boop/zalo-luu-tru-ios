@@ -17,6 +17,8 @@ final class ChatViewModel: ObservableObject {
     @Published var loi: String?
     /// Khi khác nil: UI nên cuộn tới tin nhắn này 1 lần rồi tự xoá giá trị (xem onChange trong ChatView).
     @Published var cuonToiMsgId: String?
+    @Published private(set) var thanhVienNhom: [ThanhVien] = []
+    @Published private(set) var dangTaiThanhVien = false
 
     let env: AppEnvironment
     private var cheDoQuanh = false
@@ -66,8 +68,25 @@ final class ChatViewModel: ObservableObject {
                 cuonToiMsgId = "__cuoi__"
             }
             if quanh == nil && cuoc.chuaDoc > 0 { danhDauDaDoc() }
+            if cuoc.laNhomBool {
+                Task { await taiThanhVienNhom() }
+            }
         } catch {
             if tinDangXem.isEmpty { loi = error.localizedDescription }
+        }
+    }
+
+    func taiThanhVienNhom() async {
+        guard cuoc.laNhomBool, !dangTaiThanhVien else { return }
+        dangTaiThanhVien = true
+        defer { dangTaiThanhVien = false }
+        do {
+            let ds = try await env.api.layThanhVien(cuoc: cuoc.id)
+            thanhVienNhom = ds
+            let uids = ds.map(\.uid)
+            await env.napNguoi(uids)
+        } catch {
+            print("[ChatViewModel] Khong lay duoc thanh vien nhom \(cuoc.id): \(error.localizedDescription)")
         }
     }
 

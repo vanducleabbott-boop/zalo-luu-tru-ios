@@ -156,6 +156,64 @@ final class FormattingTests: XCTestCase {
         XCTAssertFalse(doan[0].laTag)
     }
 
+    // ---------------------------------------------------------------- tính vị trí UTF-16 khi gửi tag (DinhDangChu.tinhTag)
+    func testBoDau_KhongDauVaChuThuong() {
+        XCTAssertEqual("Nguyễn Văn Đạt".boDau, "nguyen van dat")
+        XCTAssertEqual("ĐẶNG THỊ HẠNH".boDau, "dang thi hanh")
+        XCTAssertEqual("Trần Đức Lê".boDau, "tran duc le")
+    }
+
+    func testTinhTag_KhongCoTagTraRong() {
+        let kq = DinhDangChu.tinhTag(chu: "Xin chào cả nhà", daChon: [])
+        XCTAssertTrue(kq.isEmpty)
+    }
+
+    func testTinhTag_MotTagDauCau() {
+        let daChon = [TagChon(uid: "u123", ten: "Nguyễn Văn A")]
+        let chu = "@Nguyễn Văn A gửi báo cáo nhé"
+        let kq = DinhDangChu.tinhTag(chu: chu, daChon: daChon)
+        XCTAssertEqual(kq.count, 1)
+        XCTAssertEqual(kq[0].uid, "u123")
+        XCTAssertEqual(kq[0].pos, 0)
+        XCTAssertEqual(kq[0].len, "@Nguyễn Văn A".utf16.count)
+    }
+
+    func testTinhTag_NhieuTagVaUTF16TiengViet() {
+        let daChon = [
+            TagChon(uid: "u1", ten: "Lê Minh"),
+            TagChon(uid: "u2", ten: "Đặng Thị Hạnh")
+        ]
+        let chu = "Nhờ @Lê Minh và @Đặng Thị Hạnh kiểm tra"
+        let kq = DinhDangChu.tinhTag(chu: chu, daChon: daChon)
+        XCTAssertEqual(kq.count, 2)
+        XCTAssertEqual(kq[0].uid, "u1")
+        XCTAssertEqual(kq[1].uid, "u2")
+        // Kiểm tra đúng vị trí trong UTF-16
+        let utf16 = Array(chu.utf16)
+        let tag1Chuoi = String(decoding: utf16[kq[0].pos..<(kq[0].pos + kq[0].len)], as: UTF16.self)
+        let tag2Chuoi = String(decoding: utf16[kq[1].pos..<(kq[1].pos + kq[1].len)], as: UTF16.self)
+        XCTAssertEqual(tag1Chuoi, "@Lê Minh")
+        XCTAssertEqual(tag2Chuoi, "@Đặng Thị Hạnh")
+    }
+
+    func testTinhTag_TagAll() {
+        let daChon = [TagChon(uid: "-1", ten: "All")]
+        let chu = "@All họp lúc 9h nhé"
+        let kq = DinhDangChu.tinhTag(chu: chu, daChon: daChon)
+        XCTAssertEqual(kq.count, 1)
+        XCTAssertEqual(kq[0].uid, "-1")
+        XCTAssertEqual(kq[0].pos, 0)
+        XCTAssertEqual(kq[0].len, 4)
+    }
+
+    func testTinhTag_TagBiXoaKhongGui() {
+        let daChon = [TagChon(uid: "u1", ten: "Nguyễn Văn A")]
+        // Người dùng đã xoá chữ "A" khỏi tên
+        let chu = "@Nguyễn Văn gửi báo cáo"
+        let kq = DinhDangChu.tinhTag(chu: chu, daChon: daChon)
+        XCTAssertTrue(kq.isEmpty, "Không tìm thấy đủ '@Nguyễn Văn A' thì không gửi tag sai lệch")
+    }
+
     // ---------------------------------------------------------------- định dạng ngày/giờ/dung lượng
     func testKichCo() {
         XCTAssertEqual(DinhDang.kichCo(500), "1 KB")

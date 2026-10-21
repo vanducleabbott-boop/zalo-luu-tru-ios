@@ -51,9 +51,28 @@ struct MessageBubble: View {
         .padding(.top, dauNhom ? 8 : 1)
     }
 
+    private var laTagToi: Bool {
+        guard !t.laToi, let tag = t.phu?.tag, !tag.isEmpty else { return false }
+        let toi = env.uidToi
+        return tag.contains { $0.uid == toi || $0.uid == "-1" }
+    }
+
     @ViewBuilder
     private var bongBong: some View {
         VStack(alignment: .leading, spacing: 4) {
+            if laTagToi {
+                HStack(spacing: 3) {
+                    Image(systemName: "at")
+                        .font(.system(size: 10, weight: .bold))
+                    Text(t.phu?.tag?.contains(where: { $0.uid == "-1" }) == true ? "Nhắc đến cả nhóm" : "Nhắc đến bạn")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundStyle(Color.orange)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.orange.opacity(0.12), in: Capsule())
+                .padding(.bottom, 2)
+            }
             if t.thuHoi {
                 if env.hienTinThuHoi && coNoiDungLuu {
                     HStack(spacing: 4) {
@@ -99,10 +118,10 @@ struct MessageBubble: View {
                 ? AnyView(Color.clear)
                 : AnyView(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(t.laToi ? ZaloMau.bongToi : ZaloMau.bongHo)
+                        .fill(t.laToi ? ZaloMau.bongToi : (laTagToi ? Color.orange.opacity(0.08) : ZaloMau.bongHo))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(t.thuHoi ? Color.red.opacity(0.35) : Color.clear, lineWidth: 1)
+                                .strokeBorder(t.thuHoi ? Color.red.opacity(0.35) : (laTagToi ? Color.orange.opacity(0.45) : Color.clear), lineWidth: 1)
                         )
                 )
         )
@@ -156,7 +175,7 @@ struct MessageBubble: View {
             } else { Text(t.chu ?? "") }
         default:
             VStack(alignment: .leading, spacing: 4) {
-                VanBanTinView(chu: t.chu ?? "", tags: t.phu?.tag)
+                VanBanTinView(chu: t.chu ?? "", tags: t.phu?.tag, laTagToi: laTagToi)
                 nhayVeCuocNguonNeuCo
             }
         }
@@ -185,7 +204,7 @@ struct MessageBubble: View {
 
     @ViewBuilder
     private var chuThichNeuCo: some View {
-        if let c = t.chu, !c.isEmpty { VanBanTinView(chu: c, tags: t.phu?.tag).padding(.top, 2) }
+        if let c = t.chu, !c.isEmpty { VanBanTinView(chu: c, tags: t.phu?.tag, laTagToi: laTagToi).padding(.top, 2) }
     }
 
     private var diaChiFile: URL? { diaChiCua(t) }

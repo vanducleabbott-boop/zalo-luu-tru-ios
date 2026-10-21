@@ -156,11 +156,79 @@ enum DinhDangChu {
         for m in hopLe {
             if m.pos < tu { continue }   // trung voi tag truoc -> bo qua (giong web)
             if m.pos > tu { ketQua.append((String(decoding: utf16[tu..<m.pos], as: UTF16.self), false)) }
-            ketQua.append((String(decoding: utf16[m.pos..<(m.pos + m.len)], as: UTF16.self), true))
+            if (m.pos + m.len) <= utf16.count {
+                ketQua.append((String(decoding: utf16[m.pos..<(m.pos + m.len)], as: UTF16.self), true))
+            }
             tu = m.pos + m.len
         }
         if tu < utf16.count { ketQua.append((String(decoding: utf16[tu...], as: UTF16.self), false)) }
         return ketQua
+    }
+
+    /// Khớp `tinhTag()` trong web/luu_tru: tìm lại từng "@Tên" đã chọn trong chữ cuối cùng -> [TagMark(uid, pos, len)].
+    /// pos và len tính theo đơn vị mã UTF-16 (tương thích JavaScript/Node.js trên máy chủ và Zalo).
+    static func tinhTag(chu: String, daChon: [TagChon]) -> [TagMark] {
+        guard !chu.isEmpty else { return [] }
+        let utf16 = Array(chu.utf16)
+        var kq: [TagMark] = []
+
+        // 1. Tìm các tag đã chọn từ danh sách gợi ý
+        for item in daChon {
+            let nhan = "@" + item.ten
+            let nhanUtf16 = Array(nhan.utf16)
+            guard !nhanUtf16.isEmpty, nhanUtf16.count <= utf16.count else { continue }
+
+            var i = 0
+            while i <= utf16.count - nhanUtf16.count {
+                if Array(utf16[i..<(i + nhanUtf16.count)]) == nhanUtf16 {
+                    let overlap = kq.contains { m in
+                        i < (m.pos + m.len) && m.pos < (i + nhanUtf16.count)
+                    }
+                    if !overlap {
+                        kq.append(TagMark(uid: item.uid, pos: i, len: nhanUtf16.count))
+                        break
+                    }
+                }
+                i += 1
+            }
+        }
+
+        // 2. Dự phòng: nếu người dùng gõ tay @All / @all mà không chọn từ popup
+        let allVariants = ["@All", "@all", "@ALL"]
+        for v in allVariants {
+            let vUtf16 = Array(v.utf16)
+            var i = 0
+            while i <= utf16.count - vUtf16.count {
+                if Array(utf16[i..<(i + vUtf16.count)]) == vUtf16 {
+                    let truocHopLe = (i == 0 || utf16[i - 1] == 0x20 || utf16[i - 1] == 0x0A)
+                    let sauHopLe = (i + vUtf16.count == utf16.count || utf16[i + vUtf16.count] == 0x20 || utf16[i + vUtf16.count] == 0x0A)
+                    let overlap = kq.contains { m in
+                        i < (m.pos + m.len) && m.pos < (i + vUtf16.count)
+                    }
+                    if truocHopLe && sauHopLe && !overlap {
+                        kq.append(TagMark(uid: "-1", pos: i, len: vUtf16.count))
+                    }
+                }
+                i += 1
+            }
+        }
+
+        return kq.sorted { $0.pos < $1.pos }
+    }
+}
+
+struct TagChon: Codable, Equatable, Hashable {
+    let uid: String
+    let ten: String
+}
+
+extension String {
+    /// Bỏ dấu tiếng Việt, chuyển chữ thường để tìm kiếm / lọc tên thành viên (khớp boDau() trên web).
+    var boDau: String {
+        self.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "vi"))
+            .replacingOccurrences(of: "đ", with: "d")
+            .replacingOccurrences(of: "Đ", with: "D")
+            .lowercased()
     }
 }
 
