@@ -93,8 +93,9 @@ struct MessageInputBar: View {
                         Task { await vm.taiThanhVienNhom() }
                     } label: {
                         Image(systemName: "at")
-                            .font(.system(size: 22))
+                            .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(ZaloMau.xanh)
+                            .frame(width: 30, height: 36)
                     }
                     .accessibilityLabel("Tag thành viên")
                 }
@@ -104,14 +105,31 @@ struct MessageInputBar: View {
                     Image(systemName: "face.smiling")
                         .font(.system(size: 24))
                         .foregroundStyle(ZaloMau.xanh)
+                        .frame(width: 32, height: 36)
                 }
                 .accessibilityLabel("Sticker")
 
-                // Nút gửi tin nhắn
+                // Nút gửi tin nhắn (kích thước lớn, tròn nổi bật, dễ bấm, không lo bấm nhầm)
                 Button { Task { await gui() } } label: {
-                    if dangGui { ProgressView() } else { Image(systemName: "paperplane.fill") }
+                    ZStack {
+                        Circle()
+                            .fill(coVanBanDeGui ? ZaloMau.xanh : Color(.systemGray4))
+                            .frame(width: 36, height: 36)
+                        if dangGui {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(0.85)
+                        } else {
+                            Image(systemName: "paperplane.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                                .offset(x: -1, y: 1)
+                        }
+                    }
+                    .frame(width: 40, height: 40)
+                    .contentShape(Rectangle())
                 }
-                .disabled(vanBan.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || dangGui)
+                .disabled(!coVanBanDeGui)
             }
             .padding(.horizontal, 10).padding(.vertical, 8)
         }
@@ -292,6 +310,10 @@ struct MessageInputBar: View {
         }
         .background(Color(.systemBackground))
         .transition(.opacity.combined(with: .move(edge: .bottom)))
+    }
+
+    private var coVanBanDeGui: Bool {
+        !vanBan.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !dangGui
     }
 
     private func gui() async {
