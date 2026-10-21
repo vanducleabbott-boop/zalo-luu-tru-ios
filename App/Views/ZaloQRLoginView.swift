@@ -1,10 +1,34 @@
 import SwiftUI
 
+final class ImageSaver: NSObject {
+    var onSuccess: (() -> Void)?
+    var onError: ((Error) -> Void)?
+
+    init(onSuccess: (() -> Void)? = nil, onError: ((Error) -> Void)? = nil) {
+        self.onSuccess = onSuccess
+        self.onError = onError
+    }
+
+    @objc func image(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
+        DispatchQueue.main.async {
+            if let error = error {
+                self.onError?(error)
+            } else {
+                self.onSuccess?()
+            }
+        }
+    }
+}
+
 struct ZaloQRLoginView: View {
     @EnvironmentObject var env: AppEnvironment
     @Environment(\.dismiss) private var dismiss
     @State private var dangTaoQR = false
     @State private var thongBaoLoi: String? = nil
+    @State private var daLuuAnh = false
+    @State private var thongBaoLuuAnh: String? = nil
+    @State private var hienXacNhanDangNhapLai = false
+    @State private var saverHolder: ImageSaver?
 
     var body: some View {
         NavigationStack {
@@ -29,6 +53,17 @@ struct ZaloQRLoginView: View {
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 24)
+
+                            Button {
+                                hienXacNhanDangNhapLai = true
+                            } label: {
+                                Label("Đăng nhập lại (Tạo mã QR mới)", systemImage: "arrow.clockwise")
+                                    .font(.subheadline.bold())
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 10)
+                            }
+                            .buttonStyle(.bordered)
+                            .padding(.top, 10)
                         }
                     } else if st.trangThai == "da_quet" {
                         VStack(spacing: 14) {
@@ -63,13 +98,59 @@ struct ZaloQRLoginView: View {
                                 )
                                 .shadow(radius: 4)
 
-                            VStack(spacing: 6) {
-                                Text("Quét mã QR bằng Zalo")
-                                    .font(.headline)
-                                Text("1. Mở app Zalo trên điện thoại\n2. Bấm biểu tượng QR ở góc trên\n3. Quét mã này và xác nhận Đăng nhập")
-                                    .font(.footnote)
+                            HStack(spacing: 12) {
+                                Button {
+                                    luuAnhVaoThuVien(img)
+                                } label: {
+                                    Label(daLuuAnh ? "Đã lưu vào Ảnh" : "Tải / Lưu mã QR vào Ảnh", systemImage: daLuuAnh ? "checkmark.circle.fill" : "square.and.arrow.down")
+                                        .font(.subheadline.bold())
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 10)
+                                        .background(daLuuAnh ? Color.green : Color.blue)
+                                        .clipShape(Capsule())
+                                }
+
+                                ShareLink(item: Image(uiImage: img), preview: SharePreview("Mã QR đăng nhập Zalo", image: Image(uiImage: img))) {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .font(.subheadline.bold())
+                                        .padding(10)
+                                        .background(Color.secondary.opacity(0.15))
+                                        .clipShape(Circle())
+                                }
+                            }
+
+                            if let thongBao = thongBaoLuuAnh {
+                                Text(thongBao)
+                                    .font(.caption)
+                                    .foregroundStyle(daLuuAnh ? .green : .red)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 20)
+                            }
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Cách quét mã QR trên điện thoại:")
+                                    .font(.footnote.bold())
+                                Text("1. Bấm nút **Tải / Lưu mã QR vào Ảnh** ở trên\n2. Mở app **Zalo** > Bấm biểu tượng **Quét mã QR** (góc trên)\n3. Bấm **Chọn ảnh từ thư viện** và chọn ảnh mã QR vừa lưu\n4. Bấm **Đăng nhập** để xác nhận")
+                                    .font(.caption)
                                     .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.leading)
+
+                                Button {
+                                    if let url = URL(string: "zalo://"), UIApplication.shared.canOpenURL(url) {
+                                        UIApplication.shared.open(url)
+                                    }
+                                } label: {
+                                    HStack {
+                                        Spacer()
+                                        Label("Mở ứng dụng Zalo", systemImage: "arrow.up.right.square.fill")
+                                            .font(.footnote.bold())
+                                        Spacer()
+                                    }
+                                    .padding(.vertical, 8)
+                                    .background(Color.blue.opacity(0.12))
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                }
+                                .padding(.top, 4)
                             }
                             .padding(.horizontal, 24)
                         }
@@ -148,12 +229,20 @@ struct ZaloQRLoginView: View {
                     .padding(.bottom, 8)
                 }
             }
-            .navigationTitle("Đăng nhập Zalo")
+            .navigationTitle("Đăng nhập Zalo Web")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Đóng") { dismiss() }
                 }
+            }
+            .confirmationDialog("Đăng nhập lại Zalo Web?", isPresented: $hienXacNhanDangNhapLai, titleVisibility: .visible) {
+                Button("Tạo mã QR mới", role: .destructive) {
+                    Task { await batDauDangNhap() }
+                }
+                Button("Huỷ", role: .cancel) {}
+            } message: {
+                Text("Tạo mã QR mới để quét bằng tài khoản Zalo khác hoặc làm mới phiên đăng nhập máy chủ.")
             }
             .task {
                 await env.kiemTraTrangThaiZalo()
@@ -164,9 +253,26 @@ struct ZaloQRLoginView: View {
         }
     }
 
+    private func luuAnhVaoThuVien(_ img: UIImage) {
+        let saver = ImageSaver(
+            onSuccess: {
+                daLuuAnh = true
+                thongBaoLuuAnh = "✅ Đã lưu mã QR vào Thư viện ảnh! Mở Zalo quét từ ảnh."
+            },
+            onError: { err in
+                daLuuAnh = false
+                thongBaoLuuAnh = "❌ Lỗi lưu ảnh: \(err.localizedDescription)"
+            }
+        )
+        self.saverHolder = saver
+        UIImageWriteToSavedPhotosAlbum(img, saver, #selector(ImageSaver.image(_:didFinishSavingWithError:contextInfo:)), nil)
+    }
+
     private func batDauDangNhap() async {
         dangTaoQR = true
         thongBaoLoi = nil
+        daLuuAnh = false
+        thongBaoLuuAnh = nil
         defer { dangTaoQR = false }
         do {
             let st = try await env.api.yeuCauDangNhapZalo()

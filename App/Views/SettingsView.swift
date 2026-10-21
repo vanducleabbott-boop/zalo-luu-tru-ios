@@ -45,7 +45,7 @@ struct SettingsView: View {
                         .font(.footnote)
                     }
                 }
-                Section("Tài khoản Zalo (Máy chủ)") {
+                Section("Đăng nhập Zalo Web (Máy chủ)") {
                     HStack {
                         Text("Trạng thái")
                         Spacer()
@@ -75,7 +75,8 @@ struct SettingsView: View {
                     } label: {
                         HStack {
                             Image(systemName: "qrcode.viewfinder")
-                            Text(env.zaloServerStatus?.daDangNhap == true ? "Đăng nhập lại Zalo Web (Quét QR)" : "Quét mã QR đăng nhập Zalo")
+                            Text(env.zaloServerStatus?.daDangNhap == true ? "Đăng nhập lại Zalo Web (Tải mã QR)" : "Đăng nhập Zalo Web (Tải mã QR)")
+                                .fontWeight(.semibold)
                         }
                     }
                 }
