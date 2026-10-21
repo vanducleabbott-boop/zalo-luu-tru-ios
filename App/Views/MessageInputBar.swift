@@ -80,26 +80,6 @@ struct MessageInputBar: View {
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 18))
 
-                // Nút @ tag nhanh trong nhóm (v4.9)
-                if vm.cuoc.laNhomBool {
-                    Button {
-                        daDongTagTamThoi = false
-                        if !vanBan.isEmpty && !vanBan.hasSuffix(" ") && !vanBan.hasSuffix("\n") {
-                            vanBan += " @"
-                        } else {
-                            vanBan += "@"
-                        }
-                        daFocus = true
-                        Task { await vm.taiThanhVienNhom() }
-                    } label: {
-                        Image(systemName: "at")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(ZaloMau.xanh)
-                            .frame(width: 30, height: 36)
-                    }
-                    .accessibilityLabel("Tag thành viên")
-                }
-
                 // Nút sticker (như Zalo) - mở bảng chọn các bộ sticker đã tải sẵn
                 Button { hienSticker = true } label: {
                     Image(systemName: "face.smiling")
