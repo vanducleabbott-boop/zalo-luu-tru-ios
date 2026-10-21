@@ -315,6 +315,19 @@ final class ZaloAPI {
     func tuChoiCuocGoi() async throws {
         _ = try await goi("/api/cuoc-goi/tu-choi", method: "POST")
     }
+
+    // ---------------------------------------------------------------- trạng thái & đăng nhập Zalo Web máy chủ
+    func layTrangThaiZalo() async throws -> ZaloServerStatus {
+        try await goiJSON("/api/zalo/trang-thai")
+    }
+
+    func yeuCauDangNhapZalo() async throws -> ZaloServerStatus {
+        try await goiJSON("/api/zalo/dang-nhap", method: "POST")
+    }
+
+    func huyDangNhapZalo() async throws {
+        _ = try await goi("/api/zalo/huy-qr", method: "POST")
+    }
 }
 
 // Hộp bọc để JSONEncoder nhận Encodable kiểu tồn tại (existential) mà vẫn encode đúng kiểu cụ thể bên trong.

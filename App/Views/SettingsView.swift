@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var canMoCaiDat = false
     @State private var dungLuongCache = "0 MB"
     @State private var hienXacNhanXoaCache = false
+    @State private var hienSheetQuetQR = false
 
     var body: some View {
         NavigationStack {
@@ -42,6 +43,40 @@ struct SettingsView: View {
                             env.sse.batDau(api: env.api)
                         }
                         .font(.footnote)
+                    }
+                }
+                Section("Tài khoản Zalo (Máy chủ)") {
+                    HStack {
+                        Text("Trạng thái")
+                        Spacer()
+                        if let st = env.zaloServerStatus {
+                            if st.daDangNhap {
+                                Text("🟢 \(st.ten ?? "Đã đăng nhập")")
+                                    .font(.footnote)
+                                    .foregroundStyle(.green)
+                            } else {
+                                Text(st.trangThai == "cho_quet_qr" ? "🟡 Đang chờ quét QR" : "🔴 Chưa đăng nhập")
+                                    .font(.footnote)
+                                    .foregroundStyle(st.trangThai == "cho_quet_qr" ? .orange : .red)
+                            }
+                        } else {
+                            Text("Đang kiểm tra...").font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
+                    if let uid = env.zaloServerStatus?.uid, !uid.isEmpty {
+                        HStack {
+                            Text("UID")
+                            Spacer()
+                            Text(uid).font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
+                    Button {
+                        hienSheetQuetQR = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "qrcode.viewfinder")
+                            Text(env.zaloServerStatus?.daDangNhap == true ? "Đăng nhập lại Zalo Web (Quét QR)" : "Quét mã QR đăng nhập Zalo")
+                        }
                     }
                 }
                 Section("Thông báo") {
@@ -116,9 +151,13 @@ struct SettingsView: View {
                 Button("Đăng xuất", role: .destructive) { env.dangXuat() }
                 Button("Huỷ", role: .cancel) {}
             }
+            .sheet(isPresented: $hienSheetQuetQR) {
+                ZaloQRLoginView()
+            }
             .onAppear {
                 kiemTraTrangThaiThongBao()
                 dungLuongCache = MediaDiskCache.shared.dungLuongDinhDang()
+                Task { await env.kiemTraTrangThaiZalo() }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 kiemTraTrangThaiThongBao()

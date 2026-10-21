@@ -13,6 +13,7 @@ enum SuKienZalo {
     case cuocGoiDen(nguon: String?, chiTiet: String?, thoiGian: Date)
     case cuocGoiDaTraLoi
     case cuocGoiKetThuc
+    case zaloTrangThai(ZaloServerStatus)
 }
 
 private struct PayloadTin: Decodable {
@@ -143,6 +144,12 @@ final class SSEManager: ObservableObject {
                     print("[SSE] CUOC GOI KET THUC")
                     suKien.send(.cuocGoiKetThuc)
                 }
+            }
+        case "zalo_trang_thai":
+            guard let data = sk.data.data(using: .utf8) else { return }
+            if let p = try? JSONDecoder().decode(ZaloServerStatus.self, from: data) {
+                print("[SSE] Zalo server status:", p.trangThai, "daDangNhap:", p.daDangNhap)
+                suKien.send(.zaloTrangThai(p))
             }
         default:
             break   // "nhip" chi de cap nhat lastHeard

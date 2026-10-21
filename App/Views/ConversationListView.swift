@@ -35,6 +35,7 @@ private struct ConversationListContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @ObservedObject var vm: ConversationListViewModel
     @State private var cuocCanGanNhom: Cuoc?
+    @State private var hienSheetQuetQR = false
 
     var body: some View {
         NavigationStack(path: $env.duongDanChat) {
@@ -68,6 +69,9 @@ private struct ConversationListContentView: View {
             .sheet(item: $cuocCanGanNhom) { c in
                 ChonNhomChoCuocSheet(cuoc: c)
             }
+            .sheet(isPresented: $hienSheetQuetQR) {
+                ZaloQRLoginView()
+            }
         }
     }
 
@@ -75,6 +79,32 @@ private struct ConversationListContentView: View {
 
     private var danhSach: some View {
         List {
+            if let st = env.zaloServerStatus, !st.daDangNhap {
+                Section {
+                    Button {
+                        hienSheetQuetQR = true
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.title3)
+                                .foregroundStyle(.orange)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Chưa kết nối Zalo Web")
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(.primary)
+                                Text("Bấm vào đây để quét mã QR đăng nhập lại")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            }
             ForEach(vm.dsCuoc) { c in
                 NavigationLink(value: c) { ConversationRow(c: c) }
                     .swipeActions(edge: .trailing) { nutThaoTac(c) }

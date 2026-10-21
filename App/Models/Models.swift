@@ -281,3 +281,22 @@ struct NhomTuyChon: Codable, Equatable, Hashable, Identifiable {
         self.ngayTao = ngayTao
     }
 }
+
+// ---------------------------------------------------------------- Trạng thái đăng nhập Zalo Web trên máy chủ
+struct ZaloServerStatus: Codable, Equatable {
+    let daDangNhap: Bool
+    let trangThai: String
+    let uid: String?
+    let ten: String?
+    let qr: String?
+    let loi: String?
+
+    enum CodingKeys: String, CodingKey {
+        case daDangNhap
+        case trangThai
+        case uid
+        case ten
+        case qr
+        case loi
+    }
+}

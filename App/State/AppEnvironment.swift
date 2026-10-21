@@ -35,6 +35,7 @@ final class AppEnvironment: ObservableObject {
     @Published var cuocGoiHienTai: ThongTinCuocGoi? = nil
     @Published var dangTrongCuocGoi = false
     @Published var dangXuLyCuocGoi = false
+    @Published var zaloServerStatus: ZaloServerStatus? = nil
     @Published var hienTinThuHoi: Bool = UserDefaults.standard.object(forKey: "hienTinThuHoi") as? Bool ?? true {
         didSet {
             UserDefaults.standard.set(hienTinThuHoi, forKey: "hienTinThuHoi")
@@ -95,8 +96,19 @@ final class AppEnvironment: ObservableObject {
             RingtoneManager.shared.tatChuong()
             NotificationManager.shared.xoaBaoCuocGoi()
             BackgroundAudioManager.shared.tiepTucSauCuocGoi()
+        case .zaloTrangThai(let st):
+            self.zaloServerStatus = st
+        case .ketNoiLai:
+            Task { await self.kiemTraTrangThaiZalo() }
         default:
             break
+        }
+    }
+
+    func kiemTraTrangThaiZalo() async {
+        guard daDangNhap else { return }
+        if let st = try? await api.layTrangThaiZalo() {
+            self.zaloServerStatus = st
         }
     }
 
@@ -126,7 +138,10 @@ final class AppEnvironment: ObservableObject {
     func kiemTraPhienDaCo() {
         daDangNhap = api.daCoCookiePhien()
         dangKiemTraPhien = false
-        if daDangNhap { sse.batDau(api: api) }
+        if daDangNhap {
+            sse.batDau(api: api)
+            Task { await kiemTraTrangThaiZalo() }
+        }
     }
 
     func dangNhap(matKhau: String) async throws -> Bool {
@@ -135,6 +150,7 @@ final class AppEnvironment: ObservableObject {
             daDangNhap = true
             BackgroundAudioManager.shared.batDauChayNen()
             sse.batDau(api: api)
+            Task { await kiemTraTrangThaiZalo() }
         }
         return ok
     }
