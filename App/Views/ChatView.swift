@@ -133,18 +133,7 @@ private struct ChatContentView: View {
             if let traLoi = vm.traLoi { ThanhTraLoiView(t: traLoi) { vm.boTraLoi() } }
             MessageInputBar(vm: vm, daFocus: $daFocusNhap, onMoLichHen: { hienTaoLich = true })
         }
-        .sheet(isPresented: $showDsGhimSheet) {
-            DanhSachTinGhimSheet(dsGhim: vm.dsGhim, onChon: { msgId in
-                showDsGhimSheet = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    vm.tinDuocNhayToi = msgId
-                }
-            }, onBoGhim: { msgId in
-                Task {
-                    await vm.chuyenTrangThaiGhim(msgId: msgId, ghim: false)
-                }
-            })
-        }
+
         .navigationTitle(vm.cuoc.ten ?? vm.cuoc.id)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -176,20 +165,18 @@ private struct ChatContentView: View {
                 } label: { Image(systemName: "ellipsis.circle") }
             }
         }
-        .sheet(isPresented: $hienTaoLich) { TaoLichHenView(vm: vm) }
-        .sheet(isPresented: $hienKho) {
-            MediaGalleryView(cuocId: vm.cuoc.id) { tinChon in
-                denTin(tinChon.msgId, ts: tinChon.ts)
-            }
-        }
-        .sheet(isPresented: $hienTimTrong) { SearchInConversationView(vm: vm) }
-        .sheet(item: $tinChuyenTiep) { t in ForwardMessageView(tin: t, cuocGocId: vm.cuoc.id) }
-        .sheet(item: $anhDangXem) { a in ImageViewerView(anh: a, cuocId: vm.cuoc.id) }
-        .fullScreenCover(item: $videoDangXem) { v in TrinhPhatVideoView(url: v.url) }
-        .quickLookPreview($fileDangXem)
-        .alert("Lỗi", isPresented: Binding(get: { vm.loi != nil }, set: { if !$0 { vm.loi = nil } })) {
-            Button("Đóng", role: .cancel) {}
-        } message: { Text(vm.loi ?? "") }
+        .modifier(CacSheetPhuModifier(
+            vm: vm,
+            showDsGhimSheet: $showDsGhimSheet,
+            hienTaoLich: $hienTaoLich,
+            hienKho: $hienKho,
+            hienTimTrong: $hienTimTrong,
+            tinChuyenTiep: $tinChuyenTiep,
+            anhDangXem: $anhDangXem,
+            videoDangXem: $videoDangXem,
+            fileDangXem: $fileDangXem,
+            denTin: { id, ts in denTin(id, ts: ts) }
+        ))
     }
 
     private func denTin(_ msgId: String, ts: Int64? = nil) {
@@ -470,5 +457,48 @@ private struct ChatRowItemView: View {
                 .listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
                 .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
         }
+    }
+}
+
+private struct CacSheetPhuModifier: ViewModifier {
+    @ObservedObject var vm: ChatViewModel
+    @Binding var showDsGhimSheet: Bool
+    @Binding var hienTaoLich: Bool
+    @Binding var hienKho: Bool
+    @Binding var hienTimTrong: Bool
+    @Binding var tinChuyenTiep: Tin?
+    @Binding var anhDangXem: AnhXemToan?
+    @Binding var videoDangXem: VideoXemToan?
+    @Binding var fileDangXem: URL?
+    let denTin: (String, Int64?) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: $showDsGhimSheet) {
+                DanhSachTinGhimSheet(dsGhim: vm.dsGhim, onChon: { msgId in
+                    showDsGhimSheet = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        vm.tinDuocNhayToi = msgId
+                    }
+                }, onBoGhim: { msgId in
+                    Task {
+                        await vm.chuyenTrangThaiGhim(msgId: msgId, ghim: false)
+                    }
+                })
+            }
+            .sheet(isPresented: $hienTaoLich) { TaoLichHenView(vm: vm) }
+            .sheet(isPresented: $hienKho) {
+                MediaGalleryView(cuocId: vm.cuoc.id) { tinChon in
+                    denTin(tinChon.msgId, tinChon.ts)
+                }
+            }
+            .sheet(isPresented: $hienTimTrong) { SearchInConversationView(vm: vm) }
+            .sheet(item: $tinChuyenTiep) { t in ForwardMessageView(tin: t, cuocGocId: vm.cuoc.id) }
+            .sheet(item: $anhDangXem) { a in ImageViewerView(anh: a, cuocId: vm.cuoc.id) }
+            .fullScreenCover(item: $videoDangXem) { v in TrinhPhatVideoView(url: v.url) }
+            .quickLookPreview($fileDangXem)
+            .alert("Lỗi", isPresented: Binding(get: { vm.loi != nil }, set: { if !$0 { vm.loi = nil } })) {
+                Button("Đóng", role: .cancel) {}
+            } message: { Text(vm.loi ?? "") }
     }
 }
