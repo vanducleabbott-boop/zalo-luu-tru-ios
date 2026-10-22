@@ -238,6 +238,15 @@ final class ZaloAPI {
         return try await goiJSON("/api/ghim", method: "POST", query: ["cuoc": cuoc], jsonBody: Than(ghim: bat))
     }
 
+    // ---------------------------------------------------------------- nhóm phân loại tùy chọn (/api/nhom-tuy-chon)
+    func layNhomTuyChon() async throws -> [NhomTuyChon] {
+        try await goiJSON("/api/nhom-tuy-chon")
+    }
+
+    func luuNhomTuyChon(_ ds: [NhomTuyChon]) async throws {
+        _ = try await goi("/api/nhom-tuy-chon", method: "POST", jsonBody: ds)
+    }
+
     // ---------------------------------------------------------------- tin nhắn đã ghim (tin_ghim)
     func layDsTinGhim(cuoc: String) async throws -> [TinGhim] {
         try await goiJSON("/api/tin-ghim", query: ["cuoc": cuoc])

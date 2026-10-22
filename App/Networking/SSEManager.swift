@@ -15,6 +15,7 @@ enum SuKienZalo {
     case cuocGoiDaTraLoi
     case cuocGoiKetThuc
     case zaloTrangThai(ZaloServerStatus)
+    case nhomTuyChonThayDoi([NhomTuyChon])
 }
 
 private struct PayloadTin: Decodable {
@@ -160,6 +161,12 @@ final class SSEManager: ObservableObject {
             if let p = try? JSONDecoder().decode(ZaloServerStatus.self, from: data) {
                 print("[SSE] Zalo server status:", p.trangThai, "daDangNhap:", p.daDangNhap)
                 suKien.send(.zaloTrangThai(p))
+            }
+        case "nhom_tuy_chon":
+            guard let data = sk.data.data(using: .utf8) else { return }
+            if let ds = try? JSONDecoder().decode([NhomTuyChon].self, from: data) {
+                print("[SSE] Nhan nhom tuy chon moi tu server:", ds.count)
+                suKien.send(.nhomTuyChonThayDoi(ds))
             }
         default:
             break   // "nhip" chi de cap nhat lastHeard

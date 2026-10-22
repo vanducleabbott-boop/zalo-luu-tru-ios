@@ -125,6 +125,12 @@ struct GroupListView: View {
                 }
                 Button("Huỷ", role: .cancel) {}
             }
+            .refreshable {
+                await manager.dongBoVoiServer(api: env.api)
+            }
+            .task {
+                await manager.dongBoVoiServer(api: env.api)
+            }
         }
     }
 

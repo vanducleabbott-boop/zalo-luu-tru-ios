@@ -313,13 +313,39 @@ struct NhomTuyChon: Codable, Equatable, Hashable, Identifiable {
     var id: String
     var ten: String
     var dsCuocId: [String]
-    var ngayTao: Date
+    var ngayTao: Date?
 
-    init(id: String = UUID().uuidString, ten: String, dsCuocId: [String] = [], ngayTao: Date = Date()) {
+    enum CodingKeys: String, CodingKey {
+        case id, ten, dsCuocId, ngayTao
+    }
+
+    init(id: String = UUID().uuidString, ten: String, dsCuocId: [String] = [], ngayTao: Date? = Date()) {
         self.id = id
         self.ten = ten
         self.dsCuocId = dsCuocId
         self.ngayTao = ngayTao
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
+        ten = try c.decodeIfPresent(String.self, forKey: .ten) ?? "Nhóm"
+        dsCuocId = try c.decodeIfPresent([String].self, forKey: .dsCuocId) ?? []
+        if let ts = try? c.decodeIfPresent(Double.self, forKey: .ngayTao) {
+            ngayTao = Date(timeIntervalSince1970: ts > 1_000_000_000_000 ? ts / 1000 : ts)
+        } else {
+            ngayTao = try? c.decodeIfPresent(Date.self, forKey: .ngayTao)
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(ten, forKey: .ten)
+        try c.encode(dsCuocId, forKey: .dsCuocId)
+        if let ngayTao {
+            try c.encode(Int64(ngayTao.timeIntervalSince1970 * 1000), forKey: .ngayTao)
+        }
     }
 }
 

@@ -48,6 +48,7 @@ final class AppEnvironment: ObservableObject {
         let s = AppSettings()
         settings = s
         api = ZaloAPI(baseURL: s.baseURL)
+        NhomChatManager.shared.ganAPI(api)
         NotificationManager.shared.xinQuyen()
         BackgroundAudioManager.shared.batDauChayNen()
         ViTriGiuNen.shared.batDau()   // giữ nền DUY NHẤT bằng vị trí (tiếng tĩnh đã tắt từ v3.9)
@@ -55,6 +56,10 @@ final class AppEnvironment: ObservableObject {
         NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
             BackgroundAudioManager.shared.batDauChayNen()
             ViTriGiuNen.shared.batDau()
+        }
+        NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
+            guard let self = self else { return }
+            Task { await NhomChatManager.shared.dongBoVoiServer(api: self.api) }
         }
         huyTheoDoiThongBao = sse.suKien.receive(on: DispatchQueue.main).sink { [weak self] sk in self?.xuLyThongBaoNen(sk) }
         NotificationCenter.default.addObserver(forName: .moCuocTuThongBao, object: nil, queue: .main) { [weak self] notif in
@@ -98,8 +103,13 @@ final class AppEnvironment: ObservableObject {
             BackgroundAudioManager.shared.tiepTucSauCuocGoi()
         case .zaloTrangThai(let st):
             self.zaloServerStatus = st
+        case .nhomTuyChonThayDoi(let ds):
+            NhomChatManager.shared.capNhatTuServer(ds)
         case .ketNoiLai:
-            Task { await self.kiemTraTrangThaiZalo() }
+            Task {
+                await self.kiemTraTrangThaiZalo()
+                await NhomChatManager.shared.dongBoVoiServer(api: self.api)
+            }
         default:
             break
         }
@@ -139,8 +149,12 @@ final class AppEnvironment: ObservableObject {
         daDangNhap = api.daCoCookiePhien()
         dangKiemTraPhien = false
         if daDangNhap {
+            NhomChatManager.shared.ganAPI(api)
             sse.batDau(api: api)
-            Task { await kiemTraTrangThaiZalo() }
+            Task {
+                await kiemTraTrangThaiZalo()
+                await NhomChatManager.shared.dongBoVoiServer(api: api)
+            }
         }
     }
 
@@ -148,9 +162,13 @@ final class AppEnvironment: ObservableObject {
         let ok = try await api.dangNhap(matKhau: matKhau)
         if ok {
             daDangNhap = true
+            NhomChatManager.shared.ganAPI(api)
             BackgroundAudioManager.shared.batDauChayNen()
             sse.batDau(api: api)
-            Task { await kiemTraTrangThaiZalo() }
+            Task {
+                await kiemTraTrangThaiZalo()
+                await NhomChatManager.shared.dongBoVoiServer(api: api)
+            }
         }
         return ok
     }
