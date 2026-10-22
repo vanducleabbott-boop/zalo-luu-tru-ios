@@ -49,15 +49,11 @@ private struct ChatContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if !vm.dsGhim.isEmpty {
-                ThanhTinGhimView(dsGhim: vm.dsGhim, onNhayToi: { msgId in
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        vm.tinDuocNhayToi = msgId
-                    }
-                }, onXemTatCa: {
-                    showDsGhimSheet = true
-                })
-            }
+            ThanhTinGhimView(dsGhim: vm.dsGhim, onNhayToi: { msgId in
+                vm.tinDuocNhayToi = msgId
+            }, onXemTatCa: {
+                showDsGhimSheet = true
+            })
 
             ScrollViewReader { proxy in
                 List {
@@ -139,12 +135,11 @@ private struct ChatContentView: View {
                 }
                 .onChange(of: vm.tinDuocNhayToi) { targetId in
                     guard let tid = targetId, !tid.isEmpty else { return }
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        proxy.scrollTo(tid, anchor: .center)
-                    }
+                    withAnimation { proxy.scrollTo(tid, anchor: .center) }
                 }
             }
-            MessageInputAreaView(vm: vm, daFocus: $daFocusNhap, onMoLichHen: { hienTaoLich = true })
+            if let traLoi = vm.traLoi { ThanhTraLoiView(t: traLoi) { vm.boTraLoi() } }
+            MessageInputBar(vm: vm, daFocus: $daFocusNhap, onMoLichHen: { hienTaoLich = true })
         }
         .navigationTitle(vm.cuoc.ten ?? vm.cuoc.id)
         .navigationBarTitleDisplayMode(.inline)
