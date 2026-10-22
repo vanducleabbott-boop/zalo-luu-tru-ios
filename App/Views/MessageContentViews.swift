@@ -622,3 +622,87 @@ struct LichHenTinView: View {
         return DinhDang.gioPhut(bd) + " · " + DinhDang.ngayDai(bd)
     }
 }
+
+// ---------------------------------------------------------------- Danh thiếp / Liên hệ
+struct DanhThiepTinView: View {
+    @EnvironmentObject var env: AppEnvironment
+    let dt: DanhThiepInfo
+    @State private var daSaoChep = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                AvatarView(
+                    ten: dt.ten ?? "Liên hệ",
+                    anh: dt.avatar,
+                    khoa: dt.uid ?? dt.ten ?? "",
+                    kichThuoc: 46
+                )
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(dt.ten ?? "Liên hệ Zalo")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(Color.primary)
+                        .lineLimit(1)
+
+                    if let sdt = dt.sdt, !sdt.isEmpty {
+                        Text(sdt)
+                            .font(.caption)
+                            .foregroundStyle(Color.secondary)
+                    } else {
+                        Text("Danh thiếp Zalo")
+                            .font(.caption2)
+                            .foregroundStyle(Color.secondary)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+
+            if let sdt = dt.sdt, !sdt.isEmpty {
+                Divider()
+                HStack(spacing: 8) {
+                    if let url = URL(string: "tel://\(sdt.filter { !" -()".contains($0) })"), UIApplication.shared.canOpenURL(url) {
+                        Button {
+                            UIApplication.shared.open(url)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "phone.fill")
+                                    .font(.system(size: 11))
+                                Text("Gọi điện")
+                                    .font(.caption.bold())
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                            .background(Color.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                            .foregroundStyle(Color.blue)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    Button {
+                        UIPasteboard.general.string = sdt
+                        daSaoChep = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            daSaoChep = false
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: daSaoChep ? "checkmark" : "doc.on.doc")
+                                .font(.system(size: 11))
+                            Text(daSaoChep ? "Đã chép" : "Sao chép")
+                                .font(.caption.bold())
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(Color(.systemGray5), in: RoundedRectangle(cornerRadius: 8))
+                        .foregroundStyle(daSaoChep ? Color.green : Color.primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(10)
+        .frame(minWidth: 230, maxWidth: 280, alignment: .leading)
+        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+    }
+}

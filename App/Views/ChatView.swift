@@ -35,6 +35,7 @@ struct ChatView: View {
 }
 
 private struct ChatContentView: View {
+    @State private var showDsGhimSheet = false
     @EnvironmentObject var env: AppEnvironment
     @ObservedObject var vm: ChatViewModel
     @FocusState private var daFocusNhap: Bool
@@ -48,6 +49,16 @@ private struct ChatContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if !vm.dsGhim.isEmpty {
+                ThanhTinGhimView(dsGhim: vm.dsGhim, onNhayToi: { msgId in
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        vm.tinDuocNhayToi = msgId
+                    }
+                }, onXemTatCa: {
+                    showDsGhimSheet = true
+                })
+            }
+
             ScrollViewReader { proxy in
                 List {
                     ForEach(Array(vm.danhSachHienThi.enumerated()), id: \.offset) { i, muc in
@@ -125,9 +136,27 @@ private struct ChatContentView: View {
                 .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
                     cuonXuongDay(proxy: proxy, animate: true)
                 }
+                .onChange(of: vm.tinDuocNhayToi) { targetId in
+                    guard let tid = targetId, !tid.isEmpty else { return }
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        proxy.scrollTo(tid, anchor: .center)
+                    }
+                }
             }
             if let traLoi = vm.traLoi { ThanhTraLoiView(t: traLoi) { vm.boTraLoi() } }
             MessageInputBar(vm: vm, daFocus: $daFocusNhap, onMoLichHen: { hienTaoLich = true })
+        }
+        .sheet(isPresented: $showDsGhimSheet) {
+            DanhSachTinGhimSheet(dsGhim: vm.dsGhim, onChon: { msgId in
+                showDsGhimSheet = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    vm.tinDuocNhayToi = msgId
+                }
+            }, onBoGhim: { msgId in
+                Task {
+                    await vm.chuyenTrangThaiGhim(msgId: msgId, ghim: false)
+                }
+            })
         }
         .navigationTitle(vm.cuoc.ten ?? vm.cuoc.id)
         .navigationBarTitleDisplayMode(.inline)
@@ -242,5 +271,134 @@ struct ThanhTraLoiView: View {
     }
     private func xemTruoc(_ t: Tin) -> String {
         ["anh": "[Hình ảnh]", "video": "[Video]", "ghiam": "[Tin nhắn thoại]", "sticker": "[Sticker]"][t.kieu] ?? ""
+    }
+}
+
+
+// MARK: - Thanh hiển thị tin nhắn ghim (banner trên đầu khung chat)
+struct ThanhTinGhimView: View {
+    let dsGhim: [TinGhim]
+    let onNhayToi: (String) -> Void
+    let onXemTatCa: () -> Void
+
+    var tinMoiNhat: TinGhim? {
+        dsGhim.first
+    }
+
+    var body: some View {
+        if let g = tinMoiNhat {
+            HStack(spacing: 10) {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.orange)
+                    .rotationEffect(.degrees(45))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("Tin nhắn ghim" + (dsGhim.count > 1 ? " (" + String(dsGhim.count) + ")" : ""))
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.orange)
+
+                        if let nguoi = g.nguoiGhim, !nguoi.isEmpty {
+                            Text("• " + nguoi)
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Text(g.tieuDe.isEmpty ? "[Tin nhắn]" : g.tieuDe)
+                        .font(.system(size: 13))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                if dsGhim.count > 1 {
+                    Button(action: onXemTatCa) {
+                        Image(systemName: "list.bullet")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .padding(6)
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(UIColor.secondarySystemBackground))
+            .overlay(
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(Color.gray.opacity(0.2)),
+                alignment: .bottom
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onNhayToi(g.msgId)
+            }
+        }
+    }
+}
+
+// MARK: - Sheet danh sách tất cả tin nhắn ghim
+struct DanhSachTinGhimSheet: View {
+    let dsGhim: [TinGhim]
+    let onChon: (String) -> Void
+    let onBoGhim: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(dsGhim) { g in
+                    Button(action: {
+                        onChon(g.msgId)
+                    }) {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "pin.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.orange)
+                                .rotationEffect(.degrees(45))
+                                .padding(.top, 2)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                if let nguoi = g.nguoiGhim, !nguoi.isEmpty {
+                                    Text(nguoi)
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(.secondary)
+                                }
+
+                                Text(g.tieuDe.isEmpty ? "[Tin nhắn]" : g.tieuDe)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.primary)
+                                    .lineLimit(3)
+                            }
+
+                            Spacer()
+
+                            Button(action: {
+                                onBoGhim(g.msgId)
+                            }) {
+                                Image(systemName: "pin.slash")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.red)
+                                    .padding(6)
+                            }
+                            .buttonStyle(BorderlessButtonStyle())
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            }
+            .navigationTitle("Tin nhắn ghim (" + String(dsGhim.count) + ")")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }

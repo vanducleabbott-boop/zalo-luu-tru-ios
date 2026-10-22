@@ -121,7 +121,7 @@ struct MessageBubble: View {
                         .fill(t.laToi ? ZaloMau.bongToi : (laTagToi ? Color.orange.opacity(0.08) : ZaloMau.bongHo))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(t.thuHoi ? Color.red.opacity(0.35) : (laTagToi ? Color.orange.opacity(0.45) : Color.clear), lineWidth: 1)
+                                .strokeBorder(vm.tinDuocNhayToi == t.msgId ? Color.orange : (t.thuHoi ? Color.red.opacity(0.35) : (laTagToi ? Color.orange.opacity(0.45) : Color.clear)), lineWidth: vm.tinDuocNhayToi == t.msgId ? 2.5 : 1)
                         )
                 )
         )
@@ -173,6 +173,12 @@ struct MessageBubble: View {
                     Task { await vm.xoaLichHen(id: id, cuocId: l.cuocLich) }
                 })
             } else { Text(t.chu ?? "") }
+        case "danh-thiep":
+            if let dt = t.phu?.danhThiep {
+                DanhThiepTinView(dt: dt)
+            } else {
+                Text(t.chu ?? "")
+            }
         default:
             VStack(alignment: .leading, spacing: 4) {
                 VanBanTinView(chu: t.chu ?? "", tags: t.phu?.tag, laTagToi: laTagToi)
@@ -223,6 +229,12 @@ struct MessageBubble: View {
     @ViewBuilder
     private var menu: some View {
         Button { vm.chonTraLoi(t) } label: { Label("Trả lời", systemImage: "arrowshape.turn.up.left") }
+        Button {
+            Task { await vm.chuyenTrangThaiGhim(t) }
+        } label: {
+            Label(vm.laTinGhim(t.msgId) ? "Bỏ ghim tin nhắn" : "Ghim tin nhắn",
+                  systemImage: vm.laTinGhim(t.msgId) ? "pin.slash" : "pin")
+        }
         if t.kieu == "video", let u = diaChiFile {
             Button { videoDangXem = VideoXemToan(url: u, msgId: t.msgId) } label: { Label("Xem video", systemImage: "play.fill") }
         }

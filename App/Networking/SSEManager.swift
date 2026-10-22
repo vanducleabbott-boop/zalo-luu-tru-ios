@@ -9,6 +9,7 @@ enum SuKienZalo {
     case tinMoi(cuocId: String, tin: Tin, laTinMoi: Bool)   // "tin" (moi) hoac "sua" (sua/thu hoi/cam xuc)
     case daDoc(cuocId: String?)
     case ghimDoiThayDoi
+    case tinGhimThayDoi(cuocId: String, dsGhim: [TinGhim])
     case ketNoiLai   // vua mo lai ket noi -> noi goi tai bu nhu web (taiBu())
     case cuocGoiDen(nguon: String?, chiTiet: String?, thoiGian: Date)
     case cuocGoiDaTraLoi
@@ -120,6 +121,15 @@ final class SSEManager: ObservableObject {
             suKien.send(.daDoc(cuocId: p?.cuocId))
         case "ghim":
             suKien.send(.ghimDoiThayDoi)
+        case "tin_ghim":
+            guard let data = sk.data.data(using: .utf8) else { return }
+            struct PayloadGhim: Decodable {
+                let cuocId: String
+                let dsGhim: [TinGhim]
+            }
+            if let p = try? JSONDecoder().decode(PayloadGhim.self, from: data) {
+                suKien.send(.tinGhimThayDoi(cuocId: p.cuocId, dsGhim: p.dsGhim))
+            }
         case "lich":
             suKien.send(.ketNoiLai)
         case "cuoc-goi", "goi":

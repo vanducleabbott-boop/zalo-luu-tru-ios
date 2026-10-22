@@ -19,6 +19,8 @@ final class ChatViewModel: ObservableObject {
     @Published var cuonToiMsgId: String?
     @Published private(set) var thanhVienNhom: [ThanhVien] = []
     @Published private(set) var dangTaiThanhVien = false
+    @Published var dsGhim: [TinGhim] = []
+    @Published var tinDuocNhayToi: String? = nil
 
     let env: AppEnvironment
     private var cheDoQuanh = false
@@ -57,6 +59,7 @@ final class ChatViewModel: ObservableObject {
             let cuCount = tinDangXem.count
             tinDangXem = kq.tin
             heTin = kq.tin.count < 60
+            if let g = kq.dsGhim { dsGhim = g }
             if quanh == nil {
                 TinNhanDiskCache.shared.luuTin(kq.tin, cuocId: cuoc.id)
             }
@@ -295,9 +298,29 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
+    // ---------------------------------------------------------------- tin nhắn đã ghim
+    func laTinGhim(_ msgId: String) -> Bool {
+        dsGhim.contains { $0.msgId == msgId }
+    }
+
+    func chuyenTrangThaiGhim(_ t: Tin) async {
+        let daGhim = laTinGhim(t.msgId)
+        let tieuDe = (t.chu?.isEmpty == false ? t.chu : (t.tenFile ?? t.kieu)) ?? ""
+        do {
+            let moi = try await env.api.datTinGhim(cuoc: cuoc.id, msgId: t.msgId, ghim: !daGhim, tieuDe: String(tieuDe.prefix(100)))
+            dsGhim = moi
+        } catch {
+            loi = "Lỗi đổi ghim tin: " + error.localizedDescription
+        }
+    }
+
     // ---------------------------------------------------------------- realtime
     private func xuLySuKien(_ sk: SuKienZalo) {
         switch sk {
+        case .tinGhimThayDoi(let cId, let ghimMoi):
+            if cId == cuoc.id {
+                dsGhim = ghimMoi
+            }
         case .tinMoi(let cuocId, let tin, let laTinMoi):
             guard cuocId == cuoc.id, !cheDoQuanh else { return }
 

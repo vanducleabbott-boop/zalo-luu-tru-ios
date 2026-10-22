@@ -132,6 +132,35 @@ struct LichHen: Codable, Equatable, Hashable {
     let cuaToi: Bool?
 }
 
+// ---------------------------------------------------------------- Danh thiếp / Liên hệ (kieu == "danh-thiep")
+struct DanhThiepInfo: Codable, Equatable, Hashable {
+    let ten: String?
+    let sdt: String?
+    let uid: String?
+    let avatar: String?
+    let qrCode: String?
+}
+
+// ---------------------------------------------------------------- Tin nhắn đã ghim
+struct TinGhim: Identifiable, Codable, Equatable, Hashable {
+    var id: String { msgId }
+    let msgId: String
+    let cuocId: String?
+    let tieuDe: String?
+    let nguoiGhim: String?
+    let ghimTs: Int64?
+    let tin: Tin?
+
+    init(msgId: String, cuocId: String? = nil, tieuDe: String? = nil, nguoiGhim: String? = nil, ghimTs: Int64? = nil, tin: Tin? = nil) {
+        self.msgId = msgId
+        self.cuocId = cuocId
+        self.tieuDe = tieuDe
+        self.nguoiGhim = nguoiGhim
+        self.ghimTs = ghimTs
+        self.tin = tin
+    }
+}
+
 // ---------------------------------------------------------------- Khối "phu" tự do (khac nhau theo loai tin)
 struct Phu: Codable, Equatable, Hashable {
     let khung: Int?             // sticker dong: so khung sprite ngang
@@ -140,6 +169,7 @@ struct Phu: Codable, Equatable, Hashable {
     let tag: [TagMark]?
     let cuocNguon: String?
     let album: AlbumInfo?       // anh/video gui 1 lan (Zalo hien 1 khung luoi) - v4.3
+    let danhThiep: DanhThiepInfo?
 }
 
 /// Album: cùng `id` = cùng 1 lần gửi nhiều ảnh/video; `i` thứ tự trong album, `n` tổng số (máy chủ lấy từ group_layout_id).
@@ -241,6 +271,7 @@ struct PhanHoiTin: Codable {
     let tin: [Tin]
     let toi: String?
     let nguoi: [String: Nguoi?]
+    let dsGhim: [TinGhim]?
 }
 
 // ---------------------------------------------------------------- Phản hồi /api/kho

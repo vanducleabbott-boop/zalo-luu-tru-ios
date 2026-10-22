@@ -238,6 +238,26 @@ final class ZaloAPI {
         return try await goiJSON("/api/ghim", method: "POST", query: ["cuoc": cuoc], jsonBody: Than(ghim: bat))
     }
 
+    // ---------------------------------------------------------------- tin nhắn đã ghim (tin_ghim)
+    func layDsTinGhim(cuoc: String) async throws -> [TinGhim] {
+        try await goiJSON("/api/tin-ghim", query: ["cuoc": cuoc])
+    }
+
+    func datTinGhim(cuoc: String, msgId: String, ghim: Bool, tieuDe: String = "") async throws -> [TinGhim] {
+        struct Than: Encodable {
+            let msgId: String
+            let ghim: Bool
+            let tieuDe: String
+        }
+        struct KetQua: Decodable {
+            let ok: Bool
+            let cuocId: String
+            let dsGhim: [TinGhim]
+        }
+        let kq: KetQua = try await goiJSON("/api/tin-ghim", method: "POST", query: ["cuoc": cuoc, "msg": msgId], jsonBody: Than(msgId: msgId, ghim: ghim, tieuDe: tieuDe))
+        return kq.dsGhim
+    }
+
     func datTatThongBao(cuoc: String, tat: Bool) async throws {
         struct Than: Encodable { let tat: Bool }
         _ = try await goi("/api/tat-thong-bao", method: "POST", query: ["cuoc": cuoc], jsonBody: Than(tat: tat))
