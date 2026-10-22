@@ -429,7 +429,7 @@ private struct GhimDongRow: View {
 // MARK: - Row item con trong danh sách chat (giúp giải tỏa tải biên dịch cho Swift compiler)
 private struct ChatRowItemView: View {
     let i: Int
-    let muc: MucHienThi
+    let muc: GomNhom.MucHienThi
     @ObservedObject var vm: ChatViewModel
     let chamTrichDan: (String) -> Void
     let chonChuyenTiep: (Tin) -> Void
