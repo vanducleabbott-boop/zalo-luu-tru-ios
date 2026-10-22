@@ -45,9 +45,20 @@ private struct ChatContentView: View {
     @State private var hienKho = false
     @State private var hienTimTrong = false
     @State private var hienTaoLich = false
+    @State private var showDsGhimSheet = false
 
     var body: some View {
         VStack(spacing: 0) {
+            if !vm.dsGhim.isEmpty {
+                ThanhTinGhimView(dsGhim: vm.dsGhim, onNhayToi: { msgId in
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        vm.tinDuocNhayToi = msgId
+                    }
+                }, onXemTatCa: {
+                    showDsGhimSheet = true
+                })
+            }
+
             ScrollViewReader { proxy in
                 List {
                     ForEach(Array(vm.danhSachHienThi.enumerated()), id: \.offset) { i, muc in
@@ -91,6 +102,7 @@ private struct ChatContentView: View {
                 .scrollDismissesKeyboard(.interactively)
                 .onAppear {
                     cuonXuongDay(proxy: proxy, animate: false)
+                    Task { await vm.taiTinGhim() }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         cuonXuongDay(proxy: proxy, animate: false)
                     }
@@ -124,6 +136,12 @@ private struct ChatContentView: View {
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
                     cuonXuongDay(proxy: proxy, animate: true)
+                }
+                .onChange(of: vm.tinDuocNhayToi) { targetId in
+                    guard let tid = targetId, !tid.isEmpty else { return }
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        proxy.scrollTo(tid, anchor: .center)
+                    }
                 }
             }
             if let traLoi = vm.traLoi { ThanhTraLoiView(t: traLoi) { vm.boTraLoi() } }
@@ -159,6 +177,18 @@ private struct ChatContentView: View {
                     }
                 } label: { Image(systemName: "ellipsis.circle") }
             }
+        }
+        .sheet(isPresented: $showDsGhimSheet) {
+            DanhSachTinGhimSheet(dsGhim: vm.dsGhim, onChon: { msgId in
+                showDsGhimSheet = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    vm.tinDuocNhayToi = msgId
+                }
+            }, onBoGhim: { msgId in
+                Task {
+                    await vm.chuyenTrangThaiGhim(msgId: msgId, ghim: false)
+                }
+            })
         }
         .sheet(isPresented: $hienTaoLich) { TaoLichHenView(vm: vm) }
         .sheet(isPresented: $hienKho) {
