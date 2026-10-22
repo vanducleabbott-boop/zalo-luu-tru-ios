@@ -148,6 +148,9 @@ private struct ChatContentView: View {
                     Button { hienTaoLich = true } label: { Label("Đặt lịch hẹn", systemImage: "calendar.badge.clock") }
                     Button { hienTimTrong = true } label: { Label("Tìm tin nhắn", systemImage: "magnifyingglass") }
                     Button { hienKho = true } label: { Label("Ảnh, file, link đã gửi", systemImage: "photo.on.rectangle") }
+                    Button { showDsGhimSheet = true } label: {
+                        Label(vm.dsGhim.isEmpty ? "Tin nhắn đã ghim" : "Tin nhắn đã ghim (\(vm.dsGhim.count))", systemImage: "pin.fill")
+                    }
                     if vm.cuoc.id != "so-tay" {
                         Button { Task { await datGhim() } } label: {
                             Label(vm.cuoc.daGhim ? "Bỏ ghim" : "Ghim hội thoại", systemImage: "pin")
@@ -161,10 +164,21 @@ private struct ChatContentView: View {
                 } label: { Image(systemName: "ellipsis.circle") }
             }
         }
+        .safeAreaInset(edge: .top) {
+            if !vm.dsGhim.isEmpty {
+                ThanhTinGhimView(dsGhim: vm.dsGhim, onNhayToi: { msgId in
+                    denTin(msgId)
+                    vm.tinDuocNhayToi = msgId
+                }, onXemTatCa: {
+                    showDsGhimSheet = true
+                })
+            }
+        }
         .sheet(isPresented: $showDsGhimSheet) {
             DanhSachTinGhimSheet(dsGhim: vm.dsGhim, onChon: { msgId in
                 showDsGhimSheet = false
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    denTin(msgId)
                     vm.tinDuocNhayToi = msgId
                 }
             }, onBoGhim: { msgId in
