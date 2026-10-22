@@ -65,71 +65,16 @@ private struct ChatContentView: View {
         VStack(spacing: 0) {
             thanhGhimNeuCo
 
-            ScrollViewReader { proxy in
-                List {
-                    ForEach(Array(vm.danhSachHienThi.enumerated()), id: \.offset) { i, muc in
-                        ChatRowItemView(
-                            i: i,
-                            muc: muc,
-                            vm: vm,
-                            chamTrichDan: { denTin($0) },
-                            chonChuyenTiep: { tinChuyenTiep = $0 },
-                            anhDangXem: $anhDangXem,
-                            videoDangXem: $videoDangXem,
-                            fileDangXem: $fileDangXem
-                        )
-                    }
-                    Color.clear.frame(height: 1).id("__day_chat__")
-                        .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
-                }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .background(ZaloMau.nenChat)
-                .scrollDismissesKeyboard(.interactively)
-                .onAppear {
-                    cuonXuongDay(proxy: proxy, animate: false)
-                    Task { await vm.taiTinGhim() }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        cuonXuongDay(proxy: proxy, animate: false)
-                    }
-                }
-                .onChange(of: vm.tinDangXem.count) { soLuong in
-                    if soLuong > 0 && !vm.daCuonXuongCuoiLanDau {
-                        cuonXuongDay(proxy: proxy, animate: false)
-                    }
-                }
-                .onChange(of: vm.cuonToiMsgId) { moi in
-                    guard let moi else { return }
-                    if moi == "__cuoi__" || moi == "__cuoi_neu_sat_day__" {
-                        cuonXuongDay(proxy: proxy, animate: moi != "__cuoi__")
-                    } else {
-                        withAnimation { proxy.scrollTo(moi, anchor: .center) }
-                    }
-                    vm.cuonToiMsgId = nil
-                }
-                .onChange(of: vm.traLoi?.msgId) { moi in
-                    if moi != nil {
-                        daFocusNhap = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                            cuonXuongDay(proxy: proxy, animate: true)
-                        }
-                    }
-                }
-                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        cuonXuongDay(proxy: proxy, animate: true)
-                    }
-                }
-                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
-                    cuonXuongDay(proxy: proxy, animate: true)
-                }
-                .onChange(of: vm.tinDuocNhayToi) { targetId in
-                    guard let tid = targetId, !tid.isEmpty else { return }
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        proxy.scrollTo(tid, anchor: .center)
-                    }
-                }
-            }
+            DanhSachTinNhanScrollView(
+                vm: vm,
+                daFocusNhap: $daFocusNhap,
+                tinChuyenTiep: $tinChuyenTiep,
+                anhDangXem: $anhDangXem,
+                videoDangXem: $videoDangXem,
+                fileDangXem: $fileDangXem,
+                denTin: { id, ts in denTin(id, ts: ts) },
+                cuonXuongDay: { p, a in cuonXuongDay(proxy: p, animate: a) }
+            )
             if let traLoi = vm.traLoi { ThanhTraLoiView(t: traLoi) { vm.boTraLoi() } }
             MessageInputBar(vm: vm, daFocus: $daFocusNhap, onMoLichHen: { hienTaoLich = true })
         }
@@ -500,5 +445,86 @@ private struct CacSheetPhuModifier: ViewModifier {
             .alert("Lỗi", isPresented: Binding(get: { vm.loi != nil }, set: { if !$0 { vm.loi = nil } })) {
                 Button("Đóng", role: .cancel) {}
             } message: { Text(vm.loi ?? "") }
+    }
+}
+
+
+// MARK: - Khung cuộn tin nhắn tách riêng để giảm tải type-checker
+private struct DanhSachTinNhanScrollView: View {
+    @ObservedObject var vm: ChatViewModel
+    @FocusState.Binding var daFocusNhap: Bool
+    @Binding var tinChuyenTiep: Tin?
+    @Binding var anhDangXem: AnhXemToan?
+    @Binding var videoDangXem: VideoXemToan?
+    @Binding var fileDangXem: URL?
+    let denTin: (String, Int64?) -> Void
+    let cuonXuongDay: (ScrollViewProxy, Bool) -> Void
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            List {
+                ForEach(Array(vm.danhSachHienThi.enumerated()), id: \.offset) { i, muc in
+                    ChatRowItemView(
+                        i: i,
+                        muc: muc,
+                        vm: vm,
+                        chamTrichDan: { denTin($0, nil) },
+                        chonChuyenTiep: { tinChuyenTiep = $0 },
+                        anhDangXem: $anhDangXem,
+                        videoDangXem: $videoDangXem,
+                        fileDangXem: $fileDangXem
+                    )
+                }
+                Color.clear.frame(height: 1).id("__day_chat__")
+                    .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(ZaloMau.nenChat)
+            .scrollDismissesKeyboard(.interactively)
+            .onAppear {
+                cuonXuongDay(proxy, false)
+                Task { await vm.taiTinGhim() }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    cuonXuongDay(proxy, false)
+                }
+            }
+            .onChange(of: vm.tinDangXem.count) { soLuong in
+                if soLuong > 0 && !vm.daCuonXuongCuoiLanDau {
+                    cuonXuongDay(proxy, false)
+                }
+            }
+            .onChange(of: vm.cuonToiMsgId) { moi in
+                guard let moi else { return }
+                if moi == "__cuoi__" || moi == "__cuoi_neu_sat_day__" {
+                    cuonXuongDay(proxy, moi != "__cuoi__")
+                } else {
+                    withAnimation { proxy.scrollTo(moi, anchor: .center) }
+                }
+                vm.cuonToiMsgId = nil
+            }
+            .onChange(of: vm.traLoi?.msgId) { moi in
+                if moi != nil {
+                    daFocusNhap = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        cuonXuongDay(proxy, true)
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    cuonXuongDay(proxy, true)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
+                cuonXuongDay(proxy, true)
+            }
+            .onChange(of: vm.tinDuocNhayToi) { targetId in
+                guard let tid = targetId, !tid.isEmpty else { return }
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo(tid, anchor: .center)
+                }
+            }
+        }
     }
 }

@@ -306,8 +306,12 @@ final class ChatViewModel: ObservableObject {
     func chuyenTrangThaiGhim(_ t: Tin) async {
         let daGhim = laTinGhim(t.msgId)
         let tieuDe = (t.chu?.isEmpty == false ? t.chu : (t.tenFile ?? t.kieu)) ?? ""
+        await chuyenTrangThaiGhim(msgId: t.msgId, ghim: !daGhim, tieuDe: String(tieuDe.prefix(100)))
+    }
+
+    func chuyenTrangThaiGhim(msgId: String, ghim: Bool, tieuDe: String = "") async {
         do {
-            let moi = try await env.api.datTinGhim(cuoc: cuoc.id, msgId: t.msgId, ghim: !daGhim, tieuDe: String(tieuDe.prefix(100)))
+            let moi = try await env.api.datTinGhim(cuoc: cuoc.id, msgId: msgId, ghim: ghim, tieuDe: tieuDe)
             dsGhim = moi
         } catch {
             loi = "Lỗi đổi ghim tin: " + error.localizedDescription
