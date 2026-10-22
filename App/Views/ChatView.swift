@@ -49,12 +49,6 @@ private struct ChatContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ThanhTinGhimView(dsGhim: vm.dsGhim, onNhayToi: { msgId in
-                vm.tinDuocNhayToi = msgId
-            }, onXemTatCa: {
-                showDsGhimSheet = true
-            })
-
             ScrollViewReader { proxy in
                 List {
                     ForEach(Array(vm.danhSachHienThi.enumerated()), id: \.offset) { i, muc in
@@ -98,7 +92,6 @@ private struct ChatContentView: View {
                 .scrollDismissesKeyboard(.interactively)
                 .onAppear {
                     cuonXuongDay(proxy: proxy, animate: false)
-                    Task { await vm.taiTinGhim() }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         cuonXuongDay(proxy: proxy, animate: false)
                     }
@@ -132,10 +125,6 @@ private struct ChatContentView: View {
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
                     cuonXuongDay(proxy: proxy, animate: true)
-                }
-                .onChange(of: vm.tinDuocNhayToi) { targetId in
-                    guard let tid = targetId, !tid.isEmpty else { return }
-                    withAnimation { proxy.scrollTo(tid, anchor: .center) }
                 }
             }
             if let traLoi = vm.traLoi { ThanhTraLoiView(t: traLoi) { vm.boTraLoi() } }
