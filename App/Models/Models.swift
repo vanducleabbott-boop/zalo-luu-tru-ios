@@ -170,6 +170,16 @@ struct Phu: Codable, Equatable, Hashable {
     let cuocNguon: String?
     let album: AlbumInfo?       // anh/video gui 1 lan (Zalo hien 1 khung luoi) - v4.3
     let danhThiep: DanhThiepInfo?
+
+    init(khung: Int? = nil, ms: Int? = nil, lich: LichHen? = nil, tag: [TagMark]? = nil, cuocNguon: String? = nil, album: AlbumInfo? = nil, danhThiep: DanhThiepInfo? = nil) {
+        self.khung = khung
+        self.ms = ms
+        self.lich = lich
+        self.tag = tag
+        self.cuocNguon = cuocNguon
+        self.album = album
+        self.danhThiep = danhThiep
+    }
 }
 
 /// Album: cùng `id` = cùng 1 lần gửi nhiều ảnh/video; `i` thứ tự trong album, `n` tổng số (máy chủ lấy từ group_layout_id).
