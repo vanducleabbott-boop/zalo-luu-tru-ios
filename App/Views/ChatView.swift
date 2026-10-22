@@ -1,21 +1,20 @@
 import SwiftUI
 import QuickLook
 
-final class ChatViewModelHolder: ObservableObject {
-    @Published var vm: ChatViewModel?
-}
-
 struct ChatView: View {
     @EnvironmentObject var env: AppEnvironment
-    @StateObject private var holder = ChatViewModelHolder()
     let cuoc: Cuoc
-    var quanhTs: Int64?
-    var sangMsgId: String?
+    let quanhTs: Int64?
+    let sangMsgId: String?
+
+    @StateObject private var holder = ViewModelHolder()
+    private final class ViewModelHolder: ObservableObject {
+        var vm: ChatViewModel?
+    }
 
     init(cuoc: Cuoc, quanhTs: Int64? = nil, sangMsgId: String? = nil) {
         self.cuoc = cuoc; self.quanhTs = quanhTs; self.sangMsgId = sangMsgId
     }
-
 
     var body: some View {
         Group {
@@ -36,7 +35,6 @@ struct ChatView: View {
 }
 
 private struct ChatContentView: View {
-    @State private var showDsGhimSheet = false
     @EnvironmentObject var env: AppEnvironment
     @ObservedObject var vm: ChatViewModel
     @FocusState private var daFocusNhap: Bool
@@ -47,38 +45,100 @@ private struct ChatContentView: View {
     @State private var hienKho = false
     @State private var hienTimTrong = false
     @State private var hienTaoLich = false
-
-    @ViewBuilder
-    private var thanhGhimNeuCo: some View {
-        if !vm.dsGhim.isEmpty {
-            ThanhTinGhimView(dsGhim: vm.dsGhim, onNhayToi: { msgId in
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    vm.tinDuocNhayToi = msgId
-                }
-            }, onXemTatCa: {
-                showDsGhimSheet = true
-            })
-        }
-    }
+    @State private var showDsGhimSheet = false
 
     var body: some View {
         VStack(spacing: 0) {
-            thanhGhimNeuCo
+            thanhGhimView
 
-            DanhSachTinNhanScrollView(
-                vm: vm,
-                daFocusNhap: $daFocusNhap,
-                tinChuyenTiep: $tinChuyenTiep,
-                anhDangXem: $anhDangXem,
-                videoDangXem: $videoDangXem,
-                fileDangXem: $fileDangXem,
-                denTin: { id, ts in denTin(id, ts: ts) },
-                cuonXuongDay: { p, a in cuonXuongDay(proxy: p, animate: a) }
-            )
+            ScrollViewReader { proxy in
+                List {
+                    ForEach(Array(vm.danhSachHienThi.enumerated()), id: \.offset) { i, muc in
+                        switch muc {
+                        case .ngay(let nhan):
+                            MocNgayView(nhan: nhan)
+                                .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
+                                .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
+                        case .tin(let t, let dauNhom, let cuoiNhom):
+                            MessageBubble(vm: vm, t: t, dauNhom: dauNhom, cuoiNhom: cuoiNhom,
+                                          laNhom: vm.cuoc.laNhomBool,
+                                          chamTrichDan: { denTin($0) },
+                                          chonChuyenTiep: { tinChuyenTiep = $0 },
+                                          anhDangXem: $anhDangXem,
+                                          videoDangXem: $videoDangXem,
+                                          fileDangXem: $fileDangXem)
+                                .id(t.msgId)
+                                .listRowSeparator(.hidden).listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
+                                .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
+                        case .album(let ds, let dauNhom, let cuoiNhom):
+                            // v4.3: nhiều ảnh/video gửi 1 lần -> 1 khung lưới (id = tin cuối để cuộn xuống đáy đúng)
+                            MessageBubble(vm: vm, t: ds[0], dauNhom: dauNhom, cuoiNhom: cuoiNhom,
+                                          laNhom: vm.cuoc.laNhomBool,
+                                          chamTrichDan: { denTin($0) },
+                                          chonChuyenTiep: { tinChuyenTiep = $0 },
+                                          anhDangXem: $anhDangXem,
+                                          videoDangXem: $videoDangXem,
+                                          fileDangXem: $fileDangXem,
+                                          album: ds)
+                                .id(ds[ds.count - 1].msgId)
+                                .listRowSeparator(.hidden).listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
+                                .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
+                        }
+                    }
+                    Color.clear.frame(height: 1).id("__day_chat__")
+                        .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(ZaloMau.nenChat)
+                .scrollDismissesKeyboard(.interactively)
+                .onAppear {
+                    cuonXuongDay(proxy: proxy, animate: false)
+                    Task { await vm.taiTinGhim() }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        cuonXuongDay(proxy: proxy, animate: false)
+                    }
+                }
+                .onChange(of: vm.tinDangXem.count) { soLuong in
+                    if soLuong > 0 && !vm.daCuonXuongCuoiLanDau {
+                        cuonXuongDay(proxy: proxy, animate: false)
+                    }
+                }
+                .onChange(of: vm.cuonToiMsgId) { moi in
+                    guard let moi else { return }
+                    if moi == "__cuoi__" || moi == "__cuoi_neu_sat_day__" {
+                        cuonXuongDay(proxy: proxy, animate: moi != "__cuoi__")
+                    } else {
+                        withAnimation { proxy.scrollTo(moi, anchor: .center) }
+                    }
+                    vm.cuonToiMsgId = nil
+                }
+                .onChange(of: vm.traLoi?.msgId) { moi in
+                    if moi != nil {
+                        daFocusNhap = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                            cuonXuongDay(proxy: proxy, animate: true)
+                        }
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        cuonXuongDay(proxy: proxy, animate: true)
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
+                    cuonXuongDay(proxy: proxy, animate: true)
+                }
+                .onChange(of: vm.tinDuocNhayToi) { targetId in
+                    guard let tid = targetId, !tid.isEmpty else { return }
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        proxy.scrollTo(tid, anchor: .center)
+                    }
+                }
+            }
             if let traLoi = vm.traLoi { ThanhTraLoiView(t: traLoi) { vm.boTraLoi() } }
             MessageInputBar(vm: vm, daFocus: $daFocusNhap, onMoLichHen: { hienTaoLich = true })
         }
-
         .navigationTitle(vm.cuoc.ten ?? vm.cuoc.id)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -110,18 +170,45 @@ private struct ChatContentView: View {
                 } label: { Image(systemName: "ellipsis.circle") }
             }
         }
-        .modifier(CacSheetPhuModifier(
-            vm: vm,
-            showDsGhimSheet: $showDsGhimSheet,
-            hienTaoLich: $hienTaoLich,
-            hienKho: $hienKho,
-            hienTimTrong: $hienTimTrong,
-            tinChuyenTiep: $tinChuyenTiep,
-            anhDangXem: $anhDangXem,
-            videoDangXem: $videoDangXem,
-            fileDangXem: $fileDangXem,
-            denTin: { id, ts in denTin(id, ts: ts) }
-        ))
+        .sheet(isPresented: $showDsGhimSheet) {
+            DanhSachTinGhimSheet(dsGhim: vm.dsGhim, onChon: { msgId in
+                showDsGhimSheet = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    vm.tinDuocNhayToi = msgId
+                }
+            }, onBoGhim: { msgId in
+                Task {
+                    await vm.chuyenTrangThaiGhim(msgId: msgId, ghim: false)
+                }
+            })
+        }
+        .sheet(isPresented: $hienTaoLich) { TaoLichHenView(vm: vm) }
+        .sheet(isPresented: $hienKho) {
+            MediaGalleryView(cuocId: vm.cuoc.id) { tinChon in
+                denTin(tinChon.msgId, ts: tinChon.ts)
+            }
+        }
+        .sheet(isPresented: $hienTimTrong) { SearchInConversationView(vm: vm) }
+        .sheet(item: $tinChuyenTiep) { t in ForwardMessageView(tin: t, cuocGocId: vm.cuoc.id) }
+        .sheet(item: $anhDangXem) { a in ImageViewerView(anh: a, cuocId: vm.cuoc.id) }
+        .fullScreenCover(item: $videoDangXem) { v in TrinhPhatVideoView(url: v.url) }
+        .quickLookPreview($fileDangXem)
+        .alert("Lỗi", isPresented: Binding(get: { vm.loi != nil }, set: { if !$0 { vm.loi = nil } })) {
+            Button("Đóng", role: .cancel) {}
+        } message: { Text(vm.loi ?? "") }
+    }
+
+    @ViewBuilder
+    private var thanhGhimView: some View {
+        if !vm.dsGhim.isEmpty {
+            ThanhTinGhimView(dsGhim: vm.dsGhim, onNhayToi: { msgId in
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    vm.tinDuocNhayToi = msgId
+                }
+            }, onXemTatCa: {
+                showDsGhimSheet = true
+            })
+        }
     }
 
     private func denTin(_ msgId: String, ts: Int64? = nil) {
@@ -168,24 +255,44 @@ private struct ChatContentView: View {
     }
 }
 
-struct MocNgayView: View {
-    let nhan: String
-    var body: some View {
-        Text(nhan).font(.caption).foregroundStyle(.white).padding(.horizontal, 10).padding(.vertical, 3)
-            .background(.black.opacity(0.28), in: Capsule())
-            .frame(maxWidth: .infinity).padding(.vertical, 6)
-    }
-}
-
+// MARK: - Thanh hiển thị tin đang trả lời (nằm ngay trên ô nhập tin)
 struct ThanhTraLoiView: View {
     let t: Tin
-    let boQua: () -> Void
+    let onHuy: () -> Void
+
     var body: some View {
-        HStack {
-            TrichDanXemTruoc(q: TrichDan(ten: t.laToi ? "Bạn" : t.tenNguoi, chu: t.chu ?? xemTruoc(t), msgId: t.msgId))
-            Spacer()
-            Button(action: boQua) { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
+        HStack(spacing: 8) {
+            Rectangle()
+                .fill(Color.accentColor)
+                .frame(width: 3)
+                .cornerRadius(1.5)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Đang trả lời " + (t.laToi ? "chính mình" : (t.tenNguoi ?? "người này")))
+                    .font(.caption2)
+                    .foregroundStyle(Color.accentColor)
+                    .lineLimit(1)
+
+                Text(t.chu?.isEmpty == false ? (t.chu ?? "") : xemTruoc(t))
+                    .font(.caption)
+                    .foregroundStyle(Color.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 4)
+
+            Button(action: onHuy) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(Color.secondary)
+                    .font(.subheadline)
+            }
+            .buttonStyle(.plain)
+            .padding(.trailing, 4)
         }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .background(Color(UIColor.secondarySystemBackground))
+        .cornerRadius(8)
         .padding(.horizontal, 12).padding(.top, 6)
     }
     private func xemTruoc(_ t: Tin) -> String {
@@ -193,14 +300,13 @@ struct ThanhTraLoiView: View {
     }
 }
 
-
 // MARK: - Thanh hiển thị tin nhắn ghim (banner trên đầu khung chat)
 struct ThanhTinGhimView: View {
     let dsGhim: [TinGhim]
     let onNhayToi: (String) -> Void
     let onXemTatCa: () -> Void
 
-    var tinMoiNhat: TinGhim? {
+    private var tinMoiNhat: TinGhim? {
         dsGhim.first
     }
 
@@ -211,10 +317,8 @@ struct ThanhTinGhimView: View {
     }
 
     private var nguoiText: String {
-        if let n = tinMoiNhat?.nguoiGhim, !n.isEmpty {
-            return "• " + n
-        }
-        return ""
+        guard let n = tinMoiNhat?.nguoiGhim, !n.isEmpty else { return "" }
+        return "• " + n
     }
 
     private var labelGhim: String {
@@ -357,174 +461,11 @@ private struct GhimDongRow: View {
     }
 }
 
-
-// MARK: - Row item con trong danh sách chat (giúp giải tỏa tải biên dịch cho Swift compiler)
-private struct ChatRowItemView: View {
-    let i: Int
-    let muc: GomNhom.MucHienThi
-    @ObservedObject var vm: ChatViewModel
-    let chamTrichDan: (String) -> Void
-    let chonChuyenTiep: (Tin) -> Void
-    @Binding var anhDangXem: AnhXemToan?
-    @Binding var videoDangXem: VideoXemToan?
-    @Binding var fileDangXem: URL?
-
+struct MocNgayView: View {
+    let nhan: String
     var body: some View {
-        switch muc {
-        case .ngay(let nhan):
-            MocNgayView(nhan: nhan)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets())
-                .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
-        case .tin(let t, let dauNhom, let cuoiNhom):
-            MessageBubble(vm: vm, t: t, dauNhom: dauNhom, cuoiNhom: cuoiNhom,
-                          laNhom: vm.cuoc.laNhomBool,
-                          chamTrichDan: chamTrichDan,
-                          chonChuyenTiep: chonChuyenTiep,
-                          anhDangXem: $anhDangXem,
-                          videoDangXem: $videoDangXem,
-                          fileDangXem: $fileDangXem)
-                .id(t.msgId)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
-                .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
-        case .album(let ds, let dauNhom, let cuoiNhom):
-            MessageBubble(vm: vm, t: ds[0], dauNhom: dauNhom, cuoiNhom: cuoiNhom,
-                          laNhom: vm.cuoc.laNhomBool,
-                          chamTrichDan: chamTrichDan,
-                          chonChuyenTiep: chonChuyenTiep,
-                          anhDangXem: $anhDangXem,
-                          videoDangXem: $videoDangXem,
-                          fileDangXem: $fileDangXem,
-                          album: ds)
-                .id(ds[ds.count - 1].msgId)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
-                .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
-        }
-    }
-}
-
-private struct CacSheetPhuModifier: ViewModifier {
-    @ObservedObject var vm: ChatViewModel
-    @Binding var showDsGhimSheet: Bool
-    @Binding var hienTaoLich: Bool
-    @Binding var hienKho: Bool
-    @Binding var hienTimTrong: Bool
-    @Binding var tinChuyenTiep: Tin?
-    @Binding var anhDangXem: AnhXemToan?
-    @Binding var videoDangXem: VideoXemToan?
-    @Binding var fileDangXem: URL?
-    let denTin: (String, Int64?) -> Void
-
-    func body(content: Content) -> some View {
-        content
-            .sheet(isPresented: $showDsGhimSheet) {
-                DanhSachTinGhimSheet(dsGhim: vm.dsGhim, onChon: { msgId in
-                    showDsGhimSheet = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        vm.tinDuocNhayToi = msgId
-                    }
-                }, onBoGhim: { msgId in
-                    Task {
-                        await vm.chuyenTrangThaiGhim(msgId: msgId, ghim: false)
-                    }
-                })
-            }
-            .sheet(isPresented: $hienTaoLich) { TaoLichHenView(vm: vm) }
-            .sheet(isPresented: $hienKho) {
-                MediaGalleryView(cuocId: vm.cuoc.id) { tinChon in
-                    denTin(tinChon.msgId, tinChon.ts)
-                }
-            }
-            .sheet(isPresented: $hienTimTrong) { SearchInConversationView(vm: vm) }
-            .sheet(item: $tinChuyenTiep) { t in ForwardMessageView(tin: t, cuocGocId: vm.cuoc.id) }
-            .sheet(item: $anhDangXem) { a in ImageViewerView(anh: a, cuocId: vm.cuoc.id) }
-            .fullScreenCover(item: $videoDangXem) { v in TrinhPhatVideoView(url: v.url) }
-            .quickLookPreview($fileDangXem)
-            .alert("Lỗi", isPresented: Binding(get: { vm.loi != nil }, set: { if !$0 { vm.loi = nil } })) {
-                Button("Đóng", role: .cancel) {}
-            } message: { Text(vm.loi ?? "") }
-    }
-}
-
-
-// MARK: - Khung cuộn tin nhắn tách riêng để giảm tải type-checker
-private struct DanhSachTinNhanScrollView: View {
-    @ObservedObject var vm: ChatViewModel
-    @FocusState.Binding var daFocusNhap: Bool
-    @Binding var tinChuyenTiep: Tin?
-    @Binding var anhDangXem: AnhXemToan?
-    @Binding var videoDangXem: VideoXemToan?
-    @Binding var fileDangXem: URL?
-    let denTin: (String, Int64?) -> Void
-    let cuonXuongDay: (ScrollViewProxy, Bool) -> Void
-
-    var body: some View {
-        ScrollViewReader { proxy in
-            List {
-                ForEach(Array(vm.danhSachHienThi.enumerated()), id: \.offset) { i, muc in
-                    ChatRowItemView(
-                        i: i,
-                        muc: muc,
-                        vm: vm,
-                        chamTrichDan: { denTin($0, nil) },
-                        chonChuyenTiep: { tinChuyenTiep = $0 },
-                        anhDangXem: $anhDangXem,
-                        videoDangXem: $videoDangXem,
-                        fileDangXem: $fileDangXem
-                    )
-                }
-                Color.clear.frame(height: 1).id("__day_chat__")
-                    .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(ZaloMau.nenChat)
-            .scrollDismissesKeyboard(.interactively)
-            .onAppear {
-                cuonXuongDay(proxy, false)
-                Task { await vm.taiTinGhim() }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    cuonXuongDay(proxy, false)
-                }
-            }
-            .onChange(of: vm.tinDangXem.count) { soLuong in
-                if soLuong > 0 && !vm.daCuonXuongCuoiLanDau {
-                    cuonXuongDay(proxy, false)
-                }
-            }
-            .onChange(of: vm.cuonToiMsgId) { moi in
-                guard let moi else { return }
-                if moi == "__cuoi__" || moi == "__cuoi_neu_sat_day__" {
-                    cuonXuongDay(proxy, moi != "__cuoi__")
-                } else {
-                    withAnimation { proxy.scrollTo(moi, anchor: .center) }
-                }
-                vm.cuonToiMsgId = nil
-            }
-            .onChange(of: vm.traLoi?.msgId) { moi in
-                if moi != nil {
-                    daFocusNhap = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        cuonXuongDay(proxy, true)
-                    }
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    cuonXuongDay(proxy, true)
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
-                cuonXuongDay(proxy, true)
-            }
-            .onChange(of: vm.tinDuocNhayToi) { targetId in
-                guard let tid = targetId, !tid.isEmpty else { return }
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    proxy.scrollTo(tid, anchor: .center)
-                }
-            }
-        }
+        Text(nhan).font(.caption).foregroundStyle(.white).padding(.horizontal, 10).padding(.vertical, 3)
+            .background(.black.opacity(0.28), in: Capsule())
+            .frame(maxWidth: .infinity).padding(.vertical, 6)
     }
 }
