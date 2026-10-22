@@ -68,36 +68,16 @@ private struct ChatContentView: View {
             ScrollViewReader { proxy in
                 List {
                     ForEach(Array(vm.danhSachHienThi.enumerated()), id: \.offset) { i, muc in
-                        switch muc {
-                        case .ngay(let nhan):
-                            MocNgayView(nhan: nhan)
-                                .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
-                                .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
-                        case .tin(let t, let dauNhom, let cuoiNhom):
-                            MessageBubble(vm: vm, t: t, dauNhom: dauNhom, cuoiNhom: cuoiNhom,
-                                          laNhom: vm.cuoc.laNhomBool,
-                                          chamTrichDan: { denTin($0) },
-                                          chonChuyenTiep: { tinChuyenTiep = $0 },
-                                          anhDangXem: $anhDangXem,
-                                          videoDangXem: $videoDangXem,
-                                          fileDangXem: $fileDangXem)
-                                .id(t.msgId)
-                                .listRowSeparator(.hidden).listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
-                                .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
-                        case .album(let ds, let dauNhom, let cuoiNhom):
-                            // v4.3: nhiều ảnh/video gửi 1 lần -> 1 khung lưới (id = tin cuối để cuộn xuống đáy đúng)
-                            MessageBubble(vm: vm, t: ds[0], dauNhom: dauNhom, cuoiNhom: cuoiNhom,
-                                          laNhom: vm.cuoc.laNhomBool,
-                                          chamTrichDan: { denTin($0) },
-                                          chonChuyenTiep: { tinChuyenTiep = $0 },
-                                          anhDangXem: $anhDangXem,
-                                          videoDangXem: $videoDangXem,
-                                          fileDangXem: $fileDangXem,
-                                          album: ds)
-                                .id(ds[ds.count - 1].msgId)
-                                .listRowSeparator(.hidden).listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
-                                .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
-                        }
+                        ChatRowItemView(
+                            i: i,
+                            muc: muc,
+                            vm: vm,
+                            chamTrichDan: { denTin($0) },
+                            chonChuyenTiep: { tinChuyenTiep = $0 },
+                            anhDangXem: $anhDangXem,
+                            videoDangXem: $videoDangXem,
+                            fileDangXem: $fileDangXem
+                        )
                     }
                     Color.clear.frame(height: 1).id("__day_chat__")
                         .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
@@ -441,6 +421,54 @@ private struct GhimDongRow: View {
                 .buttonStyle(BorderlessButtonStyle())
             }
             .padding(.vertical, 4)
+        }
+    }
+}
+
+
+// MARK: - Row item con trong danh sách chat (giúp giải tỏa tải biên dịch cho Swift compiler)
+private struct ChatRowItemView: View {
+    let i: Int
+    let muc: MucHienThi
+    @ObservedObject var vm: ChatViewModel
+    let chamTrichDan: (String) -> Void
+    let chonChuyenTiep: (Tin) -> Void
+    @Binding var anhDangXem: AnhXemToan?
+    @Binding var videoDangXem: VideoXemToan?
+    @Binding var fileDangXem: URL?
+
+    var body: some View {
+        switch muc {
+        case .ngay(let nhan):
+            MocNgayView(nhan: nhan)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets())
+                .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
+        case .tin(let t, let dauNhom, let cuoiNhom):
+            MessageBubble(vm: vm, t: t, dauNhom: dauNhom, cuoiNhom: cuoiNhom,
+                          laNhom: vm.cuoc.laNhomBool,
+                          chamTrichDan: chamTrichDan,
+                          chonChuyenTiep: chonChuyenTiep,
+                          anhDangXem: $anhDangXem,
+                          videoDangXem: $videoDangXem,
+                          fileDangXem: $fileDangXem)
+                .id(t.msgId)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
+                .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
+        case .album(let ds, let dauNhom, let cuoiNhom):
+            MessageBubble(vm: vm, t: ds[0], dauNhom: dauNhom, cuoiNhom: cuoiNhom,
+                          laNhom: vm.cuoc.laNhomBool,
+                          chamTrichDan: chamTrichDan,
+                          chonChuyenTiep: chonChuyenTiep,
+                          anhDangXem: $anhDangXem,
+                          videoDangXem: $videoDangXem,
+                          fileDangXem: $fileDangXem,
+                          album: ds)
+                .id(ds[ds.count - 1].msgId)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
+                .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
         }
     }
 }
