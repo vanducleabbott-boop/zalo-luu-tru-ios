@@ -144,8 +144,7 @@ private struct ChatContentView: View {
                     }
                 }
             }
-            if let traLoi = vm.traLoi { ThanhTraLoiView(t: traLoi) { vm.boTraLoi() } }
-            MessageInputBar(vm: vm, daFocus: $daFocusNhap, onMoLichHen: { hienTaoLich = true })
+            MessageInputAreaView(vm: vm, daFocus: $daFocusNhap, onMoLichHen: { hienTaoLich = true })
         }
         .navigationTitle(vm.cuoc.ten ?? vm.cuoc.id)
         .navigationBarTitleDisplayMode(.inline)
