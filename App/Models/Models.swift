@@ -198,12 +198,16 @@ struct ChuyenKhoanInfo: Codable, Equatable, Hashable {
     let noiDung: String?
     let qrUrl: String
 
-    var soTienDinhDang: String? {
-        guard let tien = soTien, tien > 0 else { return nil }
+    private static let dinhDangTien: NumberFormatter = {
         let f = NumberFormatter()
         f.numberStyle = .decimal
         f.groupingSeparator = "."
-        return (f.string(from: NSNumber(value: tien)) ?? "\(tien)") + " đ"
+        return f
+    }()
+
+    var soTienDinhDang: String? {
+        guard let tien = soTien, tien > 0 else { return nil }
+        return (Self.dinhDangTien.string(from: NSNumber(value: tien)) ?? "\(tien)") + " đ"
     }
 
     var thongTinSaoChep: String {
@@ -406,15 +410,20 @@ struct Tin: Codable, Equatable, Hashable, Identifiable {
             || kieu == "sticker" || file != nil)
     }
 
+    /// Thông tin chuyển khoản: máy chủ gửi sẵn, hoặc tự nhận diện từ chữ (có bộ đệm - body gọi lại liên tục khi cuộn).
     var thongTinChuyenKhoan: ChuyenKhoanInfo? {
         if let ck = phu?.chuyenKhoan { return ck }
-        guard !thuHoi, let chu = chu, chu.count >= 8 else { return nil }
-        return BankDetector.parse(text: chu)
+        guard !thuHoi, kieu == "chu", let chu, chu.count >= 8 else { return nil }
+        return BankDetector.parseCoDem(text: chu)
     }
 
-    var thongTinBinhChon: BinhChonInfo? {
-        if let bc = phu?.binhChon { return bc }
-        return nil
+    var thongTinBinhChon: BinhChonInfo? { phu?.binhChon }
+
+    /// Bản sao với phần phụ mới (cập nhật bình chọn realtime).
+    func voiPhu(_ phuMoi: Phu?) -> Tin {
+        Tin(msgId: msgId, cliMsgId: cliMsgId, cuocId: cuocId, uid: uid, tenNguoi: tenNguoi, laToi: laToi, ts: ts,
+            loai: loai, kieu: kieu, chu: chu, url: url, file: file, tenFile: tenFile, kichThuoc: kichThuoc,
+            quote: quote, thuHoi: thuHoi, phu: phuMoi, camXuc: camXuc, tenCuoc: tenCuoc, laNhomCuoc: laNhomCuoc)
     }
 }
 
@@ -552,57 +561,64 @@ enum BankDetector {
         NganHang(ma: "wooribank", bin: "970457", ten: "Woori Bank", tuKhoa: ["woori"])
     ]
 
-    static func parse(text: String) -> ChuyenKhoanInfo? {
-        let lower = text.lowercased()
-        guard let bank = danhSach.first(where: { b in
-            b.tuKhoa.contains { kw in
-                if kw.count <= 3 {
-                    return lower.range(of: "\\b\(kw)\\b", options: .regularExpression) != nil
-                }
-                return lower.contains(kw)
-            }
-        }) else {
-            return nil
-        }
+    // Biên dịch regex 1 lần (trước đây mỗi tin x mỗi lần vẽ đều tạo lại ~30 regex -> cuộn chat giật).
+    private static func re(_ mau: String, _ tuyChon: NSRegularExpression.Options = .caseInsensitive) -> NSRegularExpression {
+        try! NSRegularExpression(pattern: mau, options: tuyChon)
+    }
+    private static let reDayso = re("\\d{6,}", [])
+    private static let reStk = re("(?:stk|số tài khoản|so tai khoan|\\btk)\\s*[:.]?\\s*(\\d{6,19})")
+    private static let reChuSo = re("\\b\\d{8,19}\\b", [])
+    private static let reTien = re("(\\d+(?:[.,]\\d{3})*)\\s*(k|tr|triệu|trieu|đ|vnd|dong|đồng)\\b")
+    private static let reTen = re("(?:chủ tk|tên|ctk|người nhận|chủ tài khoản)\\s*[:.]?\\s*([A-ZÀ-Ỹa-zà-ỹ\\s]{3,40})")
+    private static let reNoiDung = re("(?:nội dung|\\bnd|ndck|memo)\\s*[:.]?\\s*([^\\n\\r]{3,60})")
+    /// Mỗi ngân hàng: từ khoá ngắn (<= 3 ký tự) phải đứng riêng 1 từ, từ khoá dài chỉ cần chứa.
+    private static let khopNganHang: [(NganHang, NSRegularExpression?, [String])] = danhSach.map { b in
+        let ngan = b.tuKhoa.filter { $0.count <= 3 }.map(NSRegularExpression.escapedPattern(for:))
+        return (b, ngan.isEmpty ? nil : re("\\b(?:" + ngan.joined(separator: "|") + ")\\b"), b.tuKhoa.filter { $0.count > 3 })
+    }
 
-        var stk: String? = nil
-        let stkPattern = "(?:stk|số tài khoản|so tai khoan|tk|stk\\s*:?)\\s*[:.]?\\s*(\\d{6,19})"
-        if let regex = try? NSRegularExpression(pattern: stkPattern, options: .caseInsensitive),
-           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-           let r = Range(match.range(at: 1), in: text) {
-            stk = String(text[r])
-        } else {
-            let digitsPattern = "\\b\\d{8,19}\\b"
-            if let regex = try? NSRegularExpression(pattern: digitsPattern),
-               let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-               let r = Range(match.range, in: text) {
-                stk = String(text[r])
-            }
-        }
-        guard let finalStk = stk else { return nil }
+    private static let boDem = NSCache<NSString, HopKetQua>()
+    private final class HopKetQua { let ck: ChuyenKhoanInfo?; init(_ ck: ChuyenKhoanInfo?) { self.ck = ck } }
+
+    static func parseCoDem(text: String) -> ChuyenKhoanInfo? {
+        if let hop = boDem.object(forKey: text as NSString) { return hop.ck }
+        let ck = parse(text: text)
+        boDem.setObject(HopKetQua(ck), forKey: text as NSString)
+        return ck
+    }
+
+    private static func nhom(_ r: NSRegularExpression, _ text: String, _ i: Int = 1) -> String? {
+        guard let m = r.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let rg = Range(m.range(at: i), in: text) else { return nil }
+        return String(text[rg])
+    }
+
+    static func parse(text: String) -> ChuyenKhoanInfo? {
+        // lọc nhanh: không có dãy >= 6 chữ số thì chắc chắn không phải tin chuyển khoản
+        guard reDayso.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil else { return nil }
+        let lower = text.lowercased()
+        let toanBo = NSRange(lower.startIndex..., in: lower)
+        var khopTuDai = false
+        guard let bank = khopNganHang.first(where: { _, reNgan, dai in
+            if dai.contains(where: { lower.contains($0) }) { khopTuDai = true; return true }
+            return reNgan?.firstMatch(in: lower, range: toanBo) != nil
+        })?.0 else { return nil }
+
+        // STK: ưu tiên có chữ "stk/tk/số tài khoản"; không có thì chỉ nhận dãy số trần khi tên ngân hàng rõ ràng
+        // (từ khoá ngắn như "mb", "acb" + 1 số điện thoại bất kỳ dễ nhận nhầm)
+        guard let finalStk = nhom(reStk, text) ?? (khopTuDai ? nhom(reChuSo, text, 0) : nil) else { return nil }
 
         var soTien: Int64? = nil
-        let tienPattern = "(\\d+(?:[.,]\\d{3})*|\\d+)\\s*(k|tr|triệu|trieu|đ|vnd|dong|đồng)\\b"
-        if let regex = try? NSRegularExpression(pattern: tienPattern, options: .caseInsensitive),
-           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-           let rVal = Range(match.range(at: 1), in: text),
-           let rDv = Range(match.range(at: 2), in: text) {
-            let valStr = String(text[rVal]).replacingOccurrences(of: ".", with: "").replacingOccurrences(of: ",", with: "")
-            if var val = Int64(valStr) {
-                let dv = String(text[rDv]).lowercased()
-                if dv == "k" { val *= 1000 }
-                else if ["tr", "triệu", "trieu"].contains(dv) { val *= 1000000 }
-                soTien = val
-            }
+        if let m = reTien.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+           let rVal = Range(m.range(at: 1), in: text), let rDv = Range(m.range(at: 2), in: text),
+           var val = Int64(text[rVal].replacingOccurrences(of: ".", with: "").replacingOccurrences(of: ",", with: "")) {
+            let dv = text[rDv].lowercased()
+            if dv == "k" { val *= 1000 } else if ["tr", "triệu", "trieu"].contains(dv) { val *= 1_000_000 }
+            soTien = val
         }
 
-        var tenNguoiNhan: String? = nil
-        let tenPattern = "(?:chủ tk|tên|ctk|người nhận|chủ tài khoản)\\s*[:.]?\\s*([A-ZÀ-Ỹa-zà-ỹ\\s]{3,40})"
-        if let regex = try? NSRegularExpression(pattern: tenPattern, options: .caseInsensitive),
-           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-           let r = Range(match.range(at: 1), in: text) {
-            tenNguoiNhan = String(text[r]).trimmingCharacters(in: .whitespacesAndNewlines)
-        } else {
+        var tenNguoiNhan = nhom(reTen, text)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if tenNguoiNhan == nil {
             let parts = text.components(separatedBy: "STK")
             if parts.count > 1, parts[0].trimmingCharacters(in: .whitespacesAndNewlines).count > 3 {
                 let p0 = parts[0].trimmingCharacters(in: CharacterSet(charactersIn: " ,.-:\n\r\t"))
@@ -614,13 +630,7 @@ enum BankDetector {
             }
         }
 
-        var noiDung: String? = nil
-        let ndPattern = "(?:nội dung|nd|ndck|memo)\\s*[:.]?\\s*([^\\n\\r]{3,60})"
-        if let regex = try? NSRegularExpression(pattern: ndPattern, options: .caseInsensitive),
-           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-           let r = Range(match.range(at: 1), in: text) {
-            noiDung = String(text[r]).trimmingCharacters(in: .whitespacesAndNewlines)
-        }
+        let noiDung = nhom(reNoiDung, text)?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         var queryItems: [URLQueryItem] = []
         if let st = soTien { queryItems.append(URLQueryItem(name: "amount", value: "\(st)")) }

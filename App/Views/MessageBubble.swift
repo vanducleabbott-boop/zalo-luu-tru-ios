@@ -187,7 +187,11 @@ struct MessageBubble: View {
             }
         default:
             if let ck = t.thongTinChuyenKhoan {
-                ChuyenKhoanTinView(ck: ck)
+                // giữ nguyên chữ gốc phía trên thẻ (thẻ chỉ là phần nhận diện thêm, không được làm mất nội dung tin)
+                VStack(alignment: .leading, spacing: 6) {
+                    if let c = t.chu, !c.isEmpty { VanBanTinView(chu: c, tags: t.phu?.tag, laTagToi: laTagToi) }
+                    ChuyenKhoanTinView(ck: ck)
+                }
             } else if let bc = t.thongTinBinhChon {
                 BinhChonTinView(vm: vm, bc: bc)
             } else {

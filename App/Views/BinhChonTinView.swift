@@ -5,7 +5,8 @@ import SwiftUI
 
 struct BinhChonTinView: View {
     @EnvironmentObject var env: AppEnvironment
-    @ObservedObject var vm: ChatViewModel
+    /// Chỉ dùng để gọi bỏ phiếu - KHÔNG @ObservedObject (mỗi thay đổi của vm vẽ lại mọi thẻ bình chọn).
+    let vm: ChatViewModel
     let bc: BinhChonInfo
 
     @State private var luaChonHienTai: Set<Int> = []
@@ -124,6 +125,7 @@ struct BinhChonTinView: View {
         .onAppear {
             khoiTaoLuaChon()
         }
+        .task(id: bc.pollId) { await napTenNguoiBinhChon(bc, env: env) }
         .onChange(of: bc.myVotes) { _ in
             khoiTaoLuaChon()
         }
@@ -233,17 +235,12 @@ struct BinhChonTinView: View {
         thongBaoLoi = nil
         Task {
             do {
-                _ = try await vm.boPhieu(pollId: bc.pollId, optionIds: Array(luaChonHienTai))
-                await MainActor.run {
-                    dangGui = false
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                }
+                _ = try await vm.boPhieu(pollId: bc.pollId, optionIds: luaChonHienTai.sorted())
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             } catch {
-                await MainActor.run {
-                    dangGui = false
-                    thongBaoLoi = "Lỗi bỏ phiếu: " + error.localizedDescription
-                }
+                thongBaoLoi = "Lỗi bỏ phiếu: " + error.localizedDescription
             }
+            dangGui = false
         }
     }
 }
@@ -251,7 +248,7 @@ struct BinhChonTinView: View {
 // ---------------------------------------------------------------- Sheet xem chi tiết kết quả & người tham gia bình chọn
 struct ChiTietBinhChonSheet: View {
     let bc: BinhChonInfo
-    @ObservedObject var vm: ChatViewModel
+    let vm: ChatViewModel
     @EnvironmentObject var env: AppEnvironment
     @Environment(\.dismiss) private var dismiss
 
@@ -356,19 +353,21 @@ struct ChiTietBinhChonSheet: View {
     }
 
     private func taiLai() {
+        guard !dangTaiLai else { return }
         dangTaiLai = true
         Task {
-            do {
-                let moi = try await env.api.layChiTietBinhChon(pollId: bc.pollId)
-                await MainActor.run {
-                    chiTietMoi = moi
-                    dangTaiLai = false
-                }
-            } catch {
-                await MainActor.run {
-                    dangTaiLai = false
-                }
+            if let moi = try? await env.api.layChiTietBinhChon(pollId: bc.pollId) {
+                chiTietMoi = moi
+                await napTenNguoiBinhChon(moi, env: env)
             }
+            dangTaiLai = false
         }
     }
+}
+
+/// Nạp tên/ảnh những người đã bình chọn (trước đây chưa nạp -> hiện "Người"/"Người dùng").
+@MainActor
+private func napTenNguoiBinhChon(_ bc: BinhChonInfo, env: AppEnvironment) async {
+    let uids = Set(bc.options.flatMap { $0.voters ?? [] }).filter { env.nguoiCache[$0] == nil }
+    if !uids.isEmpty { await env.napNguoi(Array(uids)) }
 }

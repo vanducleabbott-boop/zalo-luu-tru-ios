@@ -402,27 +402,19 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
+    /// Thay bình chọn trong các tin đang xem: gán mảng 1 lần (1 lần vẽ lại) và ghi bộ đệm đĩa 1 lần.
     private func capNhatBinhChonTrongDanhSach(_ bc: BinhChonInfo) {
-        for i in 0..<tinDangXem.count {
-            if tinDangXem[i].thongTinBinhChon?.pollId == bc.pollId || tinDangXem[i].phu?.binhChon?.pollId == bc.pollId {
-                let cu = tinDangXem[i]
-                var phuMoi = cu.phu ?? Phu()
-                phuMoi = Phu(
-                    khung: phuMoi.khung, ms: phuMoi.ms, lich: phuMoi.lich, tag: phuMoi.tag,
-                    cuocNguon: phuMoi.cuocNguon, album: phuMoi.album, danhThiep: phuMoi.danhThiep,
-                    chuyenKhoan: phuMoi.chuyenKhoan, binhChon: bc
-                )
-                let tinMoi = Tin(
-                    msgId: cu.msgId, cliMsgId: cu.cliMsgId, cuocId: cu.cuocId, uid: cu.uid,
-                    tenNguoi: cu.tenNguoi, laToi: cu.laToi, ts: cu.ts, loai: cu.loai, kieu: cu.kieu,
-                    chu: cu.chu, url: cu.url, file: cu.file, tenFile: cu.tenFile, kichThuoc: cu.kichThuoc,
-                    quote: cu.quote, thuHoi: cu.thuHoi, phu: phuMoi, camXuc: cu.camXuc,
-                    tenCuoc: cu.tenCuoc, laNhomCuoc: cu.laNhomCuoc
-                )
-                tinDangXem[i] = tinMoi
-                TinNhanDiskCache.shared.capNhatTinMoi(tin: tinMoi, cuocId: cuoc.id)
-            }
+        var ds = tinDangXem
+        var coDoi = false
+        for i in ds.indices where ds[i].phu?.binhChon?.pollId == bc.pollId && ds[i].phu?.binhChon != bc {
+            let p = ds[i].phu ?? Phu()
+            ds[i] = ds[i].voiPhu(Phu(khung: p.khung, ms: p.ms, lich: p.lich, tag: p.tag, cuocNguon: p.cuocNguon,
+                                     album: p.album, danhThiep: p.danhThiep, chuyenKhoan: p.chuyenKhoan, binhChon: bc))
+            coDoi = true
         }
+        guard coDoi else { return }
+        tinDangXem = ds
+        if !cheDoQuanh { TinNhanDiskCache.shared.luuTin(ds, cuocId: cuoc.id) }
     }
 
     /// Lấy 60 tin mới nhất, gộp vào (bắt được cả tin bị sửa/thu hồi trong lúc mất kết nối) - khớp taiBu() của web.

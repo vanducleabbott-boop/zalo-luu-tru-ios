@@ -130,27 +130,9 @@ struct ChuyenKhoanTinView: View {
                             .fill(Color.white)
                             .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 1)
 
-                        if let url = URL(string: ck.qrUrl) {
-                            AsyncImage(url: url) { phase in
-                                switch phase {
-                                case .empty:
-                                    ProgressView()
-                                        .scaleEffect(0.7)
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .interpolation(.none)
-                                        .scaledToFit()
-                                        .padding(4)
-                                case .failure:
-                                    Image(systemName: "qrcode")
-                                        .font(.system(size: 30))
-                                        .foregroundStyle(Color.gray)
-                                @unknown default:
-                                    EmptyView()
-                                }
-                            }
-                        }
+                        // ảnh QR qua bộ đệm RAM/đĩa của app (AsyncImage tải lại mỗi lần ô tin được vẽ lại khi cuộn)
+                        AnimatedImageView(url: URL(string: ck.qrUrl), contentMode: .scaleAspectFit, boGoc: 6)
+                            .padding(4)
                     }
                     .frame(width: 86, height: 86)
 
@@ -230,25 +212,7 @@ struct QRPhongToView: View {
 
                         ZStack {
                             Color.white
-                            if let url = URL(string: ck.qrUrl) {
-                                AsyncImage(url: url) { phase in
-                                    switch phase {
-                                    case .empty:
-                                        ProgressView()
-                                    case .success(let image):
-                                        image
-                                            .resizable()
-                                            .interpolation(.none)
-                                            .scaledToFit()
-                                    case .failure:
-                                        Image(systemName: "exclamationmark.triangle")
-                                            .font(.system(size: 40))
-                                            .foregroundStyle(Color.red)
-                                    @unknown default:
-                                        EmptyView()
-                                    }
-                                }
-                            }
+                            AnimatedImageView(url: URL(string: ck.qrUrl), contentMode: .scaleAspectFit, boGoc: 0)
                         }
                         .frame(width: 260, height: 260)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -295,6 +259,10 @@ struct QRPhongToView: View {
                             .foregroundStyle(Color.white)
                         }
                         .disabled(dangLuu)
+
+                        if let thongBaoLoi {
+                            Text(thongBaoLoi).font(.footnote).foregroundStyle(Color.red).multilineTextAlignment(.center)
+                        }
 
                         Button {
                             UIPasteboard.general.string = ck.stk
@@ -343,21 +311,20 @@ struct QRPhongToView: View {
     private func luuAnhVaoThuVien() {
         guard let url = URL(string: ck.qrUrl) else { return }
         dangLuu = true
-        Task {
+        thongBaoLoi = nil
+        Task { @MainActor in
+            defer { dangLuu = false }
             do {
-                let (data, _) = try await URLSession.shared.data(from: url)
-                guard let image = UIImage(data: data) else { return }
+                // ảnh đã hiện trên thẻ thì có sẵn trong bộ đệm đĩa, khỏi tải lại
+                let data: Data
+                if let coSan = MediaDiskCache.shared.layDuLieu(cho: url) { data = coSan }
+                else { data = try await URLSession.shared.data(from: url).0 }
+                guard let image = UIImage(data: data) else { thongBaoLoi = "Ảnh QR không hợp lệ"; return }
                 UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-                await MainActor.run {
-                    daLuuAnh = true
-                    dangLuu = false
-                    UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-                }
+                daLuuAnh = true
+                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
             } catch {
-                await MainActor.run {
-                    dangLuu = false
-                    thongBaoLoi = "Không tải được ảnh: " + error.localizedDescription
-                }
+                thongBaoLoi = "Không tải được ảnh: " + error.localizedDescription
             }
         }
     }
