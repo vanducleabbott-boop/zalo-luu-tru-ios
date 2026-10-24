@@ -730,3 +730,69 @@ struct DanhThiepTinView: View {
         .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
     }
 }
+
+// ---------------------------------------------------------------- v6.2: tin Zalo máy chủ chưa giải mã
+/// Thẻ gọn thay cho dòng "[Loại tin chưa hỗ trợ: ...]" / ô FILE "[chat.ecard]".
+struct TinDacBietView: View {
+    @EnvironmentObject var env: AppEnvironment
+    @Environment(\.openURL) private var openURL
+    let loai: LoaiTinDacBiet
+    let ts: Int64
+
+    var body: some View {
+        switch loai {
+        case .daXoa:
+            Label("Tin nhắn đã bị xoá", systemImage: "trash.slash")
+                .font(.subheadline.italic()).foregroundStyle(.secondary)
+        case .nhacHen(let emoji, let tieuDe):
+            the(bieuTuong: Text(emoji).font(.system(size: 26)),
+                tieuDe: tieuDe.isEmpty ? "Nhắc hẹn" : tieuDe,
+                moTa: "Nhắc hẹn Zalo · tạo lúc \(DinhDang.gioPhut(ts)) \(DinhDang.ngayDai(ts))",
+                nut: "Xem lịch trong Sổ tay", icon: "calendar", hanhDong: moSoTay)
+        case .binhChonCu:
+            the(bieuTuong: Image(systemName: "chart.bar.xaxis").font(.system(size: 20)).foregroundStyle(ZaloMau.xanh),
+                tieuDe: "Bình chọn",
+                moTa: "Bình chọn cũ, máy chủ chưa lưu nội dung. Mở Zalo để xem và bình chọn.",
+                nut: "Mở Zalo", icon: "arrow.up.forward.app", hanhDong: moZalo)
+        case .theZalo:
+            the(bieuTuong: Image(systemName: "creditcard.fill").font(.system(size: 20)).foregroundStyle(ZaloMau.xanh),
+                tieuDe: "Thẻ Zalo",
+                moTa: "Thẻ tài khoản ngân hàng / nội dung Zalo. Mở Zalo để xem chi tiết.",
+                nut: "Mở Zalo", icon: "arrow.up.forward.app", hanhDong: moZalo)
+        case .chuaHoTro:
+            Label("Tin nhắn Zalo chưa hiển thị được", systemImage: "questionmark.bubble")
+                .font(.subheadline).foregroundStyle(.secondary)
+        }
+    }
+
+    private func the<B: View>(bieuTuong: B, tieuDe: String, moTa: String, nut: String, icon: String, hanhDong: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                bieuTuong
+                    .frame(width: 38, height: 38)
+                    .background(Color(.systemGray5), in: Circle())
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(tieuDe).font(.system(size: 15, weight: .semibold)).lineLimit(3)
+                    Text(moTa).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Divider()
+            Button(action: hanhDong) {
+                Label(nut, systemImage: icon).font(.caption.weight(.medium)).foregroundStyle(ZaloMau.xanh)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(10)
+        .frame(minWidth: 230, maxWidth: 300, alignment: .leading)
+        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func moSoTay() {
+        let id = env.dsCuocCache["so_tay"] != nil ? "so_tay" : "so-tay"
+        env.moCuocHoiThoai(cuocId: id, tenCuoc: "📒 Sổ tay")
+    }
+
+    private func moZalo() {
+        if let u = URL(string: "zalo://") { openURL(u) }
+    }
+}

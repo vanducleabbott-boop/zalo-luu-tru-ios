@@ -154,6 +154,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
 
     private func xemTruoc(_ t: Tin) -> String {
         let tenGui = t.tenNguoi.map { $0 + ": " } ?? ""
+        if let db = t.loaiDacBiet { return tenGui + db.xemTruoc }
         switch t.kieu {
         case "anh": return tenGui + "[Hình ảnh]"
         case "gif": return tenGui + "[GIF]"

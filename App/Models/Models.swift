@@ -419,6 +419,25 @@ struct Tin: Codable, Equatable, Hashable, Identifiable {
 
     var thongTinBinhChon: BinhChonInfo? { phu?.binhChon }
 
+    /// v6.2: các loại tin Zalo máy chủ chưa giải mã (lưu dạng "[Loại tin chưa hỗ trợ: ...]" / "[chat.ecard]").
+    var loaiDacBiet: LoaiTinDacBiet? {
+        switch loai {
+        case "chat.ecard":
+            // thẻ nhắc hẹn Zalo: máy chủ lưu ảnh nền thẻ thành "file", tiêu đề nằm ở ten_file ("⏰ Đặt hàng...")
+            let tieuDe = (tenFile ?? "").trimmingCharacters(in: .whitespaces)
+            if let dau = tieuDe.first, dau.unicodeScalars.first?.properties.isEmojiPresentation == true {
+                return .nhacHen(emoji: String(dau), tieuDe: String(tieuDe.dropFirst()).trimmingCharacters(in: .whitespaces))
+            }
+            return .nhacHen(emoji: "⏰", tieuDe: tieuDe)
+        case "group.poll" where phu?.binhChon == nil: return .binhChonCu
+        case "chat.webcontent" where phu?.chuyenKhoan == nil: return .theZalo
+        case "chat.delete": return .daXoa
+        default:
+            guard let chu, chu.hasPrefix("[Loại tin chưa hỗ trợ") else { return nil }
+            return .chuaHoTro
+        }
+    }
+
     /// Bản sao với phần phụ mới (cập nhật bình chọn realtime).
     func voiPhu(_ phuMoi: Phu?) -> Tin {
         Tin(msgId: msgId, cliMsgId: cliMsgId, cuocId: cuocId, uid: uid, tenNguoi: tenNguoi, laToi: laToi, ts: ts,
@@ -651,5 +670,39 @@ enum BankDetector {
             noiDung: noiDung,
             qrUrl: qrUrl
         )
+    }
+}
+
+// ---------------------------------------------------------------- v6.2: tin Zalo máy chủ chưa giải mã
+enum LoaiTinDacBiet: Equatable {
+    case nhacHen(emoji: String, tieuDe: String)
+    case binhChonCu
+    case theZalo
+    case daXoa
+    case chuaHoTro
+
+    var xemTruoc: String {
+        switch self {
+        case .nhacHen(let e, let td): return "\(e) Nhắc hẹn: \(td)"
+        case .binhChonCu: return "📊 Bình chọn"
+        case .theZalo: return "💳 Thẻ Zalo"
+        case .daXoa: return "Tin nhắn đã bị xoá"
+        case .chuaHoTro: return "Tin nhắn Zalo"
+        }
+    }
+
+    /// Đổi chữ xem trước thô của máy chủ ("[Loại tin chưa hỗ trợ: group.poll]", "[chat.ecard]") thành chữ dễ đọc.
+    static func lamDepXemTruoc(_ s: String) -> String {
+        if s.contains("[chat.ecard]") { return s.replacingOccurrences(of: "[chat.ecard]", with: "⏰ Nhắc hẹn") }
+        guard let r = s.range(of: "[Loại tin chưa hỗ trợ: ") , let dong = s[r.upperBound...].firstIndex(of: "]") else { return s }
+        let loai = String(s[r.upperBound..<dong])
+        let dep: LoaiTinDacBiet
+        switch loai {
+        case "group.poll": dep = .binhChonCu
+        case "chat.webcontent": dep = .theZalo
+        case "chat.delete": dep = .daXoa
+        default: dep = .chuaHoTro
+        }
+        return s.replacingCharacters(in: r.lowerBound...dong, with: dep.xemTruoc)
     }
 }

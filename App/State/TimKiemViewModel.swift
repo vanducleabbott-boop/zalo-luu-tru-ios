@@ -41,7 +41,7 @@ final class TimKiemViewModel: ObservableObject {
         return cuocId.map { pv.contains($0) } ?? false
     }
 
-    static func laFile(_ t: Tin) -> Bool { t.kieu == "file" }
+    static func laFile(_ t: Tin) -> Bool { t.kieu == "file" && t.loaiDacBiet == nil }   // thẻ nhắc hẹn Zalo bị lưu dạng "file"
 
     private func henTim() {
         viecTim?.cancel()

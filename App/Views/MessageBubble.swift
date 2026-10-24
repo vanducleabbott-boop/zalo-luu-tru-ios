@@ -148,6 +148,15 @@ struct MessageBubble: View {
 
     @ViewBuilder
     private var noiDungDon: some View {
+        if let db = t.loaiDacBiet {
+            TinDacBietView(loai: db, ts: t.ts)
+        } else {
+            noiDungTheoKieu
+        }
+    }
+
+    @ViewBuilder
+    private var noiDungTheoKieu: some View {
         switch t.kieu {
         case "anh", "gif":
             AnhTinView(url: diaChiFile) { if let u = diaChiFile { anhDangXem = AnhXemToan(url: u, msgId: t.msgId) } }

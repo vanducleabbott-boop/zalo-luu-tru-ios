@@ -185,7 +185,7 @@ struct ConversationRow: View {
 
     private var dongXemTruoc: String {
         guard let t = c.tinCuoi else { return c.laNhomBool ? "Nhóm" : "Chưa có tin lưu" }
-        var xem = t.xem ?? ""
+        var xem = LoaiTinDacBiet.lamDepXemTruoc(t.xem ?? "")
         if t.laToi == true { xem = "Bạn: " + xem }
         else if c.laNhomBool, let ten = t.ten, !ten.isEmpty { xem = "\(ten): \(xem)" }
         return xem
@@ -200,7 +200,7 @@ struct KetQuaTimTinRow: View {
             AvatarView(ten: t.tenCuoc ?? t.cuocId ?? "", anh: nil, khoa: t.cuocId ?? "", kichThuoc: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text(t.tenCuoc ?? t.cuocId ?? "").font(.system(size: 15)).lineLimit(1)
-                Text("\(t.laToi ? "Bạn" : (t.tenNguoi ?? "")): \(t.thuHoi ? "(đã thu hồi) " : "")\(t.chu ?? t.tenFile ?? "")")
+                Text("\(t.laToi ? "Bạn" : (t.tenNguoi ?? "")): \(t.thuHoi ? "(đã thu hồi) " : "")\(t.loaiDacBiet?.xemTruoc ?? t.chu ?? t.tenFile ?? "")")
                     .font(.system(size: 13)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer()
