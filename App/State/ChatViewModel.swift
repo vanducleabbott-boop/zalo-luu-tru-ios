@@ -17,6 +17,8 @@ final class ChatViewModel: ObservableObject {
     @Published var loi: String?
     /// Khi khác nil: UI nên cuộn tới tin nhắn này 1 lần rồi tự xoá giá trị (xem onChange trong ChatView).
     @Published var cuonToiMsgId: String?
+    /// v5.4: khoá mục (MucHienThi.khoa) cần giữ nguyên trên màn hình sau khi nạp thêm tin cũ.
+    @Published var giuViTriKhoa: String?
     @Published private(set) var thanhVienNhom: [ThanhVien] = []
     @Published private(set) var dangTaiThanhVien = false
     @Published var dsGhim: [TinGhim] = []
@@ -36,6 +38,17 @@ final class ChatViewModel: ObservableObject {
     }
 
     var danhSachHienThi: [GomNhom.MucHienThi] { GomNhom.gomTheoNgay(tinDangXem) }
+
+    /// v5.6: mục kèm khoá CHẮC CHẮN duy nhất cho List (khoá trùng làm List crash) - trùng thì thêm "#n".
+    var mucCoKhoa: [(khoa: String, muc: GomNhom.MucHienThi)] {
+        var dem: [String: Int] = [:]
+        return danhSachHienThi.map { m in
+            let k = m.khoa
+            let n = dem[k, default: 0]
+            dem[k] = n + 1
+            return (n == 0 ? k : "\(k)#\(n)", m)
+        }
+    }
 
     func taiLan1(quanh: Int64? = nil, sangMsgId: String? = nil) async {
         cheDoQuanh = quanh != nil
@@ -100,7 +113,9 @@ final class ChatViewModel: ObservableObject {
         do {
             let kq = try await env.api.dsTin(cuoc: cuoc.id, truoc: dauTien.ts)
             let (ds, het) = PhanTrang.noiTrangCu(hienTai: tinDangXem, trangCu: kq.tin)
+            let neo = danhSachHienThi.first(where: { if case .ngay = $0 { return false } else { return true } })?.khoa
             tinDangXem = ds
+            if !kq.tin.isEmpty { giuViTriKhoa = neo }
             heTin = het
             TinNhanDiskCache.shared.luuTin(ds, cuocId: cuoc.id)
             await napNguoiLienQuan(kq.tin)
@@ -170,6 +185,7 @@ final class ChatViewModel: ObservableObject {
         let trich = traLoi?.msgId
         do {
             try await env.api.guiChu(cuoc: cuoc.id, chu: chu, tag: tag, trichMsgId: trich)
+            ChiaSeChung.baoDaNhan(cuoc.nguoiNhanChiaSe)
             traLoi = nil
             cuonToiMsgId = "__cuoi__"
         } catch { loi = "Không gửi được: " + error.localizedDescription }
@@ -235,6 +251,7 @@ final class ChatViewModel: ObservableObject {
         // 4. Gửi file lên server ngầm
         do {
             try await env.api.guiFile(cuoc: cuoc.id, duLieu: duLieu, tenFile: tenFile, trichMsgId: trich)
+            ChiaSeChung.baoDaNhan(cuoc.nguoiNhanChiaSe)
         } catch {
             loi = "Không gửi được \(tenFile): " + error.localizedDescription
             tinDangXem.removeAll(where: { $0.msgId == tempId })

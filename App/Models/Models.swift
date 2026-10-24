@@ -43,6 +43,7 @@ struct Cuoc: Codable, Equatable, Hashable, Identifiable {
     let tatTb: Bool?         // chỉ xuất hiện (= true) khi nhóm đã tắt thông báo
 
     var laNhomBool: Bool { laNhom != 0 }
+    var nguoiNhanChiaSe: NguoiNhanChiaSe { NguoiNhanChiaSe(id: id, ten: ten ?? id, laNhom: laNhomBool) }
     var daGhim: Bool { ghim != nil }
     var daTatThongBao: Bool { tatTb == true }
 
@@ -263,6 +264,14 @@ struct Tin: Codable, Equatable, Hashable, Identifiable {
         self.laToi = laToi; self.ts = ts; self.loai = loai; self.kieu = kieu; self.chu = chu; self.url = url
         self.file = file; self.tenFile = tenFile; self.kichThuoc = kichThuoc; self.quote = quote; self.thuHoi = thuHoi
         self.phu = phu; self.camXuc = camXuc; self.tenCuoc = tenCuoc; self.laNhomCuoc = laNhomCuoc
+    }
+
+    /// v5.4: gắn tên/loại hội thoại cho tin lấy từ bộ nhớ máy (kết quả tìm kiếm cần tenCuoc + cuocId).
+    func ganCuoc(_ c: Cuoc?, cuocId: String) -> Tin {
+        Tin(msgId: msgId, cliMsgId: cliMsgId, cuocId: self.cuocId ?? cuocId, uid: uid, tenNguoi: tenNguoi, laToi: laToi,
+            ts: ts, loai: loai, kieu: kieu, chu: chu, url: url, file: file, tenFile: tenFile, kichThuoc: kichThuoc,
+            quote: quote, thuHoi: thuHoi, phu: phu, camXuc: camXuc,
+            tenCuoc: tenCuoc ?? c?.ten, laNhomCuoc: laNhomCuoc ?? c?.laNhom)
     }
 
     // Cam xuc cua chinh minh (uidToi truyen vao vi server khong gui san co/khong)

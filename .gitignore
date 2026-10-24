@@ -1,3 +1,5 @@
 build/
 *.xcodeproj/
 *.ipa
+App/Info.plist
+ShareExtension/Info.plist

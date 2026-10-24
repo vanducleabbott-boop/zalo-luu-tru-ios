@@ -376,15 +376,11 @@ struct ForwardMessageView: View {
     }
 
     private var dsLoc: [Cuoc] {
-        let q = tuKhoa.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if q.isEmpty { return dsCuoc }
-        return dsCuoc.filter { ($0.ten ?? $0.id).lowercased().contains(q) }
+        return dsCuoc.filter { ($0.ten ?? $0.id).khopKhongDau(tuKhoa) }
     }
 
     private var dsNhomLoc: [NhomTuyChon] {
-        let q = tuKhoa.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if q.isEmpty { return nhomManager.dsNhom }
-        return nhomManager.dsNhom.filter { $0.ten.lowercased().contains(q) }
+        return nhomManager.dsNhom.filter { $0.ten.khopKhongDau(tuKhoa) }
     }
 
     private func toggleChonCaNhom(_ nhom: NhomTuyChon) {

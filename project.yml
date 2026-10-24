@@ -7,13 +7,15 @@ targets:
   ZaloLuuTru:
     type: application
     platform: iOS
-    sources: [App]
+    sources: [App, Shared]
+    dependencies:
+      - target: ZaloShare
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.guava948.kale5858
         PRODUCT_NAME: ZaloLuuTru
-        MARKETING_VERSION: "5.3"
-        CURRENT_PROJECT_VERSION: "52"
+        MARKETING_VERSION: "6.0"
+        CURRENT_PROJECT_VERSION: "59"
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_VERSION: "5.0"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -39,6 +41,38 @@ targets:
         LSSupportsOpeningDocumentsInPlace: true
         ITSAppUsesNonExemptEncryption: false
         LSApplicationQueriesSchemes: [zalo]
+        NSUserActivityTypes: [INSendMessageIntent]
+  ZaloShare:
+    type: app-extension
+    platform: iOS
+    sources: [ShareExtension, Shared]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.guava948.kale5858.share
+        PRODUCT_NAME: ZaloShare
+        MARKETING_VERSION: "6.0"
+        CURRENT_PROJECT_VERSION: "59"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: NO
+    info:
+      path: ShareExtension/Info.plist
+      properties:
+        CFBundleDisplayName: "Zalo lưu trữ"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: ShareViewController
+          NSExtensionAttributes:
+            IntentsSupported: [INSendMessageIntent]
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsImageWithMaxCount: 30
+              NSExtensionActivationSupportsMovieWithMaxCount: 30
+              NSExtensionActivationSupportsFileWithMaxCount: 30
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsAttachmentsWithMaxCount: 30
   ZaloAppTests:
     type: bundle.unit-test
     platform: iOS

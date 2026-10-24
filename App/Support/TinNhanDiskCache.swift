@@ -90,6 +90,28 @@ final class TinNhanDiskCache {
         }
     }
 
+    /// v5.4: tìm KHÔNG DẤU trong các tin đã lưu trên máy (máy chủ chỉ tìm đúng dấu: "Han" không ra "Hạnh").
+    /// cuocId = nil -> tìm mọi cuộc. Trả về (mã cuộc, tin), mới nhất trước.
+    func timTin(_ tuKhoa: String, cuocId: String? = nil, toiDa: Int = 100) -> [(cuocId: String, tin: Tin)] {
+        let q = tuKhoa.trimmingCharacters(in: .whitespacesAndNewlines).boDau
+        guard !q.isEmpty else { return [] }
+        let dsFile: [URL]
+        if let cuocId { dsFile = [duongDanFile(cho: cuocId)] }
+        else { dsFile = (try? fileManager.contentsOfDirectory(at: thuMucCache, includingPropertiesForKeys: nil)) ?? [] }
+        var kq: [(cuocId: String, tin: Tin)] = []
+        for f in dsFile where f.pathExtension == "json" {
+            khoaLock.lock()
+            let data = try? Data(contentsOf: f)
+            khoaLock.unlock()
+            guard let data, let ds = try? JSONDecoder().decode([Tin].self, from: data) else { continue }
+            let id = cuocId ?? f.deletingPathExtension().lastPathComponent
+            for t in ds where !t.msgId.hasPrefix("temp_") {
+                if [t.chu, t.tenFile].contains(where: { $0?.boDau.contains(q) == true }) { kq.append((t.cuocId ?? id, t)) }
+            }
+        }
+        return Array(kq.sorted { $0.tin.ts > $1.tin.ts }.prefix(toiDa))
+    }
+
     /// Dọn dẹp cache của các cuộc hội thoại không tương tác quá 30 ngày
     func donDepTinCu() {
         let moc30Ngay = Date().addingTimeInterval(-motThangGiay)

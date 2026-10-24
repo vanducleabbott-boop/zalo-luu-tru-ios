@@ -100,6 +100,15 @@ enum GomNhom {
         case ngay(String)
         case tin(Tin, dauNhom: Bool, cuoiNhom: Bool)
         case album([Tin], dauNhom: Bool, cuoiNhom: Bool)   // v4.3: nhiều ảnh/video gửi 1 lần -> 1 khung lưới
+
+        /// v5.4: id ỔN ĐỊNH cho List (trước dùng vị trí -> nạp tin cũ chèn đầu làm cả danh sách nhảy vọt).
+        var khoa: String {
+            switch self {
+            case .ngay(let nhan): return "ngay_" + nhan
+            case .tin(let t, _, _): return t.msgId
+            case .album(let ds, _, _): return ds[ds.count - 1].msgId
+            }
+        }
     }
 
     /// Khoá album: cùng người gửi + cùng mã album (ảnh/video/gif chưa thu hồi, đã có file).
@@ -146,22 +155,27 @@ enum DinhDangChu {
     /// Khớp `chuCoTag()` trong web: cắt chuỗi theo vị trí UTF-16 (Zalo tính pos/len kiểu JS) để tô "@Tên".
     /// Trả về từng đoạn (text, co_phai_tag) theo đúng thứ tự xuất hiện trong chu.
     static func phanDoanTag(_ chu: String, tags: [TagMark]?) -> [(text: String, laTag: Bool)] {
+        phanDoanTagUid(chu, tags: tags).map { ($0.text, $0.uid != nil) }
+    }
+
+    /// Như phanDoanTag nhưng trả kèm uid của đoạn tag (nil = chữ thường) - v5.9 bấm tag mở chat người đó.
+    static func phanDoanTagUid(_ chu: String, tags: [TagMark]?) -> [(text: String, uid: String?)] {
         guard !chu.isEmpty else { return [] }
-        guard let tags, !tags.isEmpty else { return [(chu, false)] }
+        guard let tags, !tags.isEmpty else { return [(chu, nil)] }
         let utf16 = Array(chu.utf16)
         let hopLe = tags.filter { $0.pos >= 0 && $0.len > 0 && $0.pos + $0.len <= utf16.count }.sorted { $0.pos < $1.pos }
-        guard !hopLe.isEmpty else { return [(chu, false)] }
-        var ketQua: [(String, Bool)] = []
+        guard !hopLe.isEmpty else { return [(chu, nil)] }
+        var ketQua: [(String, String?)] = []
         var tu = 0
         for m in hopLe {
             if m.pos < tu { continue }   // trung voi tag truoc -> bo qua (giong web)
-            if m.pos > tu { ketQua.append((String(decoding: utf16[tu..<m.pos], as: UTF16.self), false)) }
+            if m.pos > tu { ketQua.append((String(decoding: utf16[tu..<m.pos], as: UTF16.self), nil)) }
             if (m.pos + m.len) <= utf16.count {
-                ketQua.append((String(decoding: utf16[m.pos..<(m.pos + m.len)], as: UTF16.self), true))
+                ketQua.append((String(decoding: utf16[m.pos..<(m.pos + m.len)], as: UTF16.self), m.uid))
             }
             tu = m.pos + m.len
         }
-        if tu < utf16.count { ketQua.append((String(decoding: utf16[tu...], as: UTF16.self), false)) }
+        if tu < utf16.count { ketQua.append((String(decoding: utf16[tu...], as: UTF16.self), nil)) }
         return ketQua
     }
 
@@ -230,6 +244,12 @@ extension String {
             .replacingOccurrences(of: "Đ", with: "D")
             .lowercased()
     }
+
+    /// v5.4: khớp tìm kiếm không dấu ("Han" khớp "Hạnh", "dung" khớp "Dũng").
+    func khopKhongDau(_ tuKhoa: String) -> Bool {
+        let q = tuKhoa.trimmingCharacters(in: .whitespacesAndNewlines).boDau
+        return q.isEmpty || boDau.contains(q)
+    }
 }
 
 enum PhanTrang {
@@ -243,6 +263,7 @@ enum PhanTrang {
 
     /// Nối thêm 1 trang tin CŨ HƠN vào đầu danh sách (kéo lên tải thêm). Trả về (danh sách mới, đã hết hay chưa).
     static func noiTrangCu(hienTai: [Tin], trangCu: [Tin], nguongHetTin: Int = 60) -> (ds: [Tin], heTin: Bool) {
-        (trangCu + hienTai, trangCu.count < nguongHetTin)
+        let daCo = Set(hienTai.map(\.msgId))   // v5.4: id List phải duy nhất
+        return (trangCu.filter { !daCo.contains($0.msgId) } + hienTai, trangCu.count < nguongHetTin)
     }
 }

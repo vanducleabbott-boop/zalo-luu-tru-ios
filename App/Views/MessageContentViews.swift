@@ -6,23 +6,47 @@ import QuickLook
 
 // ---------------------------------------------------------------- văn bản (có thể có "@Tag" + link)
 struct VanBanTinView: View {
+    @EnvironmentObject var env: AppEnvironment
     let chu: String
     let tags: [TagMark]?
     var laTagToi = false
 
+    /// v5.9: bấm "@Tên" -> mở chat riêng với người đó (chat 1-1 trên Zalo có mã cuộc = uid người đó).
+    static let luocDoTag = "zlt-tag"
+
     var body: some View {
         Text(xayDung())
             .textSelection(.enabled)
+            .environment(\.openURL, OpenURLAction { url in
+                guard url.scheme == Self.luocDoTag, let c = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                      let uid = c.host, !uid.isEmpty else { return .systemAction }
+                let ten = c.queryItems?.first(where: { $0.name == "ten" })?.value
+                env.moCuocHoiThoai(cuocId: uid, tenCuoc: env.dsCuocCache[uid]?.ten ?? ten)
+                return .handled
+            })
     }
 
     private func xayDung() -> AttributedString {
         var ketQua = AttributedString()
-        for (doan, laTag) in DinhDangChu.phanDoanTag(chu, tags: tags) {
+        for (doan, uid) in DinhDangChu.phanDoanTagUid(chu, tags: tags) {
             var a = thanLink(doan)
-            if laTag { a.foregroundColor = ZaloMau.xanh; a.font = .body.weight(.medium) }
+            if let uid {
+                a.foregroundColor = ZaloMau.xanh; a.font = .body.weight(.medium)
+                // "@Tất cả" (-1) và tag chính mình thì không có chat riêng để mở
+                if uid != "-1", uid != env.uidToi, let url = urlTag(uid, ten: doan) { a.link = url }
+            }
             ketQua += a
         }
         return ketQua
+    }
+
+    private func urlTag(_ uid: String, ten: String) -> URL? {
+        var c = URLComponents()
+        c.scheme = Self.luocDoTag
+        c.host = uid
+        let tenSach = ten.hasPrefix("@") ? String(ten.dropFirst()) : ten
+        c.queryItems = [URLQueryItem(name: "ten", value: tenSach)]
+        return c.url
     }
 
     /// Gạch chân + bấm mở được các đoạn trông giống URL (khớp linkHoa() của web).

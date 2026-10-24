@@ -4,6 +4,7 @@ import SwiftUI
 /// khởi tạo trong .task thay vì init() của View.
 final class ConversationListViewModelBox: ObservableObject {
     @Published var vm: ConversationListViewModel?
+    @Published var tim: TimKiemViewModel?
 }
 
 struct ConversationListView: View {
@@ -12,8 +13,8 @@ struct ConversationListView: View {
 
     var body: some View {
         Group {
-            if let vm = holder.vm {
-                ConversationListContentView(vm: vm)
+            if let vm = holder.vm, let tim = holder.tim {
+                ConversationListContentView(vm: vm, tim: tim)
             } else {
                 ProgressView()
             }
@@ -21,6 +22,7 @@ struct ConversationListView: View {
         .task {
             if holder.vm == nil {
                 let vm = ConversationListViewModel(env: env)
+                holder.tim = TimKiemViewModel(env: env)
                 holder.vm = vm
                 await vm.tai()
             }
@@ -34,14 +36,15 @@ struct ConversationListView: View {
 private struct ConversationListContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @ObservedObject var vm: ConversationListViewModel
+    @ObservedObject var tim: TimKiemViewModel
     @State private var cuocCanGanNhom: Cuoc?
     @State private var hienSheetQuetQR = false
 
     var body: some View {
         NavigationStack(path: $env.duongDanChat) {
             Group {
-                if dangTim {
-                    ketQuaTim
+                if tim.dangTimKiem {
+                    KetQuaTimKiemView(tim: tim)
                 } else if vm.dsCuoc.isEmpty && !vm.dangTai {
                     VStack(spacing: 10) {
                         Image(systemName: "tray").font(.system(size: 40)).foregroundStyle(.secondary)
@@ -54,17 +57,14 @@ private struct ConversationListContentView: View {
                 }
             }
             .navigationTitle("Tin nhắn")
-            .searchable(text: $vm.tuKhoaTim, prompt: "Tìm người, nhóm, tin nhắn")
+            .searchable(text: $tim.tuKhoa, prompt: "Tìm người, nhóm, tin nhắn, file")
             .refreshable { await vm.tai() }
             .navigationDestination(for: Cuoc.self) { c in ChatView(cuoc: c) }
             .navigationDestination(for: YeuCauMoCuoc.self) { yc in
                 ChatView(cuoc: yc.cuoc, quanhTs: yc.quanhTs, sangMsgId: yc.sangMsgId)
             }
             .navigationDestination(for: TimKiemDiem.self) { diem in
-                ChatView(cuoc: Cuoc(id: diem.tin.cuocId ?? "", laNhom: diem.tin.laNhomCuoc ?? 0,
-                                     ten: diem.tin.tenCuoc, anh: nil, tinCuoiTs: nil, tinCuoi: nil,
-                                     chuaDoc: 0, capNhatLuc: nil, ghim: nil, tatTb: nil),
-                         quanhTs: diem.tin.ts, sangMsgId: diem.tin.msgId)
+                ChatView(cuoc: diem.cuoc, quanhTs: diem.tin.ts, sangMsgId: diem.tin.msgId)
             }
             .sheet(item: $cuocCanGanNhom) { c in
                 ChonNhomChoCuocSheet(cuoc: c)
@@ -74,8 +74,6 @@ private struct ConversationListContentView: View {
             }
         }
     }
-
-    private var dangTim: Bool { !vm.tuKhoaTim.trimmingCharacters(in: .whitespaces).isEmpty }
 
     private var danhSach: some View {
         List {
@@ -130,30 +128,6 @@ private struct ConversationListContentView: View {
                             }
                         }
                     }
-            }
-        }
-        .listStyle(.plain)
-    }
-
-    private var ketQuaTim: some View {
-        List {
-            if vm.dangTim { ProgressView() }
-            if !vm.ketQuaTimCuoc.isEmpty {
-                Section("Người & nhóm") {
-                    ForEach(vm.ketQuaTimCuoc) { c in
-                        NavigationLink(value: c) { ConversationRow(c: c) }
-                    }
-                }
-            }
-            if !vm.ketQuaTimTin.isEmpty {
-                Section("Tin nhắn") {
-                    ForEach(vm.ketQuaTimTin) { t in
-                        NavigationLink(value: TimKiemDiem(tin: t)) { KetQuaTimTinRow(t: t) }
-                    }
-                }
-            }
-            if vm.ketQuaTimCuoc.isEmpty && vm.ketQuaTimTin.isEmpty && !vm.dangTim {
-                Text("Không tìm thấy \"\(vm.tuKhoaTim)\"").foregroundStyle(.secondary)
             }
         }
         .listStyle(.plain)

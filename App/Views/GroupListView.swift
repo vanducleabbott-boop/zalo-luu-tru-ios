@@ -3,9 +3,28 @@
 
 import SwiftUI
 
+/// v5.7: TimKiemViewModel cần env (chỉ có trong body) -> tạo trễ rồi mới vẽ nội dung tab.
+final class HopTimNhom: ObservableObject {
+    @Published var tim: TimKiemViewModel?
+}
+
 struct GroupListView: View {
     @EnvironmentObject var env: AppEnvironment
+    @StateObject private var hop = HopTimNhom()
+
+    var body: some View {
+        if let tim = hop.tim {
+            GroupListContentView(tim: tim)
+        } else {
+            ProgressView().task { hop.tim = TimKiemViewModel(env: env, chiTrongNhom: true) }
+        }
+    }
+}
+
+private struct GroupListContentView: View {
+    @EnvironmentObject var env: AppEnvironment
     @ObservedObject private var manager = NhomChatManager.shared
+    @ObservedObject var tim: TimKiemViewModel
 
     @State private var hienDialogTaoNhom = false
     @State private var tenNhomMoi = ""
@@ -15,7 +34,9 @@ struct GroupListView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if manager.dsNhom.isEmpty {
+                if tim.dangTimKiem {
+                    KetQuaTimKiemView(tim: tim)
+                } else if manager.dsNhom.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "folder.badge.plus")
                             .font(.system(size: 48))
@@ -91,6 +112,11 @@ struct GroupListView: View {
                 }
             }
             .navigationTitle("Nhóm")
+            .searchable(text: $tim.tuKhoa, prompt: "Tìm trong các nhóm: người, tin nhắn, file")
+            .navigationDestination(for: Cuoc.self) { c in ChatView(cuoc: c) }
+            .navigationDestination(for: TimKiemDiem.self) { diem in
+                ChatView(cuoc: diem.cuoc, quanhTs: diem.tin.ts, sangMsgId: diem.tin.msgId)
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -156,7 +182,9 @@ struct GroupDetailView: View {
 
     private var dsCuocTrongNhom: [Cuoc] {
         guard let nhom = nhomHienTai else { return [] }
+        // v5.5: chat có tin mới nhất lên trên (như tab Tin nhắn), trước giữ thứ tự lúc thêm vào nhóm
         return nhom.dsCuocId.compactMap { env.dsCuocCache[$0] }
+            .sorted { ($0.tinCuoiTs ?? $0.capNhatLuc ?? 0) > ($1.tinCuoiTs ?? $1.capNhatLuc ?? 0) }
     }
 
     var body: some View {
@@ -243,9 +271,7 @@ struct ThemChatVaoNhomSheet: View {
     }
 
     private var dsLoc: [Cuoc] {
-        let q = tuKhoa.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if q.isEmpty { return tatCaCuoc }
-        return tatCaCuoc.filter { ($0.ten ?? $0.id).lowercased().contains(q) }
+        return tatCaCuoc.filter { ($0.ten ?? $0.id).khopKhongDau(tuKhoa) }
     }
 
     var body: some View {

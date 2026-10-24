@@ -53,11 +53,17 @@ struct SearchInConversationView: View {
     private func timNgay(_ q: String) async {
         dangTim = true
         defer { dangTim = false }
-        do {
-            let kq = try await vm.env.api.timTrongCuoc(cuoc: vm.cuoc.id, q: q)
-            guard q == tu else { return }
-            ketQua = kq
-        } catch {}
+        // v5.4: tìm không dấu trong tin đang mở + tin lưu trên máy, rồi gộp kết quả máy chủ
+        let cuocId = vm.cuoc.id
+        var gap = Set<String>()
+        let tinMay = (vm.tinDangXem.filter { [$0.chu, $0.tenFile].contains(where: { $0?.khopKhongDau(q) == true }) }
+                      + TinNhanDiskCache.shared.timTin(q, cuocId: cuocId).map(\.tin))
+            .filter { !$0.msgId.hasPrefix("temp_") && gap.insert($0.msgId).inserted }
+        ketQua = tinMay.sorted { $0.ts > $1.ts }
+        let kq = (try? await vm.env.api.timTrongCuoc(cuoc: cuocId, q: q)) ?? []
+        guard q == tu else { return }
+        let daCo = Set(kq.map(\.msgId))
+        ketQua = (kq + tinMay.filter { !daCo.contains($0.msgId) }).sorted { $0.ts > $1.ts }
     }
 
     private func denTin(_ t: Tin) {

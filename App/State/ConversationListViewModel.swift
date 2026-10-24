@@ -7,19 +7,11 @@ import Combine
 @MainActor
 final class ConversationListViewModel: ObservableObject {
     @Published var dsCuoc: [Cuoc] = []
-    @Published var ketQuaTimCuoc: [Cuoc] = []
-    @Published var ketQuaTimTin: [Tin] = []
-    @Published var dangTim = false
     @Published var loi: String?
     @Published var dangTai = false
 
     private let env: AppEnvironment
     private var huyTheoDoi = Set<AnyCancellable>()
-    private var henTaiLai: Task<Void, Never>?
-
-    @Published var tuKhoaTim: String = "" {
-        didSet { timKiemSau() }
-    }
 
     init(env: AppEnvironment) {
         self.env = env
@@ -35,6 +27,7 @@ final class ConversationListViewModel: ObservableObject {
         do {
             dsCuoc = try await env.api.dsCuoc()
             for c in dsCuoc { env.dsCuocCache[c.id] = c }
+            capNhatChiaSe()
             await napTenNguoiChuaCo()
             taiTruocTinNhanVaMedia()
         } catch { loi = error.localizedDescription }
@@ -102,32 +95,19 @@ final class ConversationListViewModel: ObservableObject {
         }
     }
 
+    /// v5.4: đưa danh sách cuộc + phiên sang tiện ích Chia sẻ; lần đầu mở app báo iOS vài cuộc gần nhất làm gợi ý.
+    private static var daBaoGoiY = false
+    private func capNhatChiaSe() {
+        ChiaSeChung.luu(diaChi: env.settings.diaChiMayChu, phien: env.api.giaTriCookiePhien(),
+                        dsNguoiNhan: dsCuoc.prefix(300).map(\.nguoiNhanChiaSe))
+        guard !Self.daBaoGoiY else { return }
+        Self.daBaoGoiY = true
+        let ganNhat = dsCuoc.filter { $0.id != "so-tay" }.sorted { ($0.tinCuoiTs ?? 0) > ($1.tinCuoiTs ?? 0) }.prefix(8)
+        for c in ganNhat.reversed() { ChiaSeChung.baoDaNhan(c.nguoiNhanChiaSe) }   // mới nhất báo sau cùng = xếp đầu
+    }
+
     private func napTenNguoiChuaCo() async {
         // "Bạn: ..." hay ten nguoi gui cuoi trong nhom lay tu tinCuoi.ten (server da ghi san), khong can goi /api/nguoi o day.
-    }
-
-    private func timKiemSau() {
-        henTaiLai?.cancel()
-        let tu = tuKhoaTim
-        guard !tu.trimmingCharacters(in: .whitespaces).isEmpty else { ketQuaTimCuoc = []; ketQuaTimTin = []; dangTim = false; return }
-        henTaiLai = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 300_000_000)
-            guard !Task.isCancelled, let self else { return }
-            await self.timNgay(tu)
-        }
-    }
-
-    private func timNgay(_ tu: String) async {
-        dangTim = true
-        defer { dangTim = false }
-        do {
-            async let cuoc = env.api.dsCuoc(tim: tu)
-            async let tin = env.api.timKiemChung(q: tu)
-            let (c, t) = try await (cuoc, tin)
-            guard tu == tuKhoaTim else { return }   // da go tiep, bo ket qua cu
-            ketQuaTimCuoc = c
-            ketQuaTimTin = t
-        } catch { loi = error.localizedDescription }
     }
 
     func datGhim(_ c: Cuoc, bat: Bool) async {

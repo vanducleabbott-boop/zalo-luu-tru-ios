@@ -175,6 +175,7 @@ final class AppEnvironment: ObservableObject {
 
     func dangXuat() {
         api.dangXuat()
+        ChiaSeChung.xoaPhien()
         sse.dungHan()
         BackgroundAudioManager.shared.dungChayNen()
         TinNhanDiskCache.shared.xoaToanBo()
@@ -197,10 +198,24 @@ final class AppEnvironment: ObservableObject {
 
     func anhNguoi(uid: String?) -> String? { uid.flatMap { nguoiCache[$0]?.anh } }
 
+    /// v5.6: lần bấm thông báo đang xử lý - bấm liên tiếp thì huỷ lần trước (tránh 2 lần đổi màn chồng nhau).
+    private var viecMoTuThongBao: Task<Void, Never>?
+
     func moCuocTuThongBao(cuocId: String, msgId: String?) {
         guard !cuocId.isEmpty else { return }
-        tabChon = 0
-        Task {
+        viecMoTuThongBao?.cancel()
+        viecMoTuThongBao = Task {
+            // v5.6: crash khi bấm thông báo = đổi cả NavigationStack ngay lúc app vừa mở/đang chuyển tab/đang mở ảnh.
+            // Đợi app sẵn sàng (đã kiểm tra phiên + đăng nhập), đóng sheet đang mở, rồi mới đổi màn từng bước.
+            for _ in 0..<50 where dangKiemTraPhien || !daDangNhap {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+            }
+            guard !Task.isCancelled, daDangNhap else { return }
+            await dongCacManHinhPhu()
+            if tabChon != 0 {
+                tabChon = 0
+                try? await Task.sleep(nanoseconds: 350_000_000)
+            }
             var cuocMucTieu = dsCuocCache[cuocId]
             if cuocMucTieu == nil {
                 if let ds = try? await api.dsCuoc(), let tim = ds.first(where: { $0.id == cuocId }) {
@@ -214,14 +229,24 @@ final class AppEnvironment: ObservableObject {
                 }
             }
 
-            guard let cuoc = cuocMucTieu else { return }
+            guard let cuoc = cuocMucTieu, !Task.isCancelled else { return }
 
-            await MainActor.run {
-                var moi = NavigationPath()
-                moi.append(YeuCauMoCuoc(cuoc: cuoc, sangMsgId: msgId))
-                self.duongDanChat = moi
+            // về danh sách trước (có hiệu ứng), đợi xong rồi mới mở cuộc - không thay cả chồng màn 1 phát
+            if !duongDanChat.isEmpty {
+                duongDanChat = NavigationPath()
+                try? await Task.sleep(nanoseconds: 450_000_000)
+                guard !Task.isCancelled else { return }
             }
+            duongDanChat.append(YeuCauMoCuoc(cuoc: cuoc, sangMsgId: msgId))
         }
+    }
+
+    /// Đóng mọi sheet/fullScreenCover đang mở (xem ảnh, video, chuyển tiếp...) trước khi đổi màn chat.
+    private func dongCacManHinhPhu() async {
+        let goc = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first?.rootViewController
+        guard let dangMo = goc?.presentedViewController, !dangMo.isBeingDismissed else { return }
+        await withCheckedContinuation { tiep in dangMo.dismiss(animated: false) { tiep.resume() } }
+        try? await Task.sleep(nanoseconds: 150_000_000)
     }
 
     /// Nhảy trực tiếp tới cuộc trò chuyện (từ Sổ tay hoặc nhắc hẹn). Pushes onto current NavigationStack.

@@ -16,10 +16,16 @@ struct ChatView: View {
         self.cuoc = cuoc; self.quanhTs = quanhTs; self.sangMsgId = sangMsgId
     }
 
+    private var laSoTay: Bool { cuoc.id == "so-tay" || cuoc.id == "so_tay" }
+
     var body: some View {
         Group {
             if let vm = holder.vm {
-                ChatContentView(vm: vm)
+                if laSoTay {
+                    SoTayView(vm: vm, moLichTruoc: sangMsgId == nil)
+                } else {
+                    ChatContentView(vm: vm)
+                }
             } else {
                 ProgressView()
             }
@@ -28,8 +34,50 @@ struct ChatView: View {
             if holder.vm == nil {
                 let vm = ChatViewModel(cuoc: cuoc, env: env)
                 holder.vm = vm
+                // v5.9: mở tới 1 tin cụ thể (lịch hẹn, kết quả tìm...) -> viền cam đánh dấu đúng tin đó
+                if let sangMsgId { vm.tinDuocNhayToi = sangMsgId }
                 await vm.taiLan1(quanh: quanhTs, sangMsgId: sangMsgId)
             }
+        }
+    }
+}
+
+/// v5.9: Sổ tay = 2 chế độ: "Lịch" (lịch tháng các lịch hẹn) và "Ghi chú" (dòng tin như cũ).
+private struct SoTayView: View {
+    @ObservedObject var vm: ChatViewModel
+    @State private var cheDo: Int
+
+    init(vm: ChatViewModel, moLichTruoc: Bool) {
+        self.vm = vm
+        _cheDo = State(initialValue: moLichTruoc ? 0 : 1)
+    }
+
+    var body: some View {
+        Group {
+            if cheDo == 0 {
+                SoTayLichView(vm: vm) { t in
+                    cheDo = 1
+                    vm.tinDuocNhayToi = t.msgId
+                    if vm.tinDangXem.contains(where: { $0.msgId == t.msgId }) {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { vm.cuonToiMsgId = t.msgId }
+                    } else {
+                        Task { await vm.taiLan1(quanh: t.ts, sangMsgId: t.msgId) }
+                    }
+                }
+                .navigationTitle("📒 Sổ tay")
+                .navigationBarTitleDisplayMode(.inline)
+            } else {
+                ChatContentView(vm: vm)
+            }
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            Picker("", selection: $cheDo) {
+                Text("📅 Lịch").tag(0)
+                Text("📝 Ghi chú").tag(1)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 12).padding(.vertical, 6)
+            .background(.bar)
         }
     }
 }
@@ -46,13 +94,15 @@ private struct ChatContentView: View {
     @State private var hienTimTrong = false
     @State private var hienTaoLich = false
     @State private var showDsGhimSheet = false
+    /// v5.4: đáy chat đang trong màn hình -> mới tự cuộn khi có tin mới (trước luôn kéo tuột xuống đáy).
+    @State private var dangSatDay = true
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollViewReader { proxy in
                 List {
-                    ForEach(Array(vm.danhSachHienThi.enumerated()), id: \.offset) { i, muc in
-                        switch muc {
+                    ForEach(Array(vm.mucCoKhoa.enumerated()), id: \.element.khoa) { i, phan in
+                        switch phan.muc {
                         case .ngay(let nhan):
                             MocNgayView(nhan: nhan)
                                 .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
@@ -85,6 +135,8 @@ private struct ChatContentView: View {
                     }
                     Color.clear.frame(height: 1).id("__day_chat__")
                         .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
+                        .onAppear { dangSatDay = true }
+                        .onDisappear { dangSatDay = false }
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
@@ -103,12 +155,22 @@ private struct ChatContentView: View {
                 }
                 .onChange(of: vm.cuonToiMsgId) { moi in
                     guard let moi else { return }
-                    if moi == "__cuoi__" || moi == "__cuoi_neu_sat_day__" {
-                        cuonXuongDay(proxy: proxy, animate: moi != "__cuoi__")
+                    if moi == "__cuoi__" {
+                        cuonXuongDay(proxy: proxy, animate: false)
+                    } else if moi == "__cuoi_neu_sat_day__" {
+                        // đang kéo lên đọc tin cũ thì để yên, không giật xuống đáy
+                        if dangSatDay { withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo("__day_chat__", anchor: .bottom) } }
                     } else {
                         withAnimation { proxy.scrollTo(moi, anchor: .center) }
                     }
                     vm.cuonToiMsgId = nil
+                }
+                .onChange(of: vm.giuViTriKhoa) { khoa in
+                    // v5.4: vừa chèn trang tin cũ lên đầu -> đứng yên ở tin đang xem thay vì bị đẩy vọt lên
+                    guard let khoa else { return }
+                    var t = Transaction(); t.disablesAnimations = true
+                    withTransaction(t) { proxy.scrollTo(khoa, anchor: .top) }
+                    vm.giuViTriKhoa = nil
                 }
                 .onChange(of: vm.traLoi?.msgId) { moi in
                     if moi != nil {
