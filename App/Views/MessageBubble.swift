@@ -179,10 +179,22 @@ struct MessageBubble: View {
             } else {
                 Text(t.chu ?? "")
             }
+        case "binh-chon":
+            if let bc = t.thongTinBinhChon {
+                BinhChonTinView(vm: vm, bc: bc)
+            } else {
+                Text(t.chu ?? "")
+            }
         default:
-            VStack(alignment: .leading, spacing: 4) {
-                VanBanTinView(chu: t.chu ?? "", tags: t.phu?.tag, laTagToi: laTagToi)
-                nhayVeCuocNguonNeuCo
+            if let ck = t.thongTinChuyenKhoan {
+                ChuyenKhoanTinView(ck: ck)
+            } else if let bc = t.thongTinBinhChon {
+                BinhChonTinView(vm: vm, bc: bc)
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    VanBanTinView(chu: t.chu ?? "", tags: t.phu?.tag, laTagToi: laTagToi)
+                    nhayVeCuocNguonNeuCo
+                }
             }
         }
     }

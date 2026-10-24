@@ -2,7 +2,7 @@
 # Build IPA (không ký - ESign ký lại) NGAY TRÊN MAC, khỏi chờ máy macOS của GitHub.
 # Cần cài 1 lần: Xcode (App Store) + XcodeGen (brew install xcodegen).
 # Chạy:  cd ~/zalo-luu-tru-ios && ./build_mac.sh
-# Ra:    ZaloLuuTru.ipa trong thư mục này + chép vào Google Drive/zalocall nếu Mac có cài Google Drive.
+# Ra:    ZaloLuuTru.ipa trong thư mục này + chép vào Google Drive/Dự án iPhone/zalocall nếu Mac có cài Google Drive.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -34,10 +34,15 @@ ls -la ZaloLuuTru.ipa
 # Google Drive cho Mac: ~/Library/CloudStorage/GoogleDrive-<email>/My Drive (bản tiếng Việt: "Drive của tôi")
 for DRIVE in "$HOME"/Library/CloudStorage/GoogleDrive-*/"My Drive" "$HOME"/Library/CloudStorage/GoogleDrive-*/"Drive của tôi"; do
   if [ -d "$DRIVE" ]; then
-    mkdir -p "$DRIVE/zalocall"
-    cp ZaloLuuTru.ipa "$DRIVE/zalocall/ZaloCall_v$PB.ipa"
-    cp ZaloLuuTru.ipa "$DRIVE/zalocall/ZaloCall.ipa"
-    echo "== Đã chép vào $DRIVE/zalocall/ZaloCall_v$PB.ipa"
+    mkdir -p "$DRIVE/Dự án iPhone/ZaloApp"
+    cp ZaloLuuTru.ipa "$DRIVE/Dự án iPhone/ZaloApp/ZaloLuuTru_v$PB.ipa"
+    cp ZaloLuuTru.ipa "$DRIVE/Dự án iPhone/ZaloApp/ZaloLuuTru.ipa"
+    echo "== Đã chép vào $DRIVE/Dự án iPhone/ZaloApp/ZaloLuuTru_v$PB.ipa"
+
+    mkdir -p "$DRIVE/Dự án iPhone/zalocall"
+    cp ZaloLuuTru.ipa "$DRIVE/Dự án iPhone/zalocall/ZaloCall_v$PB.ipa"
+    cp ZaloLuuTru.ipa "$DRIVE/Dự án iPhone/zalocall/ZaloCall.ipa"
+    echo "== Đã chép vào $DRIVE/Dự án iPhone/zalocall/ZaloCall_v$PB.ipa"
   fi
 done
 echo "== XONG"

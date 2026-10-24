@@ -371,10 +371,57 @@ final class ChatViewModel: ObservableObject {
             if laTinMoi && !tin.laToi { danhDauDaDoc() }
         case .daDoc, .ghimDoiThayDoi:
             break
+        case .binhChonThayDoi(let cId, let pollId):
+            if cId == cuoc.id {
+                Task { await capNhatBinhChonRealtime(pollId: pollId) }
+            }
         case .ketNoiLai:
             Task { await taiBu() }
         default:
             break
+        }
+    }
+
+    // ---------------------------------------------------------------- bình chọn nhóm (poll)
+    func boPhieu(pollId: String, optionIds: [Int]) async throws -> BinhChonInfo {
+        let kq = try await env.api.boPhieuBinhChon(pollId: pollId, cuocId: cuoc.id, optionIds: optionIds)
+        capNhatBinhChonTrongDanhSach(kq)
+        return kq
+    }
+
+    func capNhatBinhChonRealtime(pollId: String) async {
+        guard !pollId.isEmpty else {
+            await taiBu()
+            return
+        }
+        do {
+            let moi = try await env.api.layChiTietBinhChon(pollId: pollId)
+            capNhatBinhChonTrongDanhSach(moi)
+        } catch {
+            await taiBu()
+        }
+    }
+
+    private func capNhatBinhChonTrongDanhSach(_ bc: BinhChonInfo) {
+        for i in 0..<tinDangXem.count {
+            if tinDangXem[i].thongTinBinhChon?.pollId == bc.pollId || tinDangXem[i].phu?.binhChon?.pollId == bc.pollId {
+                let cu = tinDangXem[i]
+                var phuMoi = cu.phu ?? Phu()
+                phuMoi = Phu(
+                    khung: phuMoi.khung, ms: phuMoi.ms, lich: phuMoi.lich, tag: phuMoi.tag,
+                    cuocNguon: phuMoi.cuocNguon, album: phuMoi.album, danhThiep: phuMoi.danhThiep,
+                    chuyenKhoan: phuMoi.chuyenKhoan, binhChon: bc
+                )
+                let tinMoi = Tin(
+                    msgId: cu.msgId, cliMsgId: cu.cliMsgId, cuocId: cu.cuocId, uid: cu.uid,
+                    tenNguoi: cu.tenNguoi, laToi: cu.laToi, ts: cu.ts, loai: cu.loai, kieu: cu.kieu,
+                    chu: cu.chu, url: cu.url, file: cu.file, tenFile: cu.tenFile, kichThuoc: cu.kichThuoc,
+                    quote: cu.quote, thuHoi: cu.thuHoi, phu: phuMoi, camXuc: cu.camXuc,
+                    tenCuoc: cu.tenCuoc, laNhomCuoc: cu.laNhomCuoc
+                )
+                tinDangXem[i] = tinMoi
+                TinNhanDiskCache.shared.capNhatTinMoi(tin: tinMoi, cuocId: cuoc.id)
+            }
         }
     }
 

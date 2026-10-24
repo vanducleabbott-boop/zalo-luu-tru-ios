@@ -277,6 +277,16 @@ final class ZaloAPI {
         try await goiJSON("/api/danh-ba", method: "POST")
     }
 
+    // ---------------------------------------------------------------- bình chọn nhóm (poll)
+    func layChiTietBinhChon(pollId: String) async throws -> BinhChonInfo {
+        return try await goiJSON("/api/binh-chon", query: ["id": pollId])
+    }
+
+    func boPhieuBinhChon(pollId: String, cuocId: String, optionIds: [Int]) async throws -> BinhChonInfo {
+        struct Than: Encodable { let optionIds: [Int] }
+        return try await goiJSON("/api/binh-chon", method: "POST", query: ["id": pollId, "cuoc": cuocId], jsonBody: Than(optionIds: optionIds))
+    }
+
     // ---------------------------------------------------------------- đặt lịch hẹn (nhắc hẹn)
     struct ThamSoTaoLich: Encodable {
         let tieuDe: String

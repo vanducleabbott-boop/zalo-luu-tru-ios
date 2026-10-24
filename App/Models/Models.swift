@@ -171,8 +171,10 @@ struct Phu: Codable, Equatable, Hashable {
     let cuocNguon: String?
     let album: AlbumInfo?       // anh/video gui 1 lan (Zalo hien 1 khung luoi) - v4.3
     let danhThiep: DanhThiepInfo?
+    let chuyenKhoan: ChuyenKhoanInfo?
+    let binhChon: BinhChonInfo?
 
-    init(khung: Int? = nil, ms: Int? = nil, lich: LichHen? = nil, tag: [TagMark]? = nil, cuocNguon: String? = nil, album: AlbumInfo? = nil, danhThiep: DanhThiepInfo? = nil) {
+    init(khung: Int? = nil, ms: Int? = nil, lich: LichHen? = nil, tag: [TagMark]? = nil, cuocNguon: String? = nil, album: AlbumInfo? = nil, danhThiep: DanhThiepInfo? = nil, chuyenKhoan: ChuyenKhoanInfo? = nil, binhChon: BinhChonInfo? = nil) {
         self.khung = khung
         self.ms = ms
         self.lich = lich
@@ -180,6 +182,127 @@ struct Phu: Codable, Equatable, Hashable {
         self.cuocNguon = cuocNguon
         self.album = album
         self.danhThiep = danhThiep
+        self.chuyenKhoan = chuyenKhoan
+        self.binhChon = binhChon
+    }
+}
+
+// ---------------------------------------------------------------- Thông tin chuyển khoản VietQR
+struct ChuyenKhoanInfo: Codable, Equatable, Hashable {
+    let nganHang: String
+    let maNganHang: String
+    let bin: String?
+    let stk: String
+    let tenNguoiNhan: String?
+    let soTien: Int64?
+    let noiDung: String?
+    let qrUrl: String
+
+    var soTienDinhDang: String? {
+        guard let tien = soTien, tien > 0 else { return nil }
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.groupingSeparator = "."
+        return (f.string(from: NSNumber(value: tien)) ?? "\(tien)") + " đ"
+    }
+
+    var thongTinSaoChep: String {
+        var dong: [String] = []
+        dong.append("Ngân hàng: \(nganHang)")
+        dong.append("Số tài khoản: \(stk)")
+        if let ten = tenNguoiNhan, !ten.isEmpty { dong.append("Chủ tài khoản: \(ten)") }
+        if let st = soTienDinhDang { dong.append("Số tiền: \(st)") }
+        if let nd = noiDung, !nd.isEmpty { dong.append("Nội dung: \(nd)") }
+        return dong.joined(separator: "\n")
+    }
+}
+
+// ---------------------------------------------------------------- Bình chọn nhóm (Poll)
+struct BinhChonLuaChon: Codable, Equatable, Hashable, Identifiable {
+    var id: Int { optionId }
+    let optionId: Int
+    let content: String
+    let votes: Int
+    let voted: Bool?
+    let voters: [String]?
+    let percentage: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case content, votes, voted, voters, percentage
+        case optionId = "id"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let intId = try? c.decode(Int.self, forKey: .optionId) {
+            optionId = intId
+        } else if let strId = try? c.decode(String.self, forKey: .optionId), let intId = Int(strId) {
+            optionId = intId
+        } else {
+            optionId = 0
+        }
+        content = try c.decodeIfPresent(String.self, forKey: .content) ?? ""
+        votes = try c.decodeIfPresent(Int.self, forKey: .votes) ?? 0
+        voted = try c.decodeIfPresent(Bool.self, forKey: .voted)
+        voters = try c.decodeIfPresent([String].self, forKey: .voters)
+        percentage = try c.decodeIfPresent(Double.self, forKey: .percentage)
+    }
+
+    init(optionId: Int, content: String, votes: Int, voted: Bool? = nil, voters: [String]? = nil, percentage: Double? = nil) {
+        self.optionId = optionId
+        self.content = content
+        self.votes = votes
+        self.voted = voted
+        self.voters = voters
+        self.percentage = percentage
+    }
+}
+
+struct BinhChonInfo: Codable, Equatable, Hashable {
+    let pollId: String
+    let cauHoi: String
+    let options: [BinhChonLuaChon]
+    let totalVotes: Int?
+    let allowMultiChoices: Bool?
+    let allowAddNewOption: Bool?
+    let isAnonymous: Bool?
+    let isClosed: Bool?
+    let myVotes: [Int]?
+    let creatorId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case options, totalVotes, allowMultiChoices, allowAddNewOption, isAnonymous, isClosed, myVotes, creatorId
+        case pollId = "pollId"
+        case cauHoi = "cauHoi"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        pollId = try c.decodeIfPresent(String.self, forKey: .pollId) ?? ""
+        cauHoi = try c.decodeIfPresent(String.self, forKey: .cauHoi) ?? "Bình chọn"
+        options = try c.decodeIfPresent([BinhChonLuaChon].self, forKey: .options) ?? []
+        totalVotes = try c.decodeIfPresent(Int.self, forKey: .totalVotes)
+        allowMultiChoices = try c.decodeIfPresent(Bool.self, forKey: .allowMultiChoices)
+        allowAddNewOption = try c.decodeIfPresent(Bool.self, forKey: .allowAddNewOption)
+        isAnonymous = try c.decodeIfPresent(Bool.self, forKey: .isAnonymous)
+        isClosed = try c.decodeIfPresent(Bool.self, forKey: .isClosed)
+        myVotes = try c.decodeIfPresent([Int].self, forKey: .myVotes)
+        creatorId = try c.decodeIfPresent(String.self, forKey: .creatorId)
+    }
+
+    init(pollId: String, cauHoi: String, options: [BinhChonLuaChon], totalVotes: Int? = nil,
+         allowMultiChoices: Bool? = nil, allowAddNewOption: Bool? = nil, isAnonymous: Bool? = nil,
+         isClosed: Bool? = nil, myVotes: [Int]? = nil, creatorId: String? = nil) {
+        self.pollId = pollId
+        self.cauHoi = cauHoi
+        self.options = options
+        self.totalVotes = totalVotes
+        self.allowMultiChoices = allowMultiChoices
+        self.allowAddNewOption = allowAddNewOption
+        self.isAnonymous = isAnonymous
+        self.isClosed = isClosed
+        self.myVotes = myVotes
+        self.creatorId = creatorId
     }
 }
 
@@ -282,6 +405,17 @@ struct Tin: Codable, Equatable, Hashable, Identifiable {
         !thuHoi && ((kieu == "chu" && !(chu ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             || kieu == "sticker" || file != nil)
     }
+
+    var thongTinChuyenKhoan: ChuyenKhoanInfo? {
+        if let ck = phu?.chuyenKhoan { return ck }
+        guard !thuHoi, let chu = chu, chu.count >= 8 else { return nil }
+        return BankDetector.parse(text: chu)
+    }
+
+    var thongTinBinhChon: BinhChonInfo? {
+        if let bc = phu?.binhChon { return bc }
+        return nil
+    }
 }
 
 // ---------------------------------------------------------------- Phản hồi /api/tin
@@ -374,5 +508,138 @@ struct ZaloServerStatus: Codable, Equatable {
         case ten
         case qr
         case loi
+    }
+}
+
+// ---------------------------------------------------------------- Bộ nhận diện thông tin chuyển khoản ngân hàng (VietQR)
+enum BankDetector {
+    struct NganHang {
+        let ma: String
+        let bin: String
+        let ten: String
+        let tuKhoa: [String]
+    }
+
+    static let danhSach: [NganHang] = [
+        NganHang(ma: "vietinbank", bin: "970415", ten: "VietinBank", tuKhoa: ["vietinbank", "vietin", "ctg", "icb"]),
+        NganHang(ma: "vietcombank", bin: "970436", ten: "Vietcombank", tuKhoa: ["vietcombank", "vcb"]),
+        NganHang(ma: "bidv", bin: "970418", ten: "BIDV", tuKhoa: ["bidv"]),
+        NganHang(ma: "mbbank", bin: "970422", ten: "MBBank", tuKhoa: ["mbbank", "mb bank", "mb"]),
+        NganHang(ma: "techcombank", bin: "970407", ten: "Techcombank", tuKhoa: ["techcombank", "techcom", "tcb"]),
+        NganHang(ma: "acb", bin: "970416", ten: "ACB", tuKhoa: ["acb", "á châu"]),
+        NganHang(ma: "vpbank", bin: "970432", ten: "VPBank", tuKhoa: ["vpbank", "vpb", "việt nam thịnh vượng"]),
+        NganHang(ma: "tpbank", bin: "970423", ten: "TPBank", tuKhoa: ["tpbank", "tpb", "tiên phong"]),
+        NganHang(ma: "sacombank", bin: "970403", ten: "Sacombank", tuKhoa: ["sacombank", "stb", "sài gòn thương tín"]),
+        NganHang(ma: "hdbank", bin: "970437", ten: "HDBank", tuKhoa: ["hdbank", "hdb"]),
+        NganHang(ma: "vib", bin: "970441", ten: "VIB", tuKhoa: ["vib"]),
+        NganHang(ma: "shb", bin: "970443", ten: "SHB", tuKhoa: ["shb"]),
+        NganHang(ma: "msb", bin: "970426", ten: "MSB", tuKhoa: ["msb", "hàng hải"]),
+        NganHang(ma: "ocb", bin: "970448", ten: "OCB", tuKhoa: ["ocb", "phương đông"]),
+        NganHang(ma: "lpbank", bin: "970449", ten: "LPBank", tuKhoa: ["lpbank", "lpb", "lienvietpostbank", "liên việt"]),
+        NganHang(ma: "seabank", bin: "970440", ten: "SeABank", tuKhoa: ["seabank"]),
+        NganHang(ma: "agribank", bin: "970405", ten: "Agribank", tuKhoa: ["agribank", "vba", "nông nghiệp"]),
+        NganHang(ma: "namabank", bin: "970428", ten: "Nam A Bank", tuKhoa: ["nam a bank", "namabank", "nab"]),
+        NganHang(ma: "bacabank", bin: "970409", ten: "Bac A Bank", tuKhoa: ["bac a bank", "bacabank", "bắc á"]),
+        NganHang(ma: "bvbank", bin: "970454", ten: "BVBank", tuKhoa: ["bvbank", "bản việt"]),
+        NganHang(ma: "pvcombank", bin: "970412", ten: "PVcomBank", tuKhoa: ["pvcombank", "pvb"]),
+        NganHang(ma: "cake", bin: "546034", ten: "CAKE by VPBank", tuKhoa: ["cake"]),
+        NganHang(ma: "timo", bin: "963388", ten: "Timo", tuKhoa: ["timo"]),
+        NganHang(ma: "baovietbank", bin: "970438", ten: "BaoViet Bank", tuKhoa: ["baoviet", "bảo việt"]),
+        NganHang(ma: "kienlongbank", bin: "970452", ten: "KienlongBank", tuKhoa: ["kienlong", "klb"]),
+        NganHang(ma: "saigonbank", bin: "970400", ten: "Saigonbank", tuKhoa: ["saigonbank", "sgb"]),
+        NganHang(ma: "pgbank", bin: "970430", ten: "PGBank", tuKhoa: ["pgbank", "pgb"]),
+        NganHang(ma: "shinhanbank", bin: "970424", ten: "Shinhan Bank", tuKhoa: ["shinhan"]),
+        NganHang(ma: "wooribank", bin: "970457", ten: "Woori Bank", tuKhoa: ["woori"])
+    ]
+
+    static func parse(text: String) -> ChuyenKhoanInfo? {
+        let lower = text.lowercased()
+        guard let bank = danhSach.first(where: { b in
+            b.tuKhoa.contains { kw in
+                if kw.count <= 3 {
+                    return lower.range(of: "\\b\(kw)\\b", options: .regularExpression) != nil
+                }
+                return lower.contains(kw)
+            }
+        }) else {
+            return nil
+        }
+
+        var stk: String? = nil
+        let stkPattern = "(?:stk|số tài khoản|so tai khoan|tk|stk\\s*:?)\\s*[:.]?\\s*(\\d{6,19})"
+        if let regex = try? NSRegularExpression(pattern: stkPattern, options: .caseInsensitive),
+           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+           let r = Range(match.range(at: 1), in: text) {
+            stk = String(text[r])
+        } else {
+            let digitsPattern = "\\b\\d{8,19}\\b"
+            if let regex = try? NSRegularExpression(pattern: digitsPattern),
+               let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+               let r = Range(match.range, in: text) {
+                stk = String(text[r])
+            }
+        }
+        guard let finalStk = stk else { return nil }
+
+        var soTien: Int64? = nil
+        let tienPattern = "(\\d+(?:[.,]\\d{3})*|\\d+)\\s*(k|tr|triệu|trieu|đ|vnd|dong|đồng)\\b"
+        if let regex = try? NSRegularExpression(pattern: tienPattern, options: .caseInsensitive),
+           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+           let rVal = Range(match.range(at: 1), in: text),
+           let rDv = Range(match.range(at: 2), in: text) {
+            let valStr = String(text[rVal]).replacingOccurrences(of: ".", with: "").replacingOccurrences(of: ",", with: "")
+            if var val = Int64(valStr) {
+                let dv = String(text[rDv]).lowercased()
+                if dv == "k" { val *= 1000 }
+                else if ["tr", "triệu", "trieu"].contains(dv) { val *= 1000000 }
+                soTien = val
+            }
+        }
+
+        var tenNguoiNhan: String? = nil
+        let tenPattern = "(?:chủ tk|tên|ctk|người nhận|chủ tài khoản)\\s*[:.]?\\s*([A-ZÀ-Ỹa-zà-ỹ\\s]{3,40})"
+        if let regex = try? NSRegularExpression(pattern: tenPattern, options: .caseInsensitive),
+           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+           let r = Range(match.range(at: 1), in: text) {
+            tenNguoiNhan = String(text[r]).trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            let parts = text.components(separatedBy: "STK")
+            if parts.count > 1, parts[0].trimmingCharacters(in: .whitespacesAndNewlines).count > 3 {
+                let p0 = parts[0].trimmingCharacters(in: CharacterSet(charactersIn: " ,.-:\n\r\t"))
+                let lowerP0 = p0.lowercased()
+                let hoVietNam = ["công ty", "cty", "nguyễn", "trần", "lê", "phạm", "hoàng", "huỳnh", "vũ", "võ", "đặng", "bùi", "đỗ", "hồ", "ngô", "dương", "lý"]
+                if hoVietNam.contains(where: { lowerP0.contains($0) }) {
+                    tenNguoiNhan = p0
+                }
+            }
+        }
+
+        var noiDung: String? = nil
+        let ndPattern = "(?:nội dung|nd|ndck|memo)\\s*[:.]?\\s*([^\\n\\r]{3,60})"
+        if let regex = try? NSRegularExpression(pattern: ndPattern, options: .caseInsensitive),
+           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+           let r = Range(match.range(at: 1), in: text) {
+            noiDung = String(text[r]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        var queryItems: [URLQueryItem] = []
+        if let st = soTien { queryItems.append(URLQueryItem(name: "amount", value: "\(st)")) }
+        if let t = tenNguoiNhan, !t.isEmpty { queryItems.append(URLQueryItem(name: "accountName", value: t)) }
+        if let nd = noiDung, !nd.isEmpty { queryItems.append(URLQueryItem(name: "addInfo", value: nd)) }
+
+        var comp = URLComponents(string: "https://img.vietqr.io/image/\(bank.ma)-\(finalStk)-compact2.png")
+        if !queryItems.isEmpty { comp?.queryItems = queryItems }
+        let qrUrl = comp?.url?.absoluteString ?? "https://img.vietqr.io/image/\(bank.ma)-\(finalStk)-compact2.png"
+
+        return ChuyenKhoanInfo(
+            nganHang: bank.ten,
+            maNganHang: bank.ma,
+            bin: bank.bin,
+            stk: finalStk,
+            tenNguoiNhan: tenNguoiNhan,
+            soTien: soTien,
+            noiDung: noiDung,
+            qrUrl: qrUrl
+        )
     }
 }
