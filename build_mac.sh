@@ -33,7 +33,8 @@ ls -la ZaloLuuTru.ipa
 
 # Google Drive cho Mac: ~/Library/CloudStorage/GoogleDrive-<email>/My Drive (bản tiếng Việt: "Drive của tôi")
 for DRIVE in "$HOME"/Library/CloudStorage/GoogleDrive-*/"My Drive" "$HOME"/Library/CloudStorage/GoogleDrive-*/"Drive của tôi"; do
-  if [ -d "$DRIVE" ]; then
+  # chỉ chép vào Drive đã có sẵn thư mục "Dự án iPhone" (Mac có thể đăng nhập nhiều tài khoản Drive)
+  if [ -d "$DRIVE/Dự án iPhone" ]; then
     mkdir -p "$DRIVE/Dự án iPhone/ZaloApp"
     cp ZaloLuuTru.ipa "$DRIVE/Dự án iPhone/ZaloApp/ZaloLuuTru_v$PB.ipa"
     cp ZaloLuuTru.ipa "$DRIVE/Dự án iPhone/ZaloApp/ZaloLuuTru.ipa"
