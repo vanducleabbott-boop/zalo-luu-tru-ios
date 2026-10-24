@@ -18,4 +18,16 @@ final class BankDetectorTests: XCTestCase {
         XCTAssertEqual(ck?.maNganHang, "bidv")
         XCTAssertEqual(ck?.stk, "1234567890")
     }
+
+    func testTheNganHangZalo_MayChuDaGiaiMa_HienChuyenKhoan() {
+        func the(_ chu: String) -> Tin {
+            Tin(msgId: "1", cliMsgId: "1", cuocId: "c", uid: "u", tenNguoi: nil, laToi: false, ts: 0,
+                loai: "chat.webcontent", kieu: "chu", chu: chu, url: nil, file: nil, tenFile: nil, kichThuoc: nil,
+                quote: nil, thuHoi: false, phu: nil, camXuc: [])
+        }
+        let daGiai = the("VPBank - 0912345678")
+        XCTAssertNil(daGiai.loaiDacBiet)
+        XCTAssertEqual(daGiai.thongTinChuyenKhoan?.stk, "0912345678")
+        XCTAssertEqual(the("[Loại tin chưa hỗ trợ: chat.webcontent]").loaiDacBiet, .theZalo)
+    }
 }

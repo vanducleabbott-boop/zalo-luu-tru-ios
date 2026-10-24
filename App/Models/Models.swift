@@ -430,7 +430,8 @@ struct Tin: Codable, Equatable, Hashable, Identifiable {
             }
             return .nhacHen(emoji: "⏰", tieuDe: tieuDe)
         case "group.poll" where phu?.binhChon == nil: return .binhChonCu
-        case "chat.webcontent" where phu?.chuyenKhoan == nil: return .theZalo
+        // thẻ ngân hàng: máy chủ giải mã gửi phu.chuyenKhoan / chu "VPBank - <stk>" -> hiện thẻ chuyển khoản
+        case "chat.webcontent" where thongTinChuyenKhoan == nil: return .theZalo
         case "chat.delete": return .daXoa
         default:
             guard let chu, chu.hasPrefix("[Loại tin chưa hỗ trợ") else { return nil }
