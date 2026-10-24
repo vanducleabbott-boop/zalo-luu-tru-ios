@@ -589,6 +589,7 @@ enum BankDetector {
     private static let reChuSo = re("\\b\\d{8,19}\\b", [])
     private static let reTien = re("(\\d+(?:[.,]\\d{3})*)\\s*(k|tr|triệu|trieu|đ|vnd|dong|đồng)\\b")
     private static let reTen = re("(?:chủ tk|tên|ctk|người nhận|chủ tài khoản)\\s*[:.]?\\s*([A-ZÀ-Ỹa-zà-ỹ\\s]{3,40})")
+    private static let reTenSauStk = re("^\\p{Lu}\\p{Ll}*(?: \\p{Lu}\\p{Ll}*){1,5}$", [])
     private static let reNoiDung = re("(?:nội dung|\\bnd|ndck|memo)\\s*[:.]?\\s*([^\\n\\r]{3,60})")
     /// Mỗi ngân hàng: từ khoá ngắn (<= 3 ký tự) phải đứng riêng 1 từ, từ khoá dài chỉ cần chứa.
     private static let khopNganHang: [(NganHang, NSRegularExpression?, [String])] = danhSach.map { b in
@@ -618,8 +619,10 @@ enum BankDetector {
         let lower = text.lowercased()
         let toanBo = NSRange(lower.startIndex..., in: lower)
         var khopTuDai = false
+        // "VP bank", "Techcom bank"... viết tách: so thêm bản bỏ dấu cách với từ khoá đuôi "bank"
+        let gon = lower.replacingOccurrences(of: " ", with: "")
         guard let bank = khopNganHang.first(where: { _, reNgan, dai in
-            if dai.contains(where: { lower.contains($0) }) { khopTuDai = true; return true }
+            if dai.contains(where: { lower.contains($0) || ($0.hasSuffix("bank") && gon.contains($0)) }) { khopTuDai = true; return true }
             return reNgan?.firstMatch(in: lower, range: toanBo) != nil
         })?.0 else { return nil }
 
@@ -647,6 +650,12 @@ enum BankDetector {
                     tenNguoiNhan = p0
                 }
             }
+        }
+
+        // "VP bank 0934486685 Lê Văn Đức": họ tên viết liền sau số tài khoản
+        if tenNguoiNhan == nil, let r = text.range(of: finalStk) {
+            let sau = text[r.upperBound...].trimmingCharacters(in: CharacterSet(charactersIn: " ,.-:\n\r\t"))
+            if nhom(reTenSauStk, sau, 0) != nil { tenNguoiNhan = sau }
         }
 
         let noiDung = nhom(reNoiDung, text)?.trimmingCharacters(in: .whitespacesAndNewlines)
