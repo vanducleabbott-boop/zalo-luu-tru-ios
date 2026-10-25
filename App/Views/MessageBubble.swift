@@ -277,9 +277,9 @@ struct MessageBubble: View {
             if #available(iOS 17.0, *) {
                 Section {
                     ControlGroup {
-                        ForEach(["/-heart", "/-strong", ":>", ":o", ":-((", ":-h"], id: \.self) { icon in
+                        ForEach(BangCamXuc.nhanh, id: \.self) { icon in
                             Button { Task { await vm.thaCamXuc(t, icon: icon) } } label: {
-                                Image(uiImage: BangCamXuc.anh(BangCamXuc.emoji(icon))).renderingMode(.original)
+                                Image(uiImage: BangCamXuc.anh(icon)).renderingMode(.original)
                             }
                         }
                     } label: { Text("Thả cảm xúc") }
@@ -287,7 +287,7 @@ struct MessageBubble: View {
                 }
             } else {
                 Menu("Thả cảm xúc") {
-                    ForEach(["/-heart", "/-strong", ":>", ":o", ":-((", ":-h"], id: \.self) { icon in
+                    ForEach(BangCamXuc.nhanh, id: \.self) { icon in
                         Button(BangCamXuc.emoji(icon)) { Task { await vm.thaCamXuc(t, icon: icon) } }
                     }
                 }
@@ -303,10 +303,14 @@ enum BangCamXuc {
         ":-*": "😘", ":')": "😂", "/-shit": "💩", "/-rose": "🌹", "/-break": "💔", "/-weak": "👎", ";xx": "😍", ";-/": "😕",
         ";-)": "😉", "/-fade": "😶", "/-li": "☀️", "/-bd": "🎂", "/-bome": "💣", "/-ok": "👌"]
     static func emoji(_ icon: String) -> String { bang[icon] ?? "👍" }
-    static func anh(_ emoji: String) -> UIImage {
+    /// 6 cảm xúc nhanh trong menu ấn giữ.
+    static let nhanh = ["/-heart", "/-strong", ":>", ":o", ":-((", ":-h"]
+    /// Ảnh emoji cho hàng cảm xúc (ControlGroup .palette chỉ nhận ảnh) - vẽ 1 lần rồi giữ lại.
+    private static let anhNhanh: [String: UIImage] = Dictionary(uniqueKeysWithValues: nhanh.map { ($0, veAnh(emoji($0))) })
+    static func anh(_ icon: String) -> UIImage { anhNhanh[icon] ?? veAnh(emoji(icon)) }
+    private static func veAnh(_ emoji: String) -> UIImage {
         let kichThuoc = CGSize(width: 30, height: 30)
-        let r = UIGraphicsImageRenderer(size: kichThuoc)
-        return r.image { _ in
+        return UIGraphicsImageRenderer(size: kichThuoc).image { _ in
             let s = NSAttributedString(string: emoji, attributes: [.font: UIFont.systemFont(ofSize: 26)])
             let c = s.size()
             s.draw(at: CGPoint(x: (kichThuoc.width - c.width) / 2, y: (kichThuoc.height - c.height) / 2))
