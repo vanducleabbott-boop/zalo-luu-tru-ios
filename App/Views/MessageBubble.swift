@@ -40,6 +40,7 @@ struct MessageBubble: View {
                 }
                 bongBong
                     .contextMenu { menu }
+                    .menuOrder(.fixed)
                 if t.camXuc.isEmpty == false {
                     HangCamXuc(camXuc: t.camXuc, uidToi: env.uidToi)
                 }
@@ -269,15 +270,28 @@ struct MessageBubble: View {
         if let c = t.chu, !c.isEmpty {
             Button { UIPasteboard.general.string = c } label: { Label("Sao chép", systemImage: "doc.on.doc") }
         }
-        if t.duocThaCamXuc {
-            Menu("Thả cảm xúc") {
-                ForEach(["/-heart", "/-strong", ":>", ":o", ":-((", ":-h"], id: \.self) { icon in
-                    Button(BangCamXuc.emoji(icon)) { Task { await vm.thaCamXuc(t, icon: icon) } }
-                }
-            }
-        }
         if t.duocThuHoi {
             Button(role: .destructive) { Task { await vm.thuHoi(t) } } label: { Label("Thu hồi", systemImage: "arrow.uturn.backward") }
+        }
+        if t.duocThaCamXuc {
+            if #available(iOS 17.0, *) {
+                Section {
+                    ControlGroup {
+                        ForEach(["/-heart", "/-strong", ":>", ":o", ":-((", ":-h"], id: \.self) { icon in
+                            Button { Task { await vm.thaCamXuc(t, icon: icon) } } label: {
+                                Image(uiImage: BangCamXuc.anh(BangCamXuc.emoji(icon))).renderingMode(.original)
+                            }
+                        }
+                    } label: { Text("Thả cảm xúc") }
+                    .controlGroupStyle(.palette)
+                }
+            } else {
+                Menu("Thả cảm xúc") {
+                    ForEach(["/-heart", "/-strong", ":>", ":o", ":-((", ":-h"], id: \.self) { icon in
+                        Button(BangCamXuc.emoji(icon)) { Task { await vm.thaCamXuc(t, icon: icon) } }
+                    }
+                }
+            }
         }
     }
 }
@@ -289,6 +303,15 @@ enum BangCamXuc {
         ":-*": "😘", ":')": "😂", "/-shit": "💩", "/-rose": "🌹", "/-break": "💔", "/-weak": "👎", ";xx": "😍", ";-/": "😕",
         ";-)": "😉", "/-fade": "😶", "/-li": "☀️", "/-bd": "🎂", "/-bome": "💣", "/-ok": "👌"]
     static func emoji(_ icon: String) -> String { bang[icon] ?? "👍" }
+    static func anh(_ emoji: String) -> UIImage {
+        let kichThuoc = CGSize(width: 30, height: 30)
+        let r = UIGraphicsImageRenderer(size: kichThuoc)
+        return r.image { _ in
+            let s = NSAttributedString(string: emoji, attributes: [.font: UIFont.systemFont(ofSize: 26)])
+            let c = s.size()
+            s.draw(at: CGPoint(x: (kichThuoc.width - c.width) / 2, y: (kichThuoc.height - c.height) / 2))
+        }
+    }
 }
 
 struct HangCamXuc: View {
