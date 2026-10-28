@@ -39,7 +39,7 @@ struct RootView: View {
                         .lineLimit(1)
                     Spacer(minLength: 4)
                     Button("Đăng nhập lại") {
-                        CloudflareAccess.clear()
+                        CloudflareAccess.clear(caTaiKhoan: true)
                         CloudflareAccess.shared.requestLogin(baseURL: env.settings.baseURL)
                     }
                     .font(.footnote.weight(.semibold))

@@ -76,9 +76,25 @@ public final class CloudflareAccess: ObservableObject {
 
     private init() {}
 
-    /// Cookie CF_Authorization lay tu Keychain.
+    /// v6.8: du phong khi Keychain khong giu duoc (app ky ESign) -> van con trong UserDefaults/App Group.
+    private static let khoaDuPhong = "zl_cf_authorization"
+
+    /// Gia tri vua bi may chu tu choi -> man dang nhap khong duoc bat lai chinh no.
+    private static var giaTriBiTuChoi: String?
+
+    /// Cookie CF_Authorization: Keychain, roi den UserDefaults, roi App Group.
     public static var cookie: String? {
-        KeychainCF.get(cookieKey)
+        if let v = KeychainCF.get(cookieKey), !v.isEmpty { return v }
+        if let v = UserDefaults.standard.string(forKey: khoaDuPhong), !v.isEmpty { return v }
+        if let v = ChiaSeChung.cf, !v.isEmpty { return v }
+        return nil
+    }
+
+    /// Cookie con han (JWT exp con > 1 phut). Khong doc duoc exp thi coi nhu con han.
+    public static var cookieConHan: Bool {
+        guard let v = cookie else { return false }
+        guard let exp = jwtExpiry(v) else { return true }
+        return exp.timeIntervalSinceNow > 60
     }
 
     /// Cookie doc tu kho chia se chung (App Group) cho ShareExtension hoac kiem tra.
@@ -131,6 +147,8 @@ public final class CloudflareAccess: ObservableObject {
     /// Luu cookie CF_Authorization vao Keychain va cap nhat thoi gian het han + dat thong bao, dong bo sang ChiaSeChung.
     public static func save(_ value: String) {
         KeychainCF.set(value, for: cookieKey)
+        UserDefaults.standard.set(value, forKey: khoaDuPhong)
+        giaTriBiTuChoi = nil
         if let exp = jwtExpiry(value) {
             KeychainCF.set(String(Int(exp.timeIntervalSince1970)), for: expKey)
         } else {
@@ -141,7 +159,11 @@ public final class CloudflareAccess: ObservableObject {
     }
 
     /// Xoa cookie khoi Keychain, HTTPCookieStorage va WKWebsiteDataStore, dong bo sang ChiaSeChung, huy thong bao het han.
-    public static func clear() {
+    /// v6.8: mac dinh GIU cookie phien cua trang dang nhap (*.cloudflareaccess.com) -> man dang nhap tu cap cookie moi,
+    /// khong phai nhap lai email + ma OTP. caTaiKhoan = true (nut "Dang nhap lai") moi xoa het.
+    public static func clear(caTaiKhoan: Bool = false) {
+        if let cu = cookie { giaTriBiTuChoi = cu }
+        UserDefaults.standard.removeObject(forKey: khoaDuPhong)
         KeychainCF.delete(cookieKey)
         KeychainCF.delete(expKey)
         ChiaSeChung.luuCF(nil)
@@ -156,7 +178,8 @@ public final class CloudflareAccess: ObservableObject {
         DispatchQueue.main.async {
             let store = WKWebsiteDataStore.default().httpCookieStore
             store.getAllCookies { cookies in
-                for cookie in cookies where cookie.name == "CF_Authorization" {
+                for cookie in cookies where cookie.name == "CF_Authorization"
+                    && (caTaiKhoan || !cookie.domain.lowercased().contains("cloudflareaccess.com")) {
                     store.delete(cookie, completionHandler: nil)
                 }
             }
@@ -248,18 +271,16 @@ public final class CloudflareAccess: ObservableObject {
             }
         }
 
-        // 3. Content-Type chua "text/html" va data bat dau (sau khi bo khoang trang) bang "<" ma khong phai JSON
-        let contentType = (httpResponse.value(forHTTPHeaderField: "Content-Type") ?? "").lowercased()
-        if contentType.contains("text/html"), let data = data, !data.isEmpty {
-            if let prefixString = String(data: data.prefix(1024), encoding: .utf8) {
-                let trimmed = prefixString.trimmingCharacters(in: .whitespacesAndNewlines)
-                if trimmed.hasPrefix("<") {
-                    return true
-                }
-            }
-        }
-
+        // v6.8: bo kiem tra "trang HTML" - trang loi 502/530 cua Cloudflare khi tunnel chap chon cung la HTML,
+        // truoc day bi coi la het phien -> xoa cookie, bat dang nhap lai moi lan mo app.
         return false
+    }
+
+    /// Cookie bat duoc tu WebView co dung la cookie moi khong (khac gia tri bi tu choi, con han).
+    static func laCookieMoi(_ v: String) -> Bool {
+        guard !v.isEmpty, v != giaTriBiTuChoi else { return false }
+        if let exp = jwtExpiry(v) { return exp.timeIntervalSinceNow > 60 }
+        return true
     }
 
     /// Yeu cau hien thi man hinh dang nhap Cloudflare Access tren MainActor.
@@ -404,8 +425,10 @@ private struct CloudflareWebView: UIViewRepresentable {
             webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { [weak self] cookies in
                 guard let self = self, !self.didCaptureCookie else { return }
 
+                // v6.8: bo qua cookie cu vua bi tu choi / da het han (truoc day bat nham -> hoi dang nhap lap lai)
                 if let authCookie = cookies.first(where: { cookie in
                     cookie.name == "CF_Authorization" && CloudflareAccess.domainMatches(cookieDomain: cookie.domain, host: expectedHost)
+                        && CloudflareAccess.laCookieMoi(cookie.value)
                 }) {
                     self.didCaptureCookie = true
                     let cookieValue = authCookie.value

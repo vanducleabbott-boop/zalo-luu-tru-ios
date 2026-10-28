@@ -146,7 +146,7 @@ final class AppEnvironment: ObservableObject {
     }
 
     func kiemTraPhienDaCo() {
-        if CloudflareAccess.cookie != nil {
+        if CloudflareAccess.cookieConHan {
             Task {
                 await CloudflareAccess.preloadWebCookies(for: settings.baseURL)
                 CloudflareAccess.scheduleExpiryNotification()

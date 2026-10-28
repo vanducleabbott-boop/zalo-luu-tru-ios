@@ -49,7 +49,7 @@ struct SettingsView: View {
                 Section("Cloudflare") {
                     LabeledContent("Phiên hết hạn", value: thoiHanCloudflare)
                     Button("Đăng nhập lại Cloudflare") {
-                        CloudflareAccess.clear()
+                        CloudflareAccess.clear(caTaiKhoan: true)
                         lamMoiCloudflare.toggle()
                         CloudflareAccess.shared.requestLogin(baseURL: env.settings.baseURL)
                     }
