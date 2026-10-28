@@ -27,10 +27,16 @@ enum ChiaSeChung {
     }
 
     private static var kho: UserDefaults? { appGroup.flatMap { UserDefaults(suiteName: $0) } }
-    private static let khoaDiaChi = "cs_dia_chi_may_chu"
-    private static let khoaPhien = "cs_phien_zw"
-    private static let khoaCF = "cs_cf_authorization"
-    private static let khoaNguoiNhan = "cs_ds_nguoi_nhan"
+    /// v6.7: bản Cloudflare (Info.plist ZLTKenh = cf) cài song song bản Tailscale và dùng chung App Group
+    /// -> thêm tiền tố khoá để 2 app không ghi đè địa chỉ/phiên của nhau. Bản cũ giữ khoá như trước.
+    private static let tienTo: String = {
+        let kenh = Bundle.main.object(forInfoDictionaryKey: "ZLTKenh") as? String ?? ""
+        return kenh.isEmpty ? "" : kenh + "_"
+    }()
+    private static let khoaDiaChi = tienTo + "cs_dia_chi_may_chu"
+    private static let khoaPhien = tienTo + "cs_phien_zw"
+    private static let khoaCF = tienTo + "cs_cf_authorization"
+    private static let khoaNguoiNhan = tienTo + "cs_ds_nguoi_nhan"
 
     // ---------------------------------------------------------------- app ghi, tiện ích đọc
     static func luu(diaChi: String, phien: String?, dsNguoiNhan: [NguoiNhanChiaSe]) {
