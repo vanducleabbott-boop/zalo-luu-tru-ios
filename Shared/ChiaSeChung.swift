@@ -29,6 +29,7 @@ enum ChiaSeChung {
     private static var kho: UserDefaults? { appGroup.flatMap { UserDefaults(suiteName: $0) } }
     private static let khoaDiaChi = "cs_dia_chi_may_chu"
     private static let khoaPhien = "cs_phien_zw"
+    private static let khoaCF = "cs_cf_authorization"
     private static let khoaNguoiNhan = "cs_ds_nguoi_nhan"
 
     // ---------------------------------------------------------------- app ghi, tiện ích đọc
@@ -39,10 +40,20 @@ enum ChiaSeChung {
         if let data = try? JSONEncoder().encode(dsNguoiNhan) { kho.set(data, forKey: khoaNguoiNhan) }
     }
 
+    static func luuCF(_ s: String?) {
+        guard let kho else { return }
+        if let s, !s.isEmpty {
+            kho.set(s, forKey: khoaCF)
+        } else {
+            kho.removeObject(forKey: khoaCF)
+        }
+    }
+
     static func xoaPhien() { kho?.removeObject(forKey: khoaPhien) }
 
     static var diaChi: String? { kho?.string(forKey: khoaDiaChi) }
     static var phien: String? { kho?.string(forKey: khoaPhien) }
+    static var cf: String? { kho?.string(forKey: khoaCF) }
     static var dsNguoiNhan: [NguoiNhanChiaSe] {
         guard let data = kho?.data(forKey: khoaNguoiNhan) else { return [] }
         return (try? JSONDecoder().decode([NguoiNhanChiaSe].self, from: data)) ?? []

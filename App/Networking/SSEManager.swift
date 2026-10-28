@@ -40,6 +40,7 @@ final class SSEManager: ObservableObject {
     private var vongLap: Task<Void, Never>?
     private var taskThuLai: Task<Void, Never>?
     private var quanSatVongDoi: AnyCancellable?
+    private var quanSatCFLogin: AnyCancellable?
     private var apiHienTai: ZaloAPI?
 
     func batDau(api: ZaloAPI) {
@@ -85,6 +86,7 @@ final class SSEManager: ObservableObject {
         taskThuLai?.cancel(); taskThuLai = nil
         vongLap?.cancel(); vongLap = nil
         quanSatVongDoi?.cancel(); quanSatVongDoi = nil
+        quanSatCFLogin?.cancel(); quanSatCFLogin = nil
         let cuMa = client
         client = nil
         daKetNoi = false
@@ -200,5 +202,11 @@ final class SSEManager: ObservableObject {
     private func theoDoiVongDoiApp() {
         quanSatVongDoi = NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
             .sink { [weak self] _ in self?.noiLaiNeuCan() }
+        quanSatCFLogin = NotificationCenter.default.publisher(for: CloudflareAccess.didLoginNotification)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.lastHeard = .distantPast
+                self.noiLaiNeuCan()
+            }
     }
 }

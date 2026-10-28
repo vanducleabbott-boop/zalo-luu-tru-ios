@@ -167,13 +167,30 @@ private struct APIChiaSe {
         guard let u = c.url else { throw URLError(.badURL) }
         var req = URLRequest(url: u, timeoutInterval: 600)
         req.httpMethod = "POST"
-        req.setValue("zw=\(phien)", forHTTPHeaderField: "Cookie")
+        if let cf = ChiaSeChung.cf, !cf.isEmpty {
+            req.setValue("zw=\(phien); CF_Authorization=\(cf)", forHTTPHeaderField: "Cookie")
+        } else {
+            req.setValue("zw=\(phien)", forHTTPHeaderField: "Cookie")
+        }
         req.setValue("Bearer \(phien)", forHTTPHeaderField: "Authorization")
         return req
     }
 
     private func kiem(_ data: Data, _ resp: URLResponse) throws -> Data {
+        let thongBaoCF = "Cần đăng nhập Cloudflare - mở app Zalo lưu trữ → Cài đặt → Đăng nhập lại Cloudflare"
+        if let host = resp.url?.host?.lowercased(), host.contains("cloudflareaccess.com") {
+            throw LoiChiaSe(thongBaoCF)
+        }
         guard let http = resp as? HTTPURLResponse else { return data }
+        if [302, 401, 403].contains(http.statusCode) {
+            if let loc = http.value(forHTTPHeaderField: "Location")?.lowercased(), loc.contains("cloudflareaccess.com") {
+                throw LoiChiaSe(thongBaoCF)
+            }
+        }
+        let ct = (http.value(forHTTPHeaderField: "Content-Type") ?? "").lowercased()
+        if ct.contains("text/html") {
+            throw LoiChiaSe(thongBaoCF)
+        }
         if http.statusCode == 401 { throw LoiChiaSe("Hết phiên đăng nhập - mở app đăng nhập lại") }
         if !(200...299).contains(http.statusCode) {
             let loi = (try? JSONDecoder().decode([String: String].self, from: data))?["loi"] ?? ""

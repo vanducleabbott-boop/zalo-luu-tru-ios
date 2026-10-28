@@ -12,13 +12,14 @@ struct SettingsView: View {
     @State private var dungLuongCache = "0 MB"
     @State private var hienXacNhanXoaCache = false
     @State private var hienSheetQuetQR = false
+    @State private var lamMoiCloudflare = false
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Máy chủ & Kết nối Realtime") {
                     if dangSua {
-                        TextField("https://...", text: $diaChi)
+                        TextField("https://zalo.nhaduc.name.vn", text: $diaChi)
                             .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
                         HStack {
                             Button("Lưu") { env.doiMayChu(diaChi); dangSua = false }
@@ -43,6 +44,14 @@ struct SettingsView: View {
                             env.sse.batDau(api: env.api)
                         }
                         .font(.footnote)
+                    }
+                }
+                Section("Cloudflare") {
+                    LabeledContent("Phiên hết hạn", value: thoiHanCloudflare)
+                    Button("Đăng nhập lại Cloudflare") {
+                        CloudflareAccess.clear()
+                        lamMoiCloudflare.toggle()
+                        CloudflareAccess.shared.requestLogin(baseURL: env.settings.baseURL)
                     }
                 }
                 Section("Đăng nhập Zalo Web (Máy chủ)") {
@@ -158,12 +167,24 @@ struct SettingsView: View {
             .onAppear {
                 kiemTraTrangThaiThongBao()
                 dungLuongCache = MediaDiskCache.shared.dungLuongDinhDang()
+                lamMoiCloudflare.toggle()
                 Task { await env.kiemTraTrangThaiZalo() }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 kiemTraTrangThaiThongBao()
             }
+            .onReceive(NotificationCenter.default.publisher(for: CloudflareAccess.didLoginNotification)) { _ in
+                lamMoiCloudflare.toggle()
+            }
         }
+    }
+
+    private var thoiHanCloudflare: String {
+        _ = lamMoiCloudflare
+        if let exp = CloudflareAccess.expiryDate {
+            return CloudflareAccess.formatExpiry(exp)
+        }
+        return "chưa đăng nhập"
     }
 
     private var mauTrangThaiThongBao: Color {

@@ -146,6 +146,16 @@ final class AppEnvironment: ObservableObject {
     }
 
     func kiemTraPhienDaCo() {
+        if CloudflareAccess.cookie != nil {
+            Task {
+                await CloudflareAccess.preloadWebCookies(for: settings.baseURL)
+                CloudflareAccess.scheduleExpiryNotification()
+            }
+        } else {
+            Task { @MainActor in
+                CloudflareAccess.shared.requestLogin(baseURL: settings.baseURL)
+            }
+        }
         daDangNhap = api.daCoCookiePhien()
         dangKiemTraPhien = false
         if daDangNhap {

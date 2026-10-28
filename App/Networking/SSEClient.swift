@@ -33,15 +33,36 @@ actor SSEClient {
                 req.setValue("zw=\(token)", forHTTPHeaderField: "Cookie")
                 req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             }
+            CloudflareAccess.apply(to: &req)
             req.timeoutInterval = 90
             let parser = SSEParser()
+            var responseTuServer: URLResponse?
             do {
                 print("[SSE] Mo ket noi toi: \(url.absoluteString)")
                 let (byteStream, response) = try await sess.bytes(for: req)
+                responseTuServer = response
                 if let http = response as? HTTPURLResponse, http.statusCode != 200 {
                     print("[SSE] Loi HTTP status:", http.statusCode)
+                    if CloudflareAccess.isAccessResponse(response, data: nil) {
+                        CloudflareAccess.clear()
+                        let baseURL = URL(string: "/", relativeTo: url)?.absoluteURL ?? url
+                        Task { @MainActor in
+                            CloudflareAccess.shared.requestLogin(baseURL: baseURL)
+                        }
+                    }
                     if !Task.isCancelled {
                         onClosed(NSError(domain: "SSEClient", code: http.statusCode))
+                    }
+                    return
+                }
+                if CloudflareAccess.isAccessResponse(response, data: nil) {
+                    CloudflareAccess.clear()
+                    let baseURL = URL(string: "/", relativeTo: url)?.absoluteURL ?? url
+                    Task { @MainActor in
+                        CloudflareAccess.shared.requestLogin(baseURL: baseURL)
+                    }
+                    if !Task.isCancelled {
+                        onClosed(NSError(domain: "SSEClient", code: (response as? HTTPURLResponse)?.statusCode ?? 0))
                     }
                     return
                 }
@@ -62,6 +83,13 @@ actor SSEClient {
                     onClosed(nil)
                 }
             } catch {
+                if CloudflareAccess.isAccessResponse(responseTuServer, data: nil) {
+                    CloudflareAccess.clear()
+                    let baseURL = URL(string: "/", relativeTo: url)?.absoluteURL ?? url
+                    Task { @MainActor in
+                        CloudflareAccess.shared.requestLogin(baseURL: baseURL)
+                    }
+                }
                 if !Task.isCancelled {
                     onClosed(error)
                 }

@@ -7,12 +7,14 @@ enum LoiZaloAPI: Error, LocalizedError {
     case chuaDangNhap
     case maHttp(Int, String)
     case diaChiKhongHopLe
+    case canDangNhapCloudflare
 
     var errorDescription: String? {
         switch self {
         case .chuaDangNhap: return "Hết phiên đăng nhập"
         case .maHttp(let ma, let loi): return loi.isEmpty ? "Lỗi máy chủ (\(ma))" : loi
         case .diaChiKhongHopLe: return "Địa chỉ máy chủ không hợp lệ"
+        case .canDangNhapCloudflare: return "Cần đăng nhập Cloudflare, đăng nhập xong thử lại"
         }
     }
 }
@@ -57,6 +59,7 @@ final class ZaloAPI {
             req.setValue("zw=\(token)", forHTTPHeaderField: "Cookie")
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
+        CloudflareAccess.apply(to: &req)
         for (k, v) in headers { req.setValue(v, forHTTPHeaderField: k) }
         if let jsonBody {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -65,6 +68,11 @@ final class ZaloAPI {
             req.httpBody = rawBody
         }
         let (data, resp) = try await session.data(for: req)
+        if CloudflareAccess.isAccessResponse(resp, data: data) {
+            CloudflareAccess.clear()
+            Task { @MainActor in CloudflareAccess.shared.requestLogin(baseURL: self.baseURL) }
+            throw LoiZaloAPI.canDangNhapCloudflare
+        }
         guard let http = resp as? HTTPURLResponse else { return data }
         if http.statusCode == 401 { throw LoiZaloAPI.chuaDangNhap }
         if !(200...299).contains(http.statusCode) {
@@ -86,9 +94,22 @@ final class ZaloAPI {
         var req = URLRequest(url: try url("/dang-nhap"))
         req.httpMethod = "POST"
         req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        CloudflareAccess.apply(to: &req)
         let form = "mk=" + (matKhau.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")
         req.httpBody = form.data(using: .utf8)
         let (_, resp) = try await session.data(for: req, delegate: khongChuyenHuong)
+        let isAccess: Bool = {
+            if CloudflareAccess.isAccessURL(resp.url) { return true }
+            if let http = resp as? HTTPURLResponse, let loc = http.value(forHTTPHeaderField: "Location")?.lowercased(), loc.contains("cloudflareaccess.com") {
+                return true
+            }
+            return false
+        }()
+        if isAccess {
+            CloudflareAccess.clear()
+            Task { @MainActor in CloudflareAccess.shared.requestLogin(baseURL: self.baseURL) }
+            throw LoiZaloAPI.canDangNhapCloudflare
+        }
         guard let http = resp as? HTTPURLResponse else { return false }
         if http.statusCode == 303 || (200...299).contains(http.statusCode) {
             // Trích xuất cookie zw từ header Set-Cookie

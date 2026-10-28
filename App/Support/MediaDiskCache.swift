@@ -182,6 +182,7 @@ final class MediaDiskCache {
             let dich = self.duongDanFile(cho: url, tenFile: tenFile)
             do {
                 var req = URLRequest(url: url)
+                CloudflareAccess.apply(to: &req)
                 req.timeoutInterval = 60
                 let (tam, resp) = try await URLSession.shared.download(for: req)
                 if let http = resp as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
