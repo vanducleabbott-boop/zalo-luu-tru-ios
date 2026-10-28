@@ -21,6 +21,7 @@ struct MessageInputBar: View {
     @State private var tagDaChon: [TagChon] = []
     @State private var daDongTagTamThoi = false
     @State private var doDaiVanBanTruoc: Int = 0
+    @State private var maOChu = 0   // đổi để tạo lại ô nhập, bỏ chữ bàn phím tiếng Việt đang gõ dở
 
     var body: some View {
         VStack(spacing: 0) {
@@ -76,6 +77,7 @@ struct MessageInputBar: View {
                 // Ô nhập văn bản
                 TextField((vm.cuoc.id == "so-tay" || vm.cuoc.id == "so_tay") ? "Ghi chú…" : "Nhập tin nhắn…", text: $vanBan, axis: .vertical)
                     .focused($daFocus)
+                    .id(maOChu)
                     .lineLimit(1...5)
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 18))
@@ -296,15 +298,27 @@ struct MessageInputBar: View {
         !vanBan.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !dangGui
     }
 
+    /// Xoá ô nhập NGAY khi bấm gửi (như Zalo). Trước đây xoá sau khi máy chủ trả lời nên
+    /// bàn phím tiếng Việt còn giữ chữ đang gõ dở và ghi lại vào ô -> tin gửi rồi mà ô không trống.
     private func gui() async {
+        let chu = vanBan
+        let daChon = tagDaChon
+        let tags = vm.cuoc.laNhomBool ? DinhDangChu.tinhTag(chu: chu, daChon: daChon) : []
         dangGui = true
         defer { dangGui = false }
-        let tags = vm.cuoc.laNhomBool ? DinhDangChu.tinhTag(chu: vanBan, daChon: tagDaChon) : []
-        await vm.guiChu(vanBan, tag: tags)
         vanBan = ""
         tagDaChon = []
         daDongTagTamThoi = false
         doDaiVanBanTruoc = 0
+        maOChu += 1
+        DispatchQueue.main.async { daFocus = true }
+        let ok = await vm.guiChu(chu, tag: tags)
+        // Gửi lỗi: trả lại nội dung để không mất chữ (nếu chưa gõ tin mới)
+        if !ok && vanBan.isEmpty {
+            vanBan = chu
+            tagDaChon = daChon
+            doDaiVanBanTruoc = chu.count
+        }
     }
 
     private func xuLyChupAnh(_ image: UIImage) async {

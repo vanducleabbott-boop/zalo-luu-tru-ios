@@ -179,16 +179,18 @@ final class ChatViewModel: ObservableObject {
     }
 
     // ---------------------------------------------------------------- gửi
-    func guiChu(_ chu: String, tag: [TagMark] = []) async {
+    @discardableResult
+    func guiChu(_ chu: String, tag: [TagMark] = []) async -> Bool {
         let noiDung = chu.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !noiDung.isEmpty else { return }
+        guard !noiDung.isEmpty else { return false }
         let trich = traLoi?.msgId
         do {
             try await env.api.guiChu(cuoc: cuoc.id, chu: chu, tag: tag, trichMsgId: trich)
             ChiaSeChung.baoDaNhan(cuoc.nguoiNhanChiaSe)
             traLoi = nil
             cuonToiMsgId = "__cuoi__"
-        } catch { loi = "Không gửi được: " + error.localizedDescription }
+            return true
+        } catch { loi = "Không gửi được: " + error.localizedDescription; return false }
     }
 
     func guiFile(duLieu: Data, tenFile: String) async {
