@@ -274,6 +274,7 @@ final class ChatViewModel: ObservableObject {
         }
         dangTaiLen.formUnion(ids)
         cuonToiMsgId = "__cuoi__"
+        env.api.lamMoiKetNoiTaiLen()
         do {
             var ma: [String] = []
             for (id, t) in zip(ids, tep) {
@@ -296,6 +297,7 @@ final class ChatViewModel: ObservableObject {
             do { return try await env.api.taiLenTam(duLieu: duLieu, tenFile: tenFile) }
             catch let e as URLError where lan < 2 && e.code != .cancelled {
                 lan += 1
+                env.api.lamMoiKetNoiTaiLen()   // thử lại trên kết nối mới
                 try await Task.sleep(nanoseconds: UInt64(lan) * 1_500_000_000)
             }
         }

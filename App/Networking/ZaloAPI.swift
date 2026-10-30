@@ -38,6 +38,22 @@ final class ZaloAPI {
         session = URLSession(configuration: cau)
     }
 
+    /// v7.10: tải ảnh lên đi kết nối RIÊNG. 30/10: 1 lần tải bị đứt làm kết nối chung (HTTP/2 tới Cloudflare) nghẽn chiều
+    /// gửi lên -> mọi lần tải sau xếp hàng chờ mãi, không tới được tunnel/bot, trong khi SSE vẫn chạy.
+    private var phienTaiLen = ZaloAPI.taoPhienTaiLen()
+    private static func taoPhienTaiLen() -> URLSession {
+        let cau = URLSessionConfiguration.ephemeral
+        cau.timeoutIntervalForRequest = 30      // 30s không nhích byte nào -> huỷ, thử lại trên kết nối mới
+        cau.timeoutIntervalForResource = 300
+        cau.httpShouldSetCookies = false        // cookie gắn tay (zw + CF_Authorization) trong goi()
+        return URLSession(configuration: cau)
+    }
+    /// Bỏ kết nối tải lên cũ (có thể đang nghẽn), lần sau mở kết nối mới.
+    func lamMoiKetNoiTaiLen() {
+        phienTaiLen.finishTasksAndInvalidate()   // để lượt tải đang chạy (chat khác) xong nốt
+        phienTaiLen = Self.taoPhienTaiLen()
+    }
+
     // ---------------------------------------------------------------- tiện ích chung
     // Ghép chuỗi (không dùng appendingPathComponent vì "/api/cuoc" có nhiều đoạn, dễ bị chẻ sai).
     private func url(_ duongDan: String, query: [String: String?] = [:]) throws -> URL {
@@ -52,7 +68,8 @@ final class ZaloAPI {
 
     @discardableResult
     private func goi(_ duongDan: String, method: String = "GET", query: [String: String?] = [:],
-                      jsonBody: Encodable? = nil, rawBody: Data? = nil, headers: [String: String] = [:]) async throws -> Data {
+                      jsonBody: Encodable? = nil, rawBody: Data? = nil, headers: [String: String] = [:],
+                      phien: URLSession? = nil) async throws -> Data {
         var req = URLRequest(url: try url(duongDan, query: query))
         req.httpMethod = method
         if let token = giaTriCookiePhien() {
@@ -67,7 +84,7 @@ final class ZaloAPI {
         } else if let rawBody {
             req.httpBody = rawBody
         }
-        let (data, resp) = try await session.data(for: req)
+        let (data, resp) = try await (phien ?? session).data(for: req)
         if CloudflareAccess.isAccessResponse(resp, data: data) {
             CloudflareAccess.clear()
             Task { @MainActor in CloudflareAccess.shared.requestLogin(baseURL: self.baseURL) }
@@ -210,7 +227,7 @@ final class ZaloAPI {
     func guiFile(cuoc: String, duLieu: Data, tenFile: String, trichMsgId: String? = nil) async throws {
         let tenMaHoa = tenFile.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? tenFile
         _ = try await goi("/api/gui", method: "POST", query: ["cuoc": cuoc, "trich": trichMsgId],
-                           rawBody: duLieu, headers: ["X-Ten-File": tenMaHoa])
+                           rawBody: duLieu, headers: ["X-Ten-File": tenMaHoa], phien: phienTaiLen)
     }
 
     // ---------------------------------------------------------------- album (v4.3, 20/10/2026)
@@ -218,8 +235,9 @@ final class ZaloAPI {
     func taiLenTam(duLieu: Data, tenFile: String) async throws -> String {
         struct KQ: Decodable { let ma: String }
         let tenMaHoa = tenFile.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? tenFile
-        let kq: KQ = try await goiJSON("/api/tai-len", method: "POST", rawBody: duLieu, headers: ["X-Ten-File": tenMaHoa])
-        return kq.ma
+        let data = try await goi("/api/tai-len", method: "POST", rawBody: duLieu,
+                                 headers: ["X-Ten-File": tenMaHoa, "Content-Type": "application/octet-stream"], phien: phienTaiLen)
+        return try JSONDecoder().decode(KQ.self, from: data).ma
     }
 
     /// Gửi các tệp đã tải lên thành 1 album (Zalo hiện 1 khung lưới như Zalo gốc).
