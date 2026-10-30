@@ -332,10 +332,23 @@ struct MessageInputBar: View {
         }
     }
 
+    /// v7.9: ảnh gửi đi thu về cạnh dài tối đa 2560px (cỡ "HD" của Zalo), JPEG 0.8 -> ~0.5-1 MB thay vì 4-10 MB ảnh gốc.
+    /// Ảnh gốc lớn tải lên qua 5G + Cloudflare hay đứt giữa chừng (cloudflared: "Incoming request ended abruptly", 30/10).
+    static func jpegGui(_ anh: UIImage, canhToiDa: CGFloat = 2560) -> Data? {
+        let w = anh.size.width * anh.scale, h = anh.size.height * anh.scale
+        let tiLe = min(1, canhToiDa / max(w, h, 1))
+        guard tiLe < 1 else { return anh.jpegData(compressionQuality: 0.8) }
+        let dinhDang = UIGraphicsImageRendererFormat.default()
+        dinhDang.scale = 1
+        let nho = UIGraphicsImageRenderer(size: CGSize(width: (w * tiLe).rounded(), height: (h * tiLe).rounded()), format: dinhDang)
+            .image { _ in anh.draw(in: CGRect(x: 0, y: 0, width: (w * tiLe).rounded(), height: (h * tiLe).rounded())) }
+        return nho.jpegData(compressionQuality: 0.8)
+    }
+
     private func xuLyChupAnh(_ image: UIImage) async {
         dangGuiMedia = true
         defer { dangGuiMedia = false }
-        guard let jpeg = image.jpegData(compressionQuality: 0.85) else { return }
+        guard let jpeg = Self.jpegGui(image) else { return }
         let ten = "chup_anh_\(Int(Date().timeIntervalSince1970)).jpg"
         await vm.guiFile(duLieu: jpeg, tenFile: ten)
     }
@@ -406,7 +419,7 @@ struct MessageInputBar: View {
         }
         // 2. Ảnh hoặc tệp thông thường
         guard let data = try? await item.loadTransferable(type: Data.self) else { return nil }
-        if let img = UIImage(data: data), let jpeg = img.jpegData(compressionQuality: 0.85) {
+        if let img = UIImage(data: data), let jpeg = Self.jpegGui(img) {
             return (jpeg, "anh_zalo_\(dau).jpg")
         }
         let ext = item.supportedContentTypes.first?.preferredFilenameExtension ?? "dat"
