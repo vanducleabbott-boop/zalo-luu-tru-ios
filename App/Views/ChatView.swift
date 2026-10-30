@@ -208,6 +208,7 @@ private struct ChatContentView: View {
             ToolbarItem(placement: .principal) {
                 HStack(spacing: 8) {
                     AvatarView(ten: vm.cuoc.ten ?? vm.cuoc.id, anh: vm.cuoc.anh, khoa: vm.cuoc.id, kichThuoc: 32)
+                        .onTapGesture { xemAnhDaiDien() }
                     VStack(alignment: .leading, spacing: 0) {
                         Text(vm.cuoc.ten ?? vm.cuoc.id).font(.system(size: 15, weight: .semibold)).lineLimit(1)
                         Text(vm.cuoc.id == "so-tay" ? "Ghi chú & lịch hẹn riêng" : (vm.cuoc.laNhomBool ? "Nhóm" : "Trò chuyện cá nhân"))
@@ -217,6 +218,9 @@ private struct ChatContentView: View {
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
+                    if coAnhDaiDien {
+                        Button { xemAnhDaiDien() } label: { Label("Xem ảnh đại diện", systemImage: "person.crop.circle") }
+                    }
                     Button { hienTaoLich = true } label: { Label("Đặt lịch hẹn", systemImage: "calendar.badge.clock") }
                     Button { hienTimTrong = true } label: { Label("Tìm tin nhắn", systemImage: "magnifyingglass") }
                     Button { hienKho = true } label: { Label("Ảnh, file, link đã gửi", systemImage: "photo.on.rectangle") }
@@ -273,6 +277,22 @@ private struct ChatContentView: View {
         .alert("Lỗi", isPresented: Binding(get: { vm.loi != nil }, set: { if !$0 { vm.loi = nil } })) {
             Button("Đóng", role: .cancel) {}
         } message: { Text(vm.loi ?? "") }
+    }
+
+    /// v7.5: chat riêng = mã cuộc là uid người kia -> lấy ảnh gốc; nhóm thì xem ảnh nhóm đang có.
+    private var coAnhDaiDien: Bool { vm.cuoc.id != "so-tay" && vm.cuoc.id != "so_tay" && (vm.cuoc.anh != nil || !vm.cuoc.laNhomBool) }
+
+    private func xemAnhDaiDien() {
+        guard coAnhDaiDien else { return }
+        if vm.cuoc.laNhomBool {
+            if let s = vm.cuoc.anh, let url = URL(string: s) { anhDangXem = AnhXemToan(url: url, msgId: "avatar_" + vm.cuoc.id) }
+            return
+        }
+        Task {
+            if let a = await MessageBubble.anhDaiDien(env: env, uid: vm.cuoc.id, duPhong: vm.cuoc.anh ?? env.anhNguoi(uid: vm.cuoc.id)) {
+                anhDangXem = a
+            }
+        }
     }
 
     private func denTin(_ msgId: String, ts: Int64? = nil) {

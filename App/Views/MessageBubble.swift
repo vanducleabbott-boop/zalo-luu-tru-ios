@@ -28,7 +28,7 @@ struct MessageBubble: View {
                 if cuoiNhom {
                     AvatarView(ten: tenGui, anh: env.anhNguoi(uid: t.uid), khoa: t.uid ?? tenGui, kichThuoc: 28)
                         // v7.2: như Zalo - bấm ảnh đại diện thành viên nhóm -> Nhắc đến / Nhắn tin riêng
-                        .onTapGesture { if laNhom, t.uid?.isEmpty == false { hienMenuNguoi = true } }
+                        .onTapGesture { if t.uid?.isEmpty == false { hienMenuNguoi = true } }
                         .confirmationDialog(tenGui, isPresented: $hienMenuNguoi, titleVisibility: .visible) { menuNguoi }
                 } else {
                     Color.clear.frame(width: 28, height: 28)
@@ -58,19 +58,28 @@ struct MessageBubble: View {
 
     @ViewBuilder private var menuNguoi: some View {
         if let uid = t.uid, !uid.isEmpty {
-            Button("@ Nhắc đến…") { vm.yeuCauTag = TagChon(uid: uid, ten: tenGui) }
-            Button("Nhắn tin riêng") { env.moCuocHoiThoai(cuocId: uid, tenCuoc: env.dsCuocCache[uid]?.ten ?? tenGui) }
+            // chat riêng (v7.5): chỉ xem ảnh / chép tên - nhắc đến, nhắn riêng chỉ có nghĩa trong nhóm
+            if laNhom {
+                Button("@ Nhắc đến…") { vm.yeuCauTag = TagChon(uid: uid, ten: tenGui) }
+                Button("Nhắn tin riêng") { env.moCuocHoiThoai(cuocId: uid, tenCuoc: env.dsCuocCache[uid]?.ten ?? tenGui) }
+            }
             Button("Xem ảnh đại diện") {
                 Task {
-                    // ảnh gốc từ máy chủ; máy chủ cũ / lỗi thì dùng bản 240px
-                    let goc = (try? await env.api.anhDaiDienGoc(uid: uid)) ?? nil
-                    guard let s = goc ?? env.anhNguoi(uid: uid).map(Self.anhDaiDienLon), let url = URL(string: s) else { return }
-                    anhDangXem = AnhXemToan(url: url, msgId: "avatar_" + uid)
+                    let duPhong = env.anhNguoi(uid: uid) ?? (laNhom ? nil : vm.cuoc.anh)
+                    if let a = await Self.anhDaiDien(env: env, uid: uid, duPhong: duPhong) { anhDangXem = a }
                 }
             }
             Button("Sao chép tên") { UIPasteboard.general.string = tenGui }
         }
         Button("Huỷ", role: .cancel) {}
+    }
+
+    /// Ảnh đại diện để xem toàn màn hình: ảnh gốc từ máy chủ (v7.4), máy chủ cũ / lỗi thì bản 240px của `duPhong`.
+    @MainActor
+    static func anhDaiDien(env: AppEnvironment, uid: String, duPhong: String?) async -> AnhXemToan? {
+        let goc = (try? await env.api.anhDaiDienGoc(uid: uid)) ?? nil
+        guard let s = goc ?? duPhong.map(anhDaiDienLon), let url = URL(string: s) else { return nil }
+        return AnhXemToan(url: url, msgId: "avatar_" + uid)
     }
 
     /// Zalo trả ảnh đại diện bản 120-160px (s120-26-ava-talk.zadn.vn) -> xem toàn màn hình bị mờ.
