@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var dungLuongCache = "0 MB"
     @State private var hienXacNhanXoaCache = false
     @State private var hienSheetQuetQR = false
+    @State private var tamTatDen: Date? = NotificationManager.tamTatDen
     @State private var lamMoiCloudflare = false
 
     var body: some View {
@@ -109,6 +110,23 @@ struct SettingsView: View {
                             }
                         }
                     }
+                    // v7.7: tạm tắt thông báo tin nhắn, tự bật lại khi hết giờ
+                    if let den = tamTatDen {
+                        HStack {
+                            Label("Đang tắt đến \(den.formatted(date: .omitted, time: .shortened))", systemImage: "bell.slash.fill")
+                                .foregroundStyle(.orange)
+                            Spacer()
+                            Button("Bật lại") { datTamTat(nil) }
+                        }
+                    } else {
+                        Button { datTamTat(30) } label: { Label("Tắt thông báo 30 phút", systemImage: "bell.slash") }
+                        Menu {
+                            Button("1 giờ") { datTamTat(60) }
+                            Button("2 giờ") { datTamTat(120) }
+                            Button("4 giờ") { datTamTat(240) }
+                            Button("Đến 7 giờ sáng mai") { datTamTat(phutDen7hSang) }
+                        } label: { Label("Tắt lâu hơn…", systemImage: "moon.zzz") }
+                    }
                     Button("Gửi thông báo thử nghiệm (sau 2 giây)") {
                         NotificationManager.shared.guiThongBaoThu()
                     }
@@ -165,6 +183,7 @@ struct SettingsView: View {
                 ZaloQRLoginView()
             }
             .onAppear {
+                tamTatDen = NotificationManager.tamTatDen
                 kiemTraTrangThaiThongBao()
                 dungLuongCache = MediaDiskCache.shared.dungLuongDinhDang()
                 lamMoiCloudflare.toggle()
@@ -212,5 +231,21 @@ struct SettingsView: View {
                 canMoCaiDat = false
             }
         }
+    }
+}
+
+extension SettingsView {
+    /// nil = bật lại thông báo ngay; số phút = tắt trong khoảng đó.
+    func datTamTat(_ phut: Int?) {
+        let den = phut.map { Date().addingTimeInterval(TimeInterval($0 * 60)) }
+        NotificationManager.tamTatDen = den
+        tamTatDen = den
+    }
+
+    var phutDen7hSang: Int {
+        let lich = Calendar.current
+        let homNay7h = lich.date(bySettingHour: 7, minute: 0, second: 0, of: Date()) ?? Date()
+        let moc = homNay7h > Date() ? homNay7h : lich.date(byAdding: .day, value: 1, to: homNay7h) ?? homNay7h
+        return max(1, Int(moc.timeIntervalSinceNow / 60))
     }
 }

@@ -88,6 +88,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     /// Gọi khi nhận tin mới qua SSE. Chỉ báo khi: không phải tin của mình (trừ Sổ tay/Cloud của tôi) và nhóm chưa bị tắt thông báo.
     /// Cho phép thông báo cả khi app đang mở hoặc đang chạy nền.
     func baoTinMoiNeuCan(cuocId: String, tin: Tin, tenCuoc: String, laNhom: Bool, daTatThongBaoNhom: Bool) {
+        if Self.dangTamTat { return }
         guard !daTatThongBaoNhom else {
             print("[Notification] Bo qua tin do nhom da tat thong bao: cuoc=\(cuocId)")
             return
@@ -110,6 +111,23 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             }
         }
     }
+
+    // ---------------------------------------------------------------- v7.7: tạm tắt thông báo tin nhắn (Cài đặt)
+    // Chỉ tắt báo TIN NHẮN; cuộc gọi Zalo vẫn đổ chuông. Lưu mốc hết hạn -> tự bật lại, kể cả khi app bị tắt.
+    static let khoaTamTat = "zl_tam_tat_thong_bao_den"
+
+    static var tamTatDen: Date? {
+        get {
+            let t = UserDefaults.standard.double(forKey: khoaTamTat)
+            return t > Date().timeIntervalSince1970 ? Date(timeIntervalSince1970: t) : nil
+        }
+        set {
+            if let d = newValue { UserDefaults.standard.set(d.timeIntervalSince1970, forKey: khoaTamTat) }
+            else { UserDefaults.standard.removeObject(forKey: khoaTamTat) }
+        }
+    }
+
+    static var dangTamTat: Bool { tamTatDen != nil }
 
     func guiThongBaoThu() {
         let nd = UNMutableNotificationContent()
