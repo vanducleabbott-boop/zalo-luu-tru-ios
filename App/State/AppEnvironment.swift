@@ -220,7 +220,14 @@ final class AppEnvironment: ObservableObject {
             for _ in 0..<50 where dangKiemTraPhien || !daDangNhap {
                 try? await Task.sleep(nanoseconds: 200_000_000)
             }
-            guard !Task.isCancelled, daDangNhap else { return }
+            // v6.9: đợi app thật sự ở tiền cảnh và xong màn đăng nhập Cloudflare (nếu đang hiện) -
+            // đổi màn lúc app còn đang mở dở / ép đóng sheet Cloudflare bằng UIKit làm app văng.
+            for _ in 0..<300 where UIApplication.shared.applicationState != .active || CloudflareAccess.shared.showLogin {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+            }
+            guard !Task.isCancelled, daDangNhap, !CloudflareAccess.shared.showLogin else { return }
+            try? await Task.sleep(nanoseconds: 300_000_000)   // cho MainTabView/NavigationStack dựng xong
+            guard !Task.isCancelled else { return }
             await dongCacManHinhPhu()
             if tabChon != 0 {
                 tabChon = 0
@@ -254,7 +261,7 @@ final class AppEnvironment: ObservableObject {
     /// Đóng mọi sheet/fullScreenCover đang mở (xem ảnh, video, chuyển tiếp...) trước khi đổi màn chat.
     private func dongCacManHinhPhu() async {
         let goc = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first?.rootViewController
-        guard let dangMo = goc?.presentedViewController, !dangMo.isBeingDismissed else { return }
+        guard let dangMo = goc?.presentedViewController, !dangMo.isBeingDismissed, !dangMo.isBeingPresented else { return }
         await withCheckedContinuation { tiep in dangMo.dismiss(animated: false) { tiep.resume() } }
         try? await Task.sleep(nanoseconds: 150_000_000)
     }

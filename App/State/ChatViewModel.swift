@@ -8,7 +8,16 @@ import UIKit
 @MainActor
 final class ChatViewModel: ObservableObject {
     @Published private(set) var cuoc: Cuoc
-    @Published private(set) var tinDangXem: [Tin] = []
+    /// v6.9: 1 tin vừa về qua SSE vừa có trong trang tải từ máy chủ -> 2 dòng cùng .id(msgId) làm List crash
+    /// (hay gặp nhất khi bấm thông báo mở chat). Luôn bỏ tin trùng, giữ bản sau cùng.
+    @Published private(set) var tinDangXem: [Tin] = [] {
+        didSet {
+            var daGap = Set<String>()
+            guard tinDangXem.contains(where: { !daGap.insert($0.msgId).inserted }) else { return }
+            daGap.removeAll()
+            tinDangXem = tinDangXem.reversed().filter { daGap.insert($0.msgId).inserted }.reversed()
+        }
+    }
     @Published private(set) var heTin = false        // da toi tin cu nhat
     @Published private(set) var dangTaiTinCu = false
     @Published private(set) var dangTai = false

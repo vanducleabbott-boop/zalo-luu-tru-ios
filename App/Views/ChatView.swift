@@ -161,7 +161,15 @@ private struct ChatContentView: View {
                         // đang kéo lên đọc tin cũ thì để yên, không giật xuống đáy
                         if dangSatDay { withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo("__day_chat__", anchor: .bottom) } }
                     } else {
-                        withAnimation { proxy.scrollTo(moi, anchor: .center) }
+                        // v6.9: cuộn ở lượt sau (List đã nhận dữ liệu mới) và chỉ khi tin có trong danh sách,
+                        // nếu không (tin từ thông báo chưa tải về) thì xuống đáy - trước đây cuộn tới id lạ làm crash.
+                        DispatchQueue.main.async {
+                            if vm.tinDangXem.contains(where: { $0.msgId == moi }) {
+                                withAnimation { proxy.scrollTo(moi, anchor: .center) }
+                            } else {
+                                cuonXuongDay(proxy: proxy, animate: false)
+                            }
+                        }
                     }
                     vm.cuonToiMsgId = nil
                 }
