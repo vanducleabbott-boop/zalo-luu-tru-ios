@@ -60,8 +60,13 @@ struct MessageBubble: View {
         if let uid = t.uid, !uid.isEmpty {
             Button("@ Nhắc đến…") { vm.yeuCauTag = TagChon(uid: uid, ten: tenGui) }
             Button("Nhắn tin riêng") { env.moCuocHoiThoai(cuocId: uid, tenCuoc: env.dsCuocCache[uid]?.ten ?? tenGui) }
-            if let anh = env.anhNguoi(uid: uid), let url = URL(string: Self.anhDaiDienLon(anh)) {
-                Button("Xem ảnh đại diện") { anhDangXem = AnhXemToan(url: url, msgId: "avatar_" + uid) }
+            Button("Xem ảnh đại diện") {
+                Task {
+                    // ảnh gốc từ máy chủ; máy chủ cũ / lỗi thì dùng bản 240px
+                    let goc = (try? await env.api.anhDaiDienGoc(uid: uid)) ?? nil
+                    guard let s = goc ?? env.anhNguoi(uid: uid).map(Self.anhDaiDienLon), let url = URL(string: s) else { return }
+                    anhDangXem = AnhXemToan(url: url, msgId: "avatar_" + uid)
+                }
             }
             Button("Sao chép tên") { UIPasteboard.general.string = tenGui }
         }

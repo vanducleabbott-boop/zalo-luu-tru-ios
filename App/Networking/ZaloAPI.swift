@@ -154,6 +154,13 @@ final class ZaloAPI {
         giaTriCookiePhien() != nil
     }
 
+    /// v7.4: ảnh đại diện gốc (nét nhất) - máy chủ gọi Zalo getFullAvatar; nil = không có / máy chủ chưa hỗ trợ.
+    func anhDaiDienGoc(uid: String) async throws -> String? {
+        struct KQ: Decodable { let url: String? }
+        let kq: KQ = try await goiJSON("/api/anh-dai-dien", query: ["uid": uid])
+        return kq.url
+    }
+
     // ---------------------------------------------------------------- danh sách hội thoại + tìm kiếm
     func dsCuoc(tim: String = "") async throws -> [Cuoc] {
         try await goiJSON("/api/cuoc", query: ["tim": tim.isEmpty ? nil : tim])
