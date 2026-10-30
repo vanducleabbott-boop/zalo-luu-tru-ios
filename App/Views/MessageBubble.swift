@@ -178,7 +178,8 @@ struct MessageBubble: View {
         if album.count > 1 {
             AlbumLuoiView(ds: album, diaChi: { diaChiCua($0) },
                           chamAnh: { tin, u in anhDangXem = AnhXemToan(url: u, msgId: tin.msgId) },
-                          chamVideo: { tin, u in videoDangXem = VideoXemToan(url: u, msgId: tin.msgId) })
+                          chamVideo: { tin, u in videoDangXem = VideoXemToan(url: u, msgId: tin.msgId) },
+                          dangTai: { vm.dangTaiLen.contains($0.msgId) })
         } else {
             noiDungDon
         }

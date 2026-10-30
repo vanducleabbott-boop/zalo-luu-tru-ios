@@ -17,6 +17,7 @@ enum SuKienZalo {
     case zaloTrangThai(ZaloServerStatus)
     case nhomTuyChonThayDoi([NhomTuyChon])
     case binhChonThayDoi(cuocId: String, pollId: String)
+    case loiGui(cuocId: String, loi: String)   // v7.8: máy chủ gửi nền (album) thất bại
 }
 
 private struct PayloadTin: Decodable {
@@ -179,6 +180,11 @@ final class SSEManager: ObservableObject {
             }
             if let p = try? JSONDecoder().decode(PayloadBC.self, from: data) {
                 suKien.send(.binhChonThayDoi(cuocId: p.cuocId ?? "", pollId: p.pollId ?? ""))
+            }
+        case "loi_gui":
+            struct PayloadLoi: Decodable { let cuoc_id: String; let loi: String }
+            if let data = sk.data.data(using: .utf8), let p = try? JSONDecoder().decode(PayloadLoi.self, from: data) {
+                suKien.send(.loiGui(cuocId: p.cuoc_id, loi: p.loi))
             }
         default:
             break   // "nhip" chi de cap nhat lastHeard

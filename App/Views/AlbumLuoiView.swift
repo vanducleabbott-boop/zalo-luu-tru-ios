@@ -10,6 +10,7 @@ struct AlbumLuoiView: View {
     let diaChi: (Tin) -> URL?
     let chamAnh: (Tin, URL) -> Void
     let chamVideo: (Tin, URL) -> Void
+    var dangTai: (Tin) -> Bool = { _ in false }   // v7.8: ô đang tải lên máy chủ -> vòng xoay
 
     private let rong: CGFloat = 260
     private let khe: CGFloat = 2
@@ -66,6 +67,14 @@ struct AlbumLuoiView: View {
                 }
                 .frame(width: canh, height: canh)
                 .clipped()
+                .overlay {
+                    if dangTai(t) {
+                        ZStack {
+                            Color.black.opacity(0.35)
+                            ProgressView().tint(.white).controlSize(.regular)
+                        }
+                    }
+                }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
