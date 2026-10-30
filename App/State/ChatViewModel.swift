@@ -283,6 +283,14 @@ final class ChatViewModel: ObservableObject {
             }
             try await env.api.guiAlbum(cuoc: cuoc.id, ma: ma)
             ChiaSeChung.baoDaNhan(cuoc.nguoiNhanChiaSe)
+            // v7.11: máy chủ ghi album bằng mã tạm rồi 5s/20s sau mới đổi sang mã thật của Zalo -> khung chat lúc đó
+            // chỉ còn 1 ảnh (thoát vào lại mới đủ). Tự tải lại đoạn cuối sau mỗi mốc đó.
+            Task { [weak self] in
+                for giay in [3, 8, 23] as [UInt64] {
+                    try? await Task.sleep(nanoseconds: giay * 1_000_000_000)
+                    await self?.dongBoDoanCuoi()
+                }
+            }
         } catch {
             loi = "Không gửi được album: " + error.localizedDescription
             dangTaiLen.subtract(ids)
@@ -459,6 +467,17 @@ final class ChatViewModel: ObservableObject {
     }
 
     /// Lấy 60 tin mới nhất, gộp vào (bắt được cả tin bị sửa/thu hồi trong lúc mất kết nối) - khớp taiBu() của web.
+    /// Thay đoạn cuối khung chat bằng đúng bản trên máy chủ (bỏ tin mã cũ đã bị máy chủ thay mã, bỏ ô tạm còn treo).
+    func dongBoDoanCuoi() async {
+        guard !cheDoQuanh, let kq = try? await env.api.dsTin(cuoc: cuoc.id), let dau = kq.tin.first else { return }
+        let dangTai = dangTaiLen
+        let cu = tinDangXem.filter { $0.ts < dau.ts && !$0.msgId.hasPrefix("temp_") }
+        let tamConTai = tinDangXem.filter { dangTai.contains($0.msgId) }   // album khác đang tải dở thì giữ
+        tinDangXem = cu + kq.tin + tamConTai
+        TinNhanDiskCache.shared.luuTin(kq.tin, cuocId: cuoc.id)
+        taiTruocMediaTheoQuyDinh(kq.tin)
+    }
+
     private func taiBu() async {
         guard !cheDoQuanh else { return }
         do {
