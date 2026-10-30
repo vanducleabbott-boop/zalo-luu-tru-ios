@@ -53,6 +53,14 @@ struct RootView: View {
                 .overlay(Divider(), alignment: .bottom)
             }
         }
+        // v7.1: tệp chia sẻ vào app -> chọn người/nhóm để gửi (đợi đăng nhập xong mới hiện)
+        .onOpenURL { url in
+            if let t = TepNhanDuoc.doc(url) { env.tepNhanDuoc.append(t) }
+        }
+        .sheet(isPresented: Binding(get: { env.daDangNhap && !env.tepNhanDuoc.isEmpty && !access.showLogin },
+                                    set: { if !$0 { env.tepNhanDuoc = [] } })) {
+            NhanTepChiaSeView().environmentObject(env)
+        }
         .sheet(isPresented: $access.showLogin) {
             CloudflareLoginSheet(baseURL: access.loginURL ?? env.settings.baseURL) {
                 capNhatCanhBao()

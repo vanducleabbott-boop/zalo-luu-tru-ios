@@ -33,6 +33,8 @@ final class AppEnvironment: ObservableObject {
     @Published var tabChon: Int = 0
     @Published var duongDanChat = NavigationPath()
     @Published var cuocGoiHienTai: ThongTinCuocGoi? = nil
+    /// v7.1: tệp iOS vừa mở bằng app (bảng Chia sẻ -> Zalo CF) đang chờ chọn người nhận.
+    @Published var tepNhanDuoc: [TepNhanDuoc] = []
     @Published var dangTrongCuocGoi = false
     @Published var dangXuLyCuocGoi = false
     @Published var zaloServerStatus: ZaloServerStatus? = nil
