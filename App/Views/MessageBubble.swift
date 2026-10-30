@@ -60,12 +60,19 @@ struct MessageBubble: View {
         if let uid = t.uid, !uid.isEmpty {
             Button("@ Nhắc đến…") { vm.yeuCauTag = TagChon(uid: uid, ten: tenGui) }
             Button("Nhắn tin riêng") { env.moCuocHoiThoai(cuocId: uid, tenCuoc: env.dsCuocCache[uid]?.ten ?? tenGui) }
-            if let anh = env.anhNguoi(uid: uid), let url = URL(string: anh) {
+            if let anh = env.anhNguoi(uid: uid), let url = URL(string: Self.anhDaiDienLon(anh)) {
                 Button("Xem ảnh đại diện") { anhDangXem = AnhXemToan(url: url, msgId: "avatar_" + uid) }
             }
             Button("Sao chép tên") { UIPasteboard.general.string = tenGui }
         }
         Button("Huỷ", role: .cancel) {}
+    }
+
+    /// Zalo trả ảnh đại diện bản 120-160px (s120-26-ava-talk.zadn.vn) -> xem toàn màn hình bị mờ.
+    /// Bản lớn nhất Zalo có là s240 (thử s320..s1024 và link gốc đều không có).
+    static func anhDaiDienLon(_ anh: String) -> String {
+        anh.replacingOccurrences(of: #"//s\d+(-\d+)?-ava-talk\.zadn\.vn/"#, with: "//s240-26-ava-talk.zadn.vn/",
+                                 options: .regularExpression)
     }
 
     private var laTagToi: Bool {
