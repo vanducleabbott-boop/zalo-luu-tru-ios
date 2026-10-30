@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var hienXacNhanXoaCache = false
     @State private var hienSheetQuetQR = false
     @State private var tamTatDen: Date? = NotificationManager.tamTatDen
+    @State private var hienChonGioTat = false
     @State private var lamMoiCloudflare = false
 
     var body: some View {
@@ -120,12 +121,13 @@ struct SettingsView: View {
                         }
                     } else {
                         Button { datTamTat(30) } label: { Label("Tắt thông báo 30 phút", systemImage: "bell.slash") }
+                        Button { hienChonGioTat = true } label: { Label("Chọn thời gian tắt…", systemImage: "timer") }
                         Menu {
                             Button("1 giờ") { datTamTat(60) }
                             Button("2 giờ") { datTamTat(120) }
                             Button("4 giờ") { datTamTat(240) }
                             Button("Đến 7 giờ sáng mai") { datTamTat(phutDen7hSang) }
-                        } label: { Label("Tắt lâu hơn…", systemImage: "moon.zzz") }
+                        } label: { Label("Tắt nhanh…", systemImage: "moon.zzz") }
                     }
                     Button("Gửi thông báo thử nghiệm (sau 2 giây)") {
                         NotificationManager.shared.guiThongBaoThu()
@@ -181,6 +183,10 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $hienSheetQuetQR) {
                 ZaloQRLoginView()
+            }
+            .sheet(isPresented: $hienChonGioTat) {
+                ChonGioTatThongBao { phut in datTamTat(phut) }
+                    .presentationDetents([.height(340)])
             }
             .onAppear {
                 tamTatDen = NotificationManager.tamTatDen
@@ -247,5 +253,43 @@ extension SettingsView {
         let homNay7h = lich.date(bySettingHour: 7, minute: 0, second: 0, of: Date()) ?? Date()
         let moc = homNay7h > Date() ? homNay7h : lich.date(byAdding: .day, value: 1, to: homNay7h) ?? homNay7h
         return max(1, Int(moc.timeIntervalSinceNow / 60))
+    }
+}
+
+/// v7.7: chọn giờ + phút tạm tắt thông báo (vd 1 giờ 30, 2 giờ 1 phút).
+private struct ChonGioTatThongBao: View {
+    @Environment(\.dismiss) private var dismiss
+    var xong: (Int) -> Void
+    @State private var gio = 0
+    @State private var phut = 30
+
+    private var tong: Int { gio * 60 + phut }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 8) {
+                HStack(spacing: 0) {
+                    Picker("Giờ", selection: $gio) {
+                        ForEach(0..<24, id: \.self) { Text("\($0) giờ").tag($0) }
+                    }
+                    .pickerStyle(.wheel)
+                    Picker("Phút", selection: $phut) {
+                        ForEach(0..<60, id: \.self) { Text("\($0) phút").tag($0) }
+                    }
+                    .pickerStyle(.wheel)
+                }
+                Text(tong > 0 ? "Bật lại lúc \(Date().addingTimeInterval(TimeInterval(tong * 60)).formatted(date: .omitted, time: .shortened))" : "Chọn ít nhất 1 phút")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal)
+            .navigationTitle("Tắt thông báo trong")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Huỷ") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Tắt") { xong(tong); dismiss() }.disabled(tong == 0)
+                }
+            }
+        }
     }
 }
