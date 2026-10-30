@@ -23,6 +23,8 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var dangTai = false
     @Published var daCuonXuongCuoiLanDau = false
     @Published var traLoi: Tin?
+    /// v7.2: bấm ảnh đại diện thành viên -> "Nhắc đến" -> ô soạn tin chèn "@Tên " (MessageInputBar nhận).
+    @Published var yeuCauTag: TagChon?
     @Published var loi: String?
     /// Khi khác nil: UI nên cuộn tới tin nhắn này 1 lần rồi tự xoá giá trị (xem onChange trong ChatView).
     @Published var cuonToiMsgId: String?

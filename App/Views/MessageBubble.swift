@@ -16,6 +16,7 @@ struct MessageBubble: View {
     @Binding var fileDangXem: URL?
     /// v4.3: >1 tin = 1 album (nhiều ảnh/video gửi 1 lần) -> vẽ 1 khung lưới như Zalo; `t` là tin đầu album.
     var album: [Tin] = []
+    @State private var hienMenuNguoi = false
 
     private var tenGui: String {
         t.laToi ? "Bạn" : env.tenNguoi(uid: t.uid, macDinh: t.tenNguoi)
@@ -26,6 +27,9 @@ struct MessageBubble: View {
             if !t.laToi {
                 if cuoiNhom {
                     AvatarView(ten: tenGui, anh: env.anhNguoi(uid: t.uid), khoa: t.uid ?? tenGui, kichThuoc: 28)
+                        // v7.2: như Zalo - bấm ảnh đại diện thành viên nhóm -> Nhắc đến / Nhắn tin riêng
+                        .onTapGesture { if laNhom, t.uid?.isEmpty == false { hienMenuNguoi = true } }
+                        .confirmationDialog(tenGui, isPresented: $hienMenuNguoi, titleVisibility: .visible) { menuNguoi }
                 } else {
                     Color.clear.frame(width: 28, height: 28)
                 }
@@ -50,6 +54,18 @@ struct MessageBubble: View {
             }
         }
         .padding(.top, dauNhom ? 8 : 1)
+    }
+
+    @ViewBuilder private var menuNguoi: some View {
+        if let uid = t.uid, !uid.isEmpty {
+            Button("@ Nhắc đến…") { vm.yeuCauTag = TagChon(uid: uid, ten: tenGui) }
+            Button("Nhắn tin riêng") { env.moCuocHoiThoai(cuocId: uid, tenCuoc: env.dsCuocCache[uid]?.ten ?? tenGui) }
+            if let anh = env.anhNguoi(uid: uid), let url = URL(string: anh) {
+                Button("Xem ảnh đại diện") { anhDangXem = AnhXemToan(url: url, msgId: "avatar_" + uid) }
+            }
+            Button("Sao chép tên") { UIPasteboard.general.string = tenGui }
+        }
+        Button("Huỷ", role: .cancel) {}
     }
 
     private var laTagToi: Bool {

@@ -116,6 +116,17 @@ struct MessageInputBar: View {
             .padding(.horizontal, 10).padding(.vertical, 8)
         }
         .background(.bar)
+        .onChange(of: vm.yeuCauTag) { yc in
+            guard let yc else { return }
+            vm.yeuCauTag = nil
+            let chen = "@\(yc.ten) "
+            if !vanBan.isEmpty && !(vanBan.last?.isWhitespace ?? true) { vanBan += " " }
+            vanBan += chen
+            if !tagDaChon.contains(yc) { tagDaChon.append(yc) }
+            daDongTagTamThoi = true
+            doDaiVanBanTruoc = vanBan.count
+            daFocus = true
+        }
         .onChange(of: vanBan) { moi in
             if moi.count != doDaiVanBanTruoc {
                 if moi.hasSuffix("@") || !moi.contains("@") {
