@@ -90,6 +90,7 @@ private struct ChatContentView: View {
     @State private var videoDangXem: VideoXemToan?
     @State private var fileDangXem: URL?
     @State private var tinChuyenTiep: Tin?
+    @State private var albumChuyenTiep: [String] = []   // v7.6: msgId cả album đang chuyển tiếp
     @State private var hienKho = false
     @State private var hienTimTrong = false
     @State private var hienTaoLich = false
@@ -114,7 +115,7 @@ private struct ChatContentView: View {
                             MessageBubble(vm: vm, t: t, dauNhom: dauNhom, cuoiNhom: cuoiNhom,
                                           laNhom: vm.cuoc.laNhomBool,
                                           chamTrichDan: { denTin($0) },
-                                          chonChuyenTiep: { tinChuyenTiep = $0 },
+                                          chonChuyenTiep: { albumChuyenTiep = []; tinChuyenTiep = $0 },
                                           anhDangXem: $anhDangXem,
                                           videoDangXem: $videoDangXem,
                                           fileDangXem: $fileDangXem)
@@ -126,7 +127,7 @@ private struct ChatContentView: View {
                             MessageBubble(vm: vm, t: ds[0], dauNhom: dauNhom, cuoiNhom: cuoiNhom,
                                           laNhom: vm.cuoc.laNhomBool,
                                           chamTrichDan: { denTin($0) },
-                                          chonChuyenTiep: { tinChuyenTiep = $0 },
+                                          chonChuyenTiep: { albumChuyenTiep = ds.map(\.msgId); tinChuyenTiep = $0 },
                                           anhDangXem: $anhDangXem,
                                           videoDangXem: $videoDangXem,
                                           fileDangXem: $fileDangXem,
@@ -270,7 +271,7 @@ private struct ChatContentView: View {
             }
         }
         .sheet(isPresented: $hienTimTrong) { SearchInConversationView(vm: vm) }
-        .sheet(item: $tinChuyenTiep) { t in ForwardMessageView(tin: t, cuocGocId: vm.cuoc.id) }
+        .sheet(item: $tinChuyenTiep) { t in ForwardMessageView(tin: t, cuocGocId: vm.cuoc.id, album: albumChuyenTiep) }
         .sheet(item: $anhDangXem) { a in ImageViewerView(anh: a, cuocId: vm.cuoc.id) }
         .fullScreenCover(item: $videoDangXem) { v in TrinhPhatVideoView(url: v.url) }
         .quickLookPreview($fileDangXem)

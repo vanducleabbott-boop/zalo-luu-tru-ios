@@ -253,10 +253,11 @@ final class ZaloAPI {
     struct KetQuaChuyenTiep: Decodable { let ok: [String]; let loi: [ChiTietLoiChuyenTiep] }
     struct ChiTietLoiChuyenTiep: Decodable { let id: String?; let ten: String?; let loi: String? }
 
-    func chuyenTiep(cuoc: String, msg: String, den: [String], loiNhan: String = "") async throws -> KetQuaChuyenTiep {
-        struct Than: Encodable { let den: [String]; let loiNhan: String }
+    /// v7.6: `album` = mọi msgId của 1 album (nhiều ảnh gửi 1 lần) -> máy chủ gửi lại thành 1 album; trước chỉ đi ảnh đầu.
+    func chuyenTiep(cuoc: String, msg: String, den: [String], loiNhan: String = "", album: [String] = []) async throws -> KetQuaChuyenTiep {
+        struct Than: Encodable { let den: [String]; let loiNhan: String; let album: [String]? }
         return try await goiJSON("/api/chuyen-tiep", method: "POST", query: ["cuoc": cuoc, "msg": msg],
-                                  jsonBody: Than(den: den, loiNhan: loiNhan))
+                                  jsonBody: Than(den: den, loiNhan: loiNhan, album: album.count > 1 ? album : nil))
     }
 
     // ---------------------------------------------------------------- ghim / tắt thông báo / danh bạ

@@ -11,6 +11,7 @@ struct ForwardMessageView: View {
 
     let tin: Tin
     let cuocGocId: String
+    var album: [String] = []   // v7.6: >1 = chuyển tiếp cả album
 
     @State private var dsCuoc: [Cuoc] = []
     @State private var tuKhoa = ""
@@ -340,7 +341,7 @@ struct ForwardMessageView: View {
                 Text(tin.laToi ? "Tin nhắn của bạn" : (tin.tenNguoi ?? "Người gửi"))
                     .font(.caption.bold())
                     .foregroundStyle(.secondary)
-                Text(tomTatTin)
+                Text(album.count > 1 ? "[Album \(album.count) ảnh/video]" : tomTatTin)
                     .font(.subheadline)
                     .lineLimit(2)
             }
@@ -435,7 +436,8 @@ struct ForwardMessageView: View {
                 cuoc: cuocGocId,
                 msg: tin.msgId,
                 den: danhSachDich,
-                loiNhan: loiNhan.trimmingCharacters(in: .whitespacesAndNewlines)
+                loiNhan: loiNhan.trimmingCharacters(in: .whitespacesAndNewlines),
+                album: album
             )
 
             if !kq.loi.isEmpty && kq.ok.isEmpty {
