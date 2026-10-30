@@ -100,12 +100,15 @@ private struct ChatContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollViewReader { proxy in
-                List {
+                // v7.0: List (UICollectionView) trên iOS 26 gộp cập nhật dữ liệu rồi mới áp dụng -> lệnh cuộn
+                // tới tin mới chạy trước khi List có dòng đó -> "_validateScrollingTargetIndexPath" văng app
+                // (crash log 30/10 khi bấm thông báo). LazyVStack cuộn tới id chưa có thì bỏ qua, không văng.
+                ScrollView {
+                  LazyVStack(spacing: 0) {
                     ForEach(Array(vm.mucCoKhoa.enumerated()), id: \.element.khoa) { i, phan in
                         switch phan.muc {
                         case .ngay(let nhan):
                             MocNgayView(nhan: nhan)
-                                .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
                                 .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
                         case .tin(let t, let dauNhom, let cuoiNhom):
                             MessageBubble(vm: vm, t: t, dauNhom: dauNhom, cuoiNhom: cuoiNhom,
@@ -116,7 +119,7 @@ private struct ChatContentView: View {
                                           videoDangXem: $videoDangXem,
                                           fileDangXem: $fileDangXem)
                                 .id(t.msgId)
-                                .listRowSeparator(.hidden).listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
+                                .padding(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
                                 .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
                         case .album(let ds, let dauNhom, let cuoiNhom):
                             // v4.3: nhiều ảnh/video gửi 1 lần -> 1 khung lưới (id = tin cuối để cuộn xuống đáy đúng)
@@ -129,17 +132,16 @@ private struct ChatContentView: View {
                                           fileDangXem: $fileDangXem,
                                           album: ds)
                                 .id(ds[ds.count - 1].msgId)
-                                .listRowSeparator(.hidden).listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
+                                .padding(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
                                 .onAppear { if i < 3 { Task { await vm.taiTinCu() } } }
                         }
                     }
                     Color.clear.frame(height: 1).id("__day_chat__")
-                        .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
                         .onAppear { dangSatDay = true }
                         .onDisappear { dangSatDay = false }
+                  }
+                  .padding(.vertical, 4)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
                 .background(ZaloMau.nenChat)
                 .scrollDismissesKeyboard(.interactively)
                 .onAppear {

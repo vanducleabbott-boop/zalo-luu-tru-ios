@@ -14,8 +14,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.guava948.kale5858.cf
         PRODUCT_NAME: ZaloLuuTru
-        MARKETING_VERSION: "6.9"
-        CURRENT_PROJECT_VERSION: "68"
+        MARKETING_VERSION: "7.0"
+        CURRENT_PROJECT_VERSION: "69"
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_VERSION: "5.0"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIconCF
@@ -51,8 +51,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.guava948.kale5858.cf.share
         PRODUCT_NAME: ZaloShare
-        MARKETING_VERSION: "6.9"
-        CURRENT_PROJECT_VERSION: "68"
+        MARKETING_VERSION: "7.0"
+        CURRENT_PROJECT_VERSION: "69"
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: NO
