@@ -93,7 +93,7 @@ private final class ChiaSeVM: ObservableObject {
                         && !p.hasItemConformingToTypeIdentifier(UTType.plainText.identifier)) { kieu = .data }
         else { return nil }
         let goiY = p.suggestedName
-        return await withCheckedContinuation { tiep in
+        let tho: TepChiaSe? = await withCheckedContinuation { tiep in
             _ = p.loadFileRepresentation(forTypeIdentifier: kieu.identifier) { url, _ in
                 guard let url else { tiep.resume(returning: nil); return }
                 // file gốc bị xoá ngay khi khối này kết thúc -> chép sang chỗ của mình
@@ -104,10 +104,14 @@ private final class ChiaSeVM: ObservableObject {
                 let dich = thuMuc.appendingPathComponent(UUID().uuidString + "_" + ten)
                 do { try FileManager.default.copyItem(at: url, to: dich) } catch { tiep.resume(returning: nil); return }
                 let ext = (ten as NSString).pathExtension.lowercased()
-                let laAnhVideo = kieu != .data || ["jpg", "jpeg", "png", "heic", "gif", "webp", "mp4", "mov"].contains(ext)
+                let laAnhVideo = kieu != .data || ["jpg", "jpeg", "png", "heic", "heif", "gif", "webp", "mp4", "mov", "m4v"].contains(ext)
                 tiep.resume(returning: TepChiaSe(url: dich, ten: ten, laAnhVideo: laAnhVideo))
             }
         }
+        // v7.12: HEIC -> JPG (<= 2560), MOV -> MP4 720p trước khi gửi Zalo
+        guard let tho, tho.laAnhVideo else { return tho }
+        let (url, ten) = await ChuanTepGui.chuan(url: tho.url, ten: tho.ten)
+        return TepChiaSe(url: url, ten: ten, laAnhVideo: true)
     }
 
     // ------------------------------------------------ gửi

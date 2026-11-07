@@ -389,6 +389,15 @@ struct MessageInputBar: View {
                 }
             }
 
+            // v7.12: ảnh HEIC/HEIF/AVIF/TIFF/BMP -> JPG cạnh dài <= 2560; JPG/PNG/WebP > 1,5 MB -> thu nhỏ
+            let phaiDoi = ChuanTepGui.duoiAnhPhaiDoi.contains(duoi)
+            if phaiDoi || (ChuanTepGui.duoiAnhCoTheNho.contains(duoi) && ChuanTepGui.kichThuoc(url) > ChuanTepGui.nguongThuNho),
+               let jpg = ChuanTepGui.jpeg(tuTep: url, boQuaNeuTrongSuot: !phaiDoi),
+               phaiDoi || jpg.count < ChuanTepGui.kichThuoc(url) {
+                await vm.guiFile(duLieu: jpg, tenFile: (tenFile as NSString).deletingPathExtension + ".jpg")
+                return
+            }
+
             let duLieu = try Data(contentsOf: url)
             await vm.guiFile(duLieu: duLieu, tenFile: tenFile)
         } catch {
