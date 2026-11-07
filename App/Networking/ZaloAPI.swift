@@ -44,7 +44,7 @@ final class ZaloAPI {
     private static func taoPhienTaiLen() -> URLSession {
         let cau = URLSessionConfiguration.ephemeral
         cau.timeoutIntervalForRequest = 30      // 30s không nhích byte nào -> huỷ, thử lại trên kết nối mới
-        cau.timeoutIntervalForResource = 300
+        cau.timeoutIntervalForResource = 1800   // v8.3: tệp lớn/mạng yếu
         cau.httpShouldSetCookies = false        // cookie gắn tay (zw + CF_Authorization) trong goi()
         return URLSession(configuration: cau)
     }

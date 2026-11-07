@@ -403,8 +403,8 @@ struct Tin: Codable, Equatable, Hashable, Identifiable {
 
     // Cam xuc cua chinh minh (uidToi truyen vao vi server khong gui san co/khong)
     func camXucCuaToi(uidToi: String) -> [CamXucTin] { camXuc.filter { $0.uid == uidToi } }
-    var duocThaCamXuc: Bool { cliMsgId != nil && !thuHoi }
-    var duocThuHoi: Bool { laToi && !thuHoi && cliMsgId != nil }
+    var duocThaCamXuc: Bool { cliMsgId != nil && !thuHoi && !msgId.hasPrefix("temp_") }
+    var duocThuHoi: Bool { laToi && !thuHoi && cliMsgId != nil && !msgId.hasPrefix("temp_") }
     var duocChuyenTiep: Bool {
         !thuHoi && ((kieu == "chu" && !(chu ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             || kieu == "sticker" || file != nil)

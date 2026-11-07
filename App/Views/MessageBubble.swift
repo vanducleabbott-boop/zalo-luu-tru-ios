@@ -170,7 +170,7 @@ struct MessageBubble: View {
     }
 
     private var trongSuot: Bool {
-        album.count > 1 || !t.thuHoi && (t.kieu == "sticker" || (["anh", "gif", "video"].contains(t.kieu) && (t.chu ?? "").isEmpty && t.quote == nil && t.file != nil))
+        album.count > 1 || !t.thuHoi && (t.kieu == "sticker" || (["anh", "gif", "video"].contains(t.kieu) && (t.chu ?? "").isEmpty && t.quote == nil && (t.file != nil || t.msgId.hasPrefix("temp_"))))
     }
 
     @ViewBuilder
@@ -199,6 +199,25 @@ struct MessageBubble: View {
 
     @ViewBuilder
     private var noiDungTheoKieu: some View {
+        // v8.3: ảnh/video vừa chọn, đang đọc/đổi định dạng (chưa có tệp) -> khung chờ, vòng xoay phủ lên từ noiDung
+        if t.file == nil, t.msgId.hasPrefix("temp_"), t.kieu == "video" || t.kieu == "anh" {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemGray5))
+                .frame(width: 240, height: 180)
+                .overlay(alignment: .bottomLeading) {
+                    Label(t.kieu == "video" ? "Đang xử lý video…" : "Đang xử lý ảnh…",
+                          systemImage: t.kieu == "video" ? "video" : "photo")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(8)
+                }
+        } else {
+            noiDungTheoKieuCoTep
+        }
+    }
+
+    @ViewBuilder
+    private var noiDungTheoKieuCoTep: some View {
         switch t.kieu {
         case "anh", "gif":
             AnhTinView(url: diaChiFile) { if let u = diaChiFile { anhDangXem = AnhXemToan(url: u, msgId: t.msgId) } }
@@ -295,17 +314,20 @@ struct MessageBubble: View {
 
     @ViewBuilder
     private var menu: some View {
-        Button { vm.chonTraLoi(t) } label: { Label("Trả lời", systemImage: "arrowshape.turn.up.left") }
-        Button {
-            Task { await vm.chuyenTrangThaiGhim(t) }
-        } label: {
-            Label(vm.laTinGhim(t.msgId) ? "Bỏ ghim tin nhắn" : "Ghim tin nhắn",
-                  systemImage: vm.laTinGhim(t.msgId) ? "pin.slash" : "pin")
+        // v8.3: ô tạm (temp_) chưa có mã thật -> không trả lời/ghim/chuyển tiếp được
+        if !t.msgId.hasPrefix("temp_") {
+            Button { vm.chonTraLoi(t) } label: { Label("Trả lời", systemImage: "arrowshape.turn.up.left") }
+            Button {
+                Task { await vm.chuyenTrangThaiGhim(t) }
+            } label: {
+                Label(vm.laTinGhim(t.msgId) ? "Bỏ ghim tin nhắn" : "Ghim tin nhắn",
+                      systemImage: vm.laTinGhim(t.msgId) ? "pin.slash" : "pin")
+            }
         }
         if t.kieu == "video", let u = diaChiFile {
             Button { videoDangXem = VideoXemToan(url: u, msgId: t.msgId) } label: { Label("Xem video", systemImage: "play.fill") }
         }
-        if t.duocChuyenTiep {
+        if t.duocChuyenTiep && !t.msgId.hasPrefix("temp_") {
             Button { chonChuyenTiep?(t) } label: { Label("Chuyển tiếp", systemImage: "arrowshape.turn.up.right") }
         }
         if let c = t.chu, !c.isEmpty {

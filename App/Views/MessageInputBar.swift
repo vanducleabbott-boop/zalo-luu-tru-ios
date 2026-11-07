@@ -156,7 +156,9 @@ struct MessageInputBar: View {
                       selectionBehavior: .ordered, matching: .any(of: [.images, .videos]))
         .onChange(of: anhDaChon) { ds in
             guard !ds.isEmpty else { return }
-            Task { await guiCacAnhDaChon(ds) }
+            // v8.3: ô hiện ngay trong chat; đọc/đổi định dạng/tải lên chạy nền ở HangTaiLen
+            vm.guiMediaChon(ds)
+            anhDaChon = []
         }
         // Chọn file / tài liệu từ Files app
         .fileImporter(isPresented: $hienChonFile, allowedContentTypes: [.item], allowsMultipleSelection: false) { result in
@@ -403,35 +405,5 @@ struct MessageInputBar: View {
         } catch {
             print("Không thể đọc file: \(error)")
         }
-    }
-
-    /// v4.3: nhiều ảnh/video chọn 1 lần -> 1 album (như Zalo gốc); chọn 1 thì gửi thường.
-    private func guiCacAnhDaChon(_ ds: [PhotosPickerItem]) async {
-        dangGuiMedia = true
-        defer { dangGuiMedia = false; anhDaChon = [] }
-        var tep: [(duLieu: Data, tenFile: String)] = []
-        for (i, item) in ds.enumerated() {
-            if let t = await chuanBiTep(item, thuTu: i) { tep.append(t) }
-        }
-        await vm.guiAlbum(tep)
-    }
-
-    private func chuanBiTep(_ item: PhotosPickerItem, thuTu: Int) async -> (duLieu: Data, tenFile: String)? {
-        let dau = "\(Int(Date().timeIntervalSince1970))_\(thuTu + 1)"
-        // 1. Video -> chuyển chuẩn MP4 (H.264/AAC) để Zalo xem được trực tiếp
-        let laVideo = item.supportedContentTypes.contains(where: {
-            $0.conforms(to: .movie) || $0.conforms(to: .video) || $0.conforms(to: .quickTimeMovie) || $0.conforms(to: .mpeg4Movie)
-        })
-        if laVideo, let movie = try? await item.loadTransferable(type: MovieFile.self),
-           let (mp4Data, _) = try? await VideoHelper.chuyenSangMP4(from: movie.url) {
-            return (mp4Data, "video_\(dau).mp4")
-        }
-        // 2. Ảnh hoặc tệp thông thường
-        guard let data = try? await item.loadTransferable(type: Data.self) else { return nil }
-        if let img = UIImage(data: data), let jpeg = Self.jpegGui(img) {
-            return (jpeg, "anh_zalo_\(dau).jpg")
-        }
-        let ext = item.supportedContentTypes.first?.preferredFilenameExtension ?? "dat"
-        return (data, "tep_\(dau).\(ext)")
     }
 }

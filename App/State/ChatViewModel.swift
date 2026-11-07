@@ -4,6 +4,7 @@
 import Foundation
 import Combine
 import UIKit
+import PhotosUI
 
 @MainActor
 final class ChatViewModel: ObservableObject {
@@ -57,6 +58,18 @@ final class ChatViewModel: ObservableObject {
             .filter { $0.cuocId == maCuoc }
             .sink { [weak self] kq in self?.xuLyKetThucTaiLen(kq) }
             .store(in: &huyTheoDoi)
+        // v8.3: ô tạm có tệp thật (đổi định dạng xong) / ô bị bỏ (không đọc được tệp)
+        hang.capNhatTin
+            .filter { $0.0 == maCuoc }
+            .sink { [weak self] _, tin in
+                guard let self, let i = self.tinDangXem.firstIndex(where: { $0.msgId == tin.msgId }) else { return }
+                self.tinDangXem[i] = tin
+            }
+            .store(in: &huyTheoDoi)
+        hang.xoaTin
+            .filter { $0.0 == maCuoc }
+            .sink { [weak self] _, id in self?.tinDangXem.removeAll { $0.msgId == id } }
+            .store(in: &huyTheoDoi)
         if let l = hang.layLoiChuaXem(maCuoc) { loi = l }
     }
 
@@ -65,7 +78,17 @@ final class ChatViewModel: ObservableObject {
         let tam = HangTaiLen.shared.tinTamCua(cuoc.id)
         guard !tam.isEmpty else { return ds }
         let co = Set(ds.map(\.msgId))
-        return ds + tam.filter { !co.contains($0.msgId) }
+        // v8.3: ô tạm đã có tin thật khớp (cùng tên tệp, gửi sau ô tạm) -> bỏ ô tạm, khỏi hiện trùng
+        var giu: [Tin] = []
+        for t in tam where !co.contains(t.msgId) {
+            if let ten = t.tenFile,
+               ds.contains(where: { $0.laToi && !$0.msgId.hasPrefix("temp_") && $0.tenFile == ten && $0.ts >= t.ts - 60_000 }) {
+                HangTaiLen.shared.boTinTam(cuocId: cuoc.id, msgId: t.msgId)
+            } else {
+                giu.append(t)
+            }
+        }
+        return ds + giu
     }
 
     private func xuLyKetThucTaiLen(_ kq: HangTaiLen.KetThuc) {
@@ -76,15 +99,20 @@ final class ChatViewModel: ObservableObject {
             return
         }
         ChiaSeChung.baoDaNhan(cuoc.nguoiNhanChiaSe)
-        // v8.2: tải lại đoạn cuối rồi bỏ ô tạm còn sót (tin thật có thể đã về qua SSE lúc chat đóng).
+        // v8.3: KHÔNG xoá ô tạm ngay (máy chủ gửi Zalo chạy nền, có thể >100s). Ô tạm bị thay khi tin thật khớp
+        // (SSE / dongBoDoanCuoi -> gopTinTamDangTai), quá 180s mà còn thì bỏ. Vẫn đồng bộ đoạn cuối nhiều lần để kéo tin thật về.
         // Album: máy chủ ghi mã tạm rồi 5s/20s sau mới đổi sang mã thật của Zalo -> tải lại thêm.
-        let ids = kq.ids
+        let ids = kq.ids, cuocId = cuoc.id
         Task { [weak self] in
-            for giay in (kq.laAlbum ? [3, 8, 23] : [1]) as [UInt64] {
-                try? await Task.sleep(nanoseconds: giay * 1_000_000_000)
+            var daCho: UInt64 = 0
+            for moc in (kq.laAlbum ? [3, 8, 23, 60, 120] : [1, 5, 20, 60, 120]) as [UInt64] {
+                try? await Task.sleep(nanoseconds: (moc - daCho) * 1_000_000_000)
+                daCho = moc
                 await self?.dongBoDoanCuoi()
-                self?.tinDangXem.removeAll { ids.contains($0.msgId) }
             }
+            try? await Task.sleep(nanoseconds: (180 - daCho) * 1_000_000_000)
+            for id in ids { HangTaiLen.shared.boTinTam(cuocId: cuocId, msgId: id) }
+            self?.tinDangXem.removeAll { ids.contains($0.msgId) }
         }
     }
 
@@ -321,6 +349,86 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
+    /// v8.3: ảnh/video chọn từ thư viện. Ô hiện NGAY trong chat (có vòng xoay) trước cả khi đọc/đổi định dạng;
+    /// đọc tệp + đổi video (HEVC/MOV -> MP4 H.264) + tải lên đều chạy trong HangTaiLen: rời chat vẫn chạy,
+    /// mở lại chat vẫn thấy ô đang tải, lỗi mạng thì thử lại tới khi được.
+    func guiMediaChon(_ ds: [PhotosPickerItem]) {
+        guard !ds.isEmpty else { return }
+        let laAlbum = ds.count > 1
+        let trich: String? = laAlbum ? nil : traLoi?.msgId   // Zalo không trích dẫn kèm album
+        let trichDan = trich.flatMap { msgId in
+            tinDangXem.first(where: { $0.msgId == msgId }).map {
+                TrichDan(ten: $0.tenNguoi, chu: $0.chu ?? $0.tenFile, msgId: $0.msgId)
+            }
+        }
+        traLoi = nil
+        let albumId = "temp_album_\(UUID().uuidString)"
+        let env = self.env, cuocId = cuoc.id
+        let dau = Int64(Date().timeIntervalSince1970 * 1000)
+        let tin: [Tin] = ds.enumerated().map { i, item in
+            let laVideo = ChuanBiMedia.laVideo(item)
+            let ten = laVideo ? "video_\(dau)_\(i).mp4" : "anh_zalo_\(dau)_\(i).jpg"
+            let tempId = "temp_\(UUID().uuidString)"
+            let t = Tin(
+                msgId: tempId, cliMsgId: tempId, cuocId: cuoc.id, uid: env.uidToi, tenNguoi: "Tôi", laToi: true,
+                ts: dau + Int64(i), loai: "gui", kieu: laVideo ? "video" : "anh", chu: nil, url: nil,
+                file: nil, tenFile: ten, kichThuoc: nil, quote: laAlbum ? nil : trichDan,
+                thuHoi: false, phu: laAlbum ? Phu(album: AlbumInfo(id: albumId, i: i, n: ds.count)) : nil,
+                camXuc: [], tenCuoc: nil, laNhomCuoc: nil
+            )
+            tinDangXem = PhanTrang.ganTin(tinDangXem, t)
+            return t
+        }
+        cuonToiMsgId = "__cuoi__"
+
+        env.api.lamMoiKetNoiTaiLen()
+        HangTaiLen.shared.chay(cuocId: cuocId, tin: tin, laAlbum: laAlbum) { xongMot in
+            let hang = HangTaiLen.shared
+            var ma: [String] = []
+            for (t, item) in zip(tin, ds) {
+                // 1. đọc + đổi định dạng (chạy ngoài luồng chính trong ChuanBiMedia)
+                let tep: (duLieu: Data, tenFile: String)
+                do {
+                    tep = try await ChuanBiMedia.chuanBi(item, tenGoc: t.tenFile ?? "tep")
+                } catch {
+                    if laAlbum { hang.boOTam(cuocId: cuocId, msgId: t.msgId); continue }
+                    throw error
+                }
+                // 2. ô tạm có ảnh/video xem trước
+                let localURL = MediaDiskCache.shared.luuMediaCucBo(data: tep.duLieu, tenFile: tep.tenFile)
+                if t.kieu == "anh", let img = UIImage(data: tep.duLieu) {
+                    ImageCacheManager.shared.luuAnh(img, khoa: MediaDiskCache.shared.khoaCache(tu: localURL), dungLuong: tep.duLieu.count)
+                }
+                hang.thayTinTam(cuocId: cuocId, tin: Tin(
+                    msgId: t.msgId, cliMsgId: t.cliMsgId, cuocId: t.cuocId, uid: t.uid, tenNguoi: t.tenNguoi, laToi: true,
+                    ts: t.ts, loai: t.loai, kieu: t.kieu, chu: nil, url: nil,
+                    file: localURL.absoluteString, tenFile: tep.tenFile, kichThuoc: Int64(tep.duLieu.count), quote: t.quote,
+                    thuHoi: false, phu: t.phu, camXuc: [], tenCuoc: nil, laNhomCuoc: nil))
+                // 3. tải lên
+                if laAlbum {
+                    ma.append(try await hang.taiLenCoThuLai(env, tep.duLieu, tenFile: tep.tenFile))
+                    xongMot(t.msgId)
+                } else {
+                    try await hang.guiFileCoThuLai(env, cuocId: cuocId, duLieu: tep.duLieu, tenFile: tep.tenFile, trich: trich)
+                }
+            }
+            guard laAlbum else { return }
+            if ma.isEmpty { throw LoiMedia.khongDoc }
+            // v8.3: lần gửi trước đứt mạng (URLError) mà máy chủ đã nhận + xoá mã -> lần thử lại nhận 400 = đã gửi xong
+            var tungLoiMang = false
+            try await hang.thuLaiMai(env) { () async throws -> Void in
+                do {
+                    try await env.api.guiAlbum(cuoc: cuocId, ma: ma)
+                } catch let e as URLError where e.code != .cancelled {
+                    tungLoiMang = true
+                    throw e
+                } catch LoiZaloAPI.maHttp(400, _) where tungLoiMang {
+                    return
+                }
+            }
+        }
+    }
+
     private static func kieuTheoDuoi(_ tenFile: String) -> String {
         let ext = (tenFile as NSString).pathExtension.lowercased()
         if ["jpg", "jpeg", "png", "webp", "gif", "heic"].contains(ext) { return "anh" }
@@ -404,7 +512,8 @@ final class ChatViewModel: ObservableObject {
                 // v8.2: ưu tiên khớp đúng tên tệp; chỉ khớp theo kiểu khi không có ô nào cùng tên
                 let laTam = { (t: Tin) in t.msgId.hasPrefix("temp_") }
                 if let idx = tinDangXem.firstIndex(where: { laTam($0) && $0.tenFile != nil && $0.tenFile == tin.tenFile })
-                    ?? tinDangXem.firstIndex(where: { laTam($0) && $0.kieu == tin.kieu }) {
+                    // v8.3: ô còn đang đọc/đổi định dạng (file nil) thì chắc chắn chưa gửi -> không khớp theo kiểu
+                    ?? tinDangXem.firstIndex(where: { laTam($0) && $0.file != nil && $0.kieu == tin.kieu }) {
                     let tinTam = tinDangXem[idx]
                     if let tempPath = tinTam.file, let tempURL = URL(string: tempPath),
                        let serverURL = tin.file.flatMap({ env.api.diaChiMedia($0) }) {
@@ -431,8 +540,12 @@ final class ChatViewModel: ObservableObject {
             // máy chủ gửi nền album sang Zalo thất bại -> bỏ các ô tạm còn treo, báo lỗi
             guard cuocId == cuoc.id else { return }
             // v8.2: chỉ bỏ ô album đã tải xong (lỗi ở bước gửi), không đụng album khác đang tải
-            let dang = HangTaiLen.shared.dangTaiLen
-            tinDangXem.removeAll { $0.msgId.hasPrefix("temp_") && $0.phu?.album != nil && !dang.contains($0.msgId) }
+            // v8.3: ô thuộc việc còn đang chạy (dangChay) cũng giữ; ô của việc đã xong mà tin thật không về -> bỏ cả trong HangTaiLen
+            let dang = HangTaiLen.shared.dangChay.union(HangTaiLen.shared.dangTaiLen)
+            let bo = tinDangXem.filter { $0.msgId.hasPrefix("temp_") && $0.phu?.album != nil && !dang.contains($0.msgId) }
+            for t in bo { HangTaiLen.shared.boTinTam(cuocId: cuocId, msgId: t.msgId) }
+            let idBo = Set(bo.map(\.msgId))
+            tinDangXem.removeAll { idBo.contains($0.msgId) }
             loi = thongBao
         case .daDoc, .ghimDoiThayDoi:
             break

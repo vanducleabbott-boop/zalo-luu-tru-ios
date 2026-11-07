@@ -111,9 +111,10 @@ enum GomNhom {
         }
     }
 
+    /// v8.3: ô tạm (temp_) chưa có tệp vẫn gom vào lưới ngay khi chọn.
     /// Khoá album: cùng người gửi + cùng mã album (ảnh/video/gif chưa thu hồi, đã có file).
     static func khoaAlbum(_ t: Tin) -> String? {
-        guard let a = t.phu?.album, !t.thuHoi, t.file != nil, ["anh", "video", "gif"].contains(t.kieu) else { return nil }
+        guard let a = t.phu?.album, !t.thuHoi, (t.file != nil || t.msgId.hasPrefix("temp_")), ["anh", "video", "gif"].contains(t.kieu) else { return nil }
         return "\(t.uid ?? "")|\(t.laToi)|\(a.id)"
     }
 

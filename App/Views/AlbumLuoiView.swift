@@ -81,7 +81,11 @@ struct AlbumLuoiView: View {
         } else {
             Color(.systemGray5)
                 .frame(width: canh, height: canh)
-                .overlay(Image(systemName: "photo").foregroundStyle(.secondary))
+                .overlay {
+                    // v8.3: ô vừa chọn, đang đọc/đổi định dạng -> vòng xoay luôn
+                    if dangTai(t) { ProgressView().controlSize(.regular) }
+                    else { Image(systemName: t.kieu == "video" ? "video.fill" : "photo").foregroundStyle(.secondary) }
+                }
         }
     }
 }
