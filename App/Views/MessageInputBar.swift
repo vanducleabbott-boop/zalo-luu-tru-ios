@@ -358,10 +358,19 @@ struct MessageInputBar: View {
     private func xuLyQuayVideo(_ sourceURL: URL) async {
         dangGuiMedia = true
         defer { dangGuiMedia = false }
+        // v8.4: xin iOS cho chạy thêm khi thoát app giữa lúc nén
+        let nenNen = await MainActor.run { GiuChayNen(ten: "ZaloNenVideo") }
+        defer { Task { @MainActor in nenNen.ket() } }
         do {
-            let (mp4Data, _) = try await VideoHelper.chuyenSangMP4(from: sourceURL)
+            let mp4Data: Data
+            if let nen = try? await VideoHelper.nenTheoDungLuong(from: sourceURL) {
+                mp4Data = nen
+            } else {
+                mp4Data = try await VideoHelper.chuyenSangMP4(from: sourceURL).data
+            }
             let ten = "video_quay_\(Int(Date().timeIntervalSince1970)).mp4"
             await vm.guiFile(duLieu: mp4Data, tenFile: ten)
+            try? FileManager.default.removeItem(at: sourceURL)   // v8.4: tệp quay tạm, đã nén + gửi xong
         } catch {
             if let data = try? Data(contentsOf: sourceURL) {
                 let ext = sourceURL.pathExtension.isEmpty ? "mov" : sourceURL.pathExtension
@@ -376,6 +385,8 @@ struct MessageInputBar: View {
         defer { dangGuiMedia = false }
         guard url.startAccessingSecurityScopedResource() else { return }
         defer { url.stopAccessingSecurityScopedResource() }
+        let nenNen = await MainActor.run { GiuChayNen(ten: "ZaloNenVideo") }
+        defer { Task { @MainActor in nenNen.ket() } }
 
         do {
             let tenFile = url.lastPathComponent
@@ -384,7 +395,9 @@ struct MessageInputBar: View {
             // Nếu người dùng chọn file video từ tệp -> tự động chuyển MP4 để Zalo xem inline được
             let laVideo = ["mov", "mp4", "m4v", "3gp", "avi", "webm", "mkv"].contains(duoi)
             if laVideo {
-                if let (mp4Data, _) = try? await VideoHelper.chuyenSangMP4(from: url) {
+                var mp4Opt: Data? = try? await VideoHelper.nenTheoDungLuong(from: url)
+                if mp4Opt == nil { mp4Opt = try? await VideoHelper.chuyenSangMP4(from: url, xoaNguon: false).data }
+                if let mp4Data = mp4Opt {
                     let tenMP4 = (tenFile as NSString).deletingPathExtension + ".mp4"
                     await vm.guiFile(duLieu: mp4Data, tenFile: tenMP4)
                     return

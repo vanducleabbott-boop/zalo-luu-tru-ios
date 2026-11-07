@@ -13,11 +13,13 @@ import UniformTypeIdentifiers
 enum LoiMedia: LocalizedError {
     case khongDoc
     case quaLon
+    case khongNen
     case anhQuaLon
     var errorDescription: String? {
         switch self {
         case .khongDoc: return "không đọc được ảnh/video từ thư viện (ảnh iCloud chưa tải về máy?)"
-        case .quaLon: return "video quá lớn (trên 95 MB) kể cả sau khi nén, hãy cắt ngắn video"
+        case .quaLon: return "video quá dài (trên khoảng 35 phút), không nén được dưới 95 MB, hãy cắt ngắn video"
+        case .khongNen: return "không nén được video này và tệp gốc trên 95 MB, hãy thử lại hoặc cắt ngắn video"
         case .anhQuaLon: return "tệp quá lớn (trên 95 MB)"
         }
     }
@@ -34,7 +36,7 @@ enum ChuanBiMedia {
     }
 
     /// Đọc 1 mục từ thư viện, đổi sang dạng Zalo xem được:
-    /// - Video (MOV/HEVC/H.265, kể cả HEVC đựng trong .mp4) -> luôn xuất lại MP4 H.264 720p (> 95MB thì 960x540).
+    /// - Video (MOV/HEVC/H.265, kể cả HEVC đựng trong .mp4) -> luôn nén lại MP4 H.264 <= 1280, 30fps, dưới 90MB.
     /// - Ảnh (HEIC...) -> JPG cạnh dài <= 2560; GIF giữ nguyên.
     /// Ném LoiMedia nếu không đọc được / quá lớn. `tenGoc` là tên đã đặt cho ô tạm (đuôi .mp4 / .jpg).
     static func chuanBi(_ item: PhotosPickerItem, tenGoc: String) async throws -> (duLieu: Data, tenFile: String) {
@@ -49,30 +51,45 @@ enum ChuanBiMedia {
             }
             guard let nguon = nguonTho else { throw LoiMedia.khongDoc }
             defer { try? FileManager.default.removeItem(at: nguon) }
-            // 2. luôn xuất lại H.264. Lỗi khi app đang ở nền (iOS ngắt xuất) -> chờ vào lại app, thử lại tối đa 2 lần
-            var mp4: Data?
-            var lanThu = 0
-            while mp4 == nil {
+            // 2. v8.4: nén theo đúng dung lượng (H.264 <= 1280, 30fps, bitrate tính theo thời lượng). Lỗi (nhất là khi app ở nền)
+            // -> chờ app active lại rồi thử lại, tối đa 2 lần thử lại
+            var nenQuaDai = false
+            var lanThuLai = 0
+            while true {
                 do {
-                    mp4 = try await VideoHelper.chuyenSangMP4(from: nguon, xoaNguon: false).data
+                    let d = try await VideoHelper.nenTheoDungLuong(from: nguon, gioiHanByte: 90_000_000)
+                    if d.count <= gioiHan { return (d, goc + ".mp4") }
+                    break
                 } catch {
-                    let nen = await MainActor.run { UIApplication.shared.applicationState == .background }
-                    lanThu += 1
-                    guard nen, lanThu <= 2 else { break }
-                    await HangTaiLen.shared.choVaoLaiApp()
+                    if error is CancellationError { throw error }
+                    let e = error as NSError
+                    if e.domain == "VideoHelper", e.code == VideoHelper.maLoiQuaDai { nenQuaDai = true; break }
+                    guard lanThuLai < 2 else { break }
+                    lanThuLai += 1
+                    let khongActive = await MainActor.run { UIApplication.shared.applicationState != .active }
+                    if khongActive { await HangTaiLen.shared.choVaoLaiApp() }
+                    try Task.checkCancellation()
                 }
             }
-            if let d = mp4 {
-                if d.count <= gioiHan { return (d, goc + ".mp4") }
-                // quá lớn -> xuất lại độ phân giải thấp hơn
-                guard let nho = try? await VideoHelper.chuyenSangMP4(from: nguon, preset: AVAssetExportPreset960x540, xoaNguon: false).data,
-                      nho.count <= gioiHan else { throw LoiMedia.quaLon }
-                return (nho, goc + ".mp4")
+            // quá dài -> chỉ còn cách thử chất lượng thấp nhất của hệ thống
+            if nenQuaDai {
+                try Task.checkCancellation()
+                if let d = try? await VideoHelper.chuyenSangMP4(from: nguon, preset: AVAssetExportPresetLowQuality, xoaNguon: false).data, d.count <= gioiHan {
+                    return (d, goc + ".mp4")
+                }
+                throw LoiMedia.quaLon
+            }
+            // nén lỗi khác -> dự phòng xuất theo preset
+            for preset in [AVAssetExportPreset1280x720, AVAssetExportPreset640x480, AVAssetExportPresetLowQuality] {
+                try Task.checkCancellation()
+                if let d = try? await VideoHelper.chuyenSangMP4(from: nguon, preset: preset, xoaNguon: false).data, d.count <= gioiHan {
+                    return (d, goc + ".mp4")
+                }
             }
             // 3. không đổi được -> gửi tệp gốc (máy chủ có ffmpeg đổi tiếp), kiểm cỡ TRƯỚC khi đọc
             let thuocTinh = try? FileManager.default.attributesOfItem(atPath: nguon.path)
             let cop = (thuocTinh?[.size] as? NSNumber)?.intValue ?? 0
-            if cop > gioiHan { throw LoiMedia.quaLon }
+            if cop > gioiHan { throw LoiMedia.khongNen }
             guard let d = try? Data(contentsOf: nguon, options: .mappedIfSafe) else { throw LoiMedia.khongDoc }
             let ext = nguon.pathExtension.isEmpty ? "mov" : nguon.pathExtension.lowercased()
             return (d, goc + "." + ext)
