@@ -49,7 +49,11 @@ enum ChuanTepGui {
     }
 
     /// Xuất MP4 H.264 720p (hoặc chất lượng vừa). Lỗi -> nil.
+    /// v8.2: video > 150 MB thì không đổi trên máy (tiện ích Chia sẻ dễ bị iOS giết) - gửi gốc, máy chủ có ffmpeg.
+    static let videoToiDaDeDoi = 150_000_000
+
     static func mp4(_ url: URL) async -> URL? {
+        if kichThuoc(url) > videoToiDaDeDoi { return nil }
         let asset = AVURLAsset(url: url)
         let preset = AVAssetExportSession.exportPresets(compatibleWith: asset).contains(AVAssetExportPreset1280x720)
             ? AVAssetExportPreset1280x720 : AVAssetExportPresetMediumQuality
@@ -58,8 +62,12 @@ enum ChuanTepGui {
         xs.outputURL = ra
         xs.outputFileType = .mp4
         xs.shouldOptimizeForNetworkUse = true
+        // quá 90 giây thì huỷ, gửi tệp gốc
+        let hen = Task { try? await Task.sleep(nanoseconds: 90_000_000_000); if !Task.isCancelled { xs.cancelExport() } }
         await xs.export()
-        return xs.status == .completed ? ra : nil
+        hen.cancel()
+        if xs.status != .completed { try? FileManager.default.removeItem(at: ra); return nil }
+        return ra
     }
 
     /// Chuẩn 1 tệp trên đĩa. Trả về tệp mới (tệp gốc bị xoá) hoặc chính tệp gốc nếu không cần/không đổi được.

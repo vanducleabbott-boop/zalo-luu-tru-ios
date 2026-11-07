@@ -76,12 +76,14 @@ final class ChatViewModel: ObservableObject {
             return
         }
         ChiaSeChung.baoDaNhan(cuoc.nguoiNhanChiaSe)
-        guard kq.laAlbum else { return }
-        // v7.11: máy chủ ghi album bằng mã tạm rồi 5s/20s sau mới đổi sang mã thật của Zalo -> tự tải lại đoạn cuối.
+        // v8.2: tải lại đoạn cuối rồi bỏ ô tạm còn sót (tin thật có thể đã về qua SSE lúc chat đóng).
+        // Album: máy chủ ghi mã tạm rồi 5s/20s sau mới đổi sang mã thật của Zalo -> tải lại thêm.
+        let ids = kq.ids
         Task { [weak self] in
-            for giay in [3, 8, 23] as [UInt64] {
+            for giay in (kq.laAlbum ? [3, 8, 23] : [1]) as [UInt64] {
                 try? await Task.sleep(nanoseconds: giay * 1_000_000_000)
                 await self?.dongBoDoanCuoi()
+                self?.tinDangXem.removeAll { ids.contains($0.msgId) }
             }
         }
     }
@@ -119,7 +121,7 @@ final class ChatViewModel: ObservableObject {
             if let c = kq.cuoc { cuoc = c }
             if let toi = kq.toi, !toi.isEmpty { env.uidToi = toi }
             let cuCount = tinDangXem.count
-            tinDangXem = gopTinTamDangTai(kq.tin)
+            tinDangXem = quanh == nil ? gopTinTamDangTai(kq.tin) : kq.tin
             heTin = kq.tin.count < 60
             if let g = kq.dsGhim { dsGhim = g }
             if quanh == nil {
@@ -399,7 +401,10 @@ final class ChatViewModel: ObservableObject {
 
             // Nếu là tin tôi vừa gửi, chuyển bộ đệm từ tin tạm sang URL chính thức của server
             if tin.laToi {
-                if let idx = tinDangXem.firstIndex(where: { $0.msgId.hasPrefix("temp_") && ($0.tenFile == tin.tenFile || $0.kieu == tin.kieu) }) {
+                // v8.2: ưu tiên khớp đúng tên tệp; chỉ khớp theo kiểu khi không có ô nào cùng tên
+                let laTam = { (t: Tin) in t.msgId.hasPrefix("temp_") }
+                if let idx = tinDangXem.firstIndex(where: { laTam($0) && $0.tenFile != nil && $0.tenFile == tin.tenFile })
+                    ?? tinDangXem.firstIndex(where: { laTam($0) && $0.kieu == tin.kieu }) {
                     let tinTam = tinDangXem[idx]
                     if let tempPath = tinTam.file, let tempURL = URL(string: tempPath),
                        let serverURL = tin.file.flatMap({ env.api.diaChiMedia($0) }) {
@@ -411,6 +416,7 @@ final class ChatViewModel: ObservableObject {
                             }
                         }
                     }
+                    HangTaiLen.shared.boTinTam(cuocId: cuoc.id, msgId: tinDangXem[idx].msgId)
                     tinDangXem.remove(at: idx)
                 }
             }
@@ -424,7 +430,9 @@ final class ChatViewModel: ObservableObject {
         case .loiGui(let cuocId, let thongBao):
             // máy chủ gửi nền album sang Zalo thất bại -> bỏ các ô tạm còn treo, báo lỗi
             guard cuocId == cuoc.id else { return }
-            tinDangXem.removeAll { $0.msgId.hasPrefix("temp_") && $0.phu?.album != nil }
+            // v8.2: chỉ bỏ ô album đã tải xong (lỗi ở bước gửi), không đụng album khác đang tải
+            let dang = HangTaiLen.shared.dangTaiLen
+            tinDangXem.removeAll { $0.msgId.hasPrefix("temp_") && $0.phu?.album != nil && !dang.contains($0.msgId) }
             loi = thongBao
         case .daDoc, .ghimDoiThayDoi:
             break

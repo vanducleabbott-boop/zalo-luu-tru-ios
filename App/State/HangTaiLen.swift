@@ -38,6 +38,11 @@ final class HangTaiLen: ObservableObject {
     }
 
     func tinTamCua(_ cuocId: String) -> [Tin] { tinTam[cuocId] ?? [] }
+    /// Tin thật đã về (SSE) -> bỏ ô tạm khỏi danh sách để lần nạp lại không hiện trùng.
+    func boTinTam(cuocId: String, msgId: String) {
+        tinTam[cuocId]?.removeAll { $0.msgId == msgId }
+        if tinTam[cuocId]?.isEmpty == true { tinTam[cuocId] = nil }
+    }
     func layLoiChuaXem(_ cuocId: String) -> String? { loiChuaXem.removeValue(forKey: cuocId) }
 
     /// Chạy 1 việc tải (1 tệp hoặc 1 album). `xongMot(id)` tắt vòng xoay của 1 ô khi ô đó đã lên máy chủ.
@@ -46,7 +51,7 @@ final class HangTaiLen: ObservableObject {
         let ids = tin.map(\.msgId)
         tinTam[cuocId, default: []] += tin
         dangTaiLen.formUnion(ids)
-        Task { @MainActor in
+        Task { @MainActor [self] in
             let nen = GiuChayNen(ten: "ZaloTaiLen")
             defer { nen.ket() }
             var loi: String?
@@ -66,6 +71,7 @@ final class HangTaiLen: ObservableObject {
     /// Chờ tới khi app không còn ở nền (iOS treo app thì Task cũng dừng; vào lại app thì chạy tiếp từ đây).
     func choVaoLaiApp() async {
         while UIApplication.shared.applicationState == .background {
+            if Task.isCancelled { return }
             try? await Task.sleep(nanoseconds: 1_000_000_000)
         }
     }
@@ -103,10 +109,11 @@ final class HangTaiLen: ObservableObject {
 }
 
 /// Xin iOS cho app chạy thêm khi đã thoát ra ngoài (khoảng 30 giây) để tải xong; hết giờ thì trả lại cho iOS.
+@MainActor
 final class GiuChayNen {
     private var id: UIBackgroundTaskIdentifier = .invalid
 
-    @MainActor init(ten: String) {
+    init(ten: String) {
         id = UIApplication.shared.beginBackgroundTask(withName: ten) { [weak self] in
             self?.ket()   // iOS gọi trên luồng chính, phải kết thúc ngay
         }

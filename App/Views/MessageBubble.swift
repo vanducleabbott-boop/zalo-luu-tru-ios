@@ -181,7 +181,10 @@ struct MessageBubble: View {
                           chamVideo: { tin, u in videoDangXem = VideoXemToan(url: u, msgId: tin.msgId) },
                           dangTai: { vm.dangTaiLen.contains($0.msgId) })
         } else {
-            noiDungDon
+            // v8.2: ảnh/video lẻ đang tải lên cũng hiện vòng xoay
+            noiDungDon.overlay {
+                if vm.dangTaiLen.contains(t.msgId) { ProgressView().tint(.white).padding(8).background(.black.opacity(0.4), in: Circle()) }
+            }
         }
     }
 

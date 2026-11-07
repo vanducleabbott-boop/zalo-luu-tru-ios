@@ -83,6 +83,19 @@ private final class ChiaSeVM: ObservableObject {
         chu = cacDong.filter { gap.insert($0).inserted }.joined(separator: "\n")
     }
 
+    /// Chép tệp nguồn sang thư mục của mình (file gốc bị xoá ngay khi khối gọi lại kết thúc).
+    nonisolated private static func chep(_ url: URL, goiY: String?, thuMuc: URL, kieu: UTType) -> TepChiaSe? {
+        var ten = url.lastPathComponent
+        if let goiY, !goiY.isEmpty, (goiY as NSString).pathExtension.isEmpty {
+            ten = goiY + (url.pathExtension.isEmpty ? "" : "." + url.pathExtension)
+        } else if let goiY, !goiY.isEmpty { ten = goiY }
+        let dich = thuMuc.appendingPathComponent(UUID().uuidString + "_" + ten)
+        do { try FileManager.default.copyItem(at: url, to: dich) } catch { return nil }
+        let ext = (ten as NSString).pathExtension.lowercased()
+        let laAnhVideo = kieu != .data || ["jpg", "jpeg", "png", "heic", "heif", "gif", "webp", "mp4", "mov", "m4v"].contains(ext)
+        return TepChiaSe(url: dich, ten: ten, laAnhVideo: laAnhVideo)
+    }
+
     private func docTep(_ p: NSItemProvider, vao thuMuc: URL) async -> TepChiaSe? {
         let kieu: UTType
         if p.hasItemConformingToTypeIdentifier(UTType.image.identifier) { kieu = .image }
@@ -93,21 +106,27 @@ private final class ChiaSeVM: ObservableObject {
                         && !p.hasItemConformingToTypeIdentifier(UTType.plainText.identifier)) { kieu = .data }
         else { return nil }
         let goiY = p.suggestedName
-        let tho: TepChiaSe? = await withCheckedContinuation { tiep in
+        let chep = { (url: URL) -> TepChiaSe? in Self.chep(url, goiY: goiY, thuMuc: thuMuc, kieu: kieu) }
+        var tho: TepChiaSe? = await withCheckedContinuation { tiep in
             _ = p.loadFileRepresentation(forTypeIdentifier: kieu.identifier) { url, _ in
-                guard let url else { tiep.resume(returning: nil); return }
-                // file gốc bị xoá ngay khi khối này kết thúc -> chép sang chỗ của mình
-                var ten = url.lastPathComponent
-                if let goiY, !goiY.isEmpty, (goiY as NSString).pathExtension.isEmpty {
-                    ten = goiY + (url.pathExtension.isEmpty ? "" : "." + url.pathExtension)
-                } else if let goiY, !goiY.isEmpty { ten = goiY }
-                let dich = thuMuc.appendingPathComponent(UUID().uuidString + "_" + ten)
-                do { try FileManager.default.copyItem(at: url, to: dich) } catch { tiep.resume(returning: nil); return }
-                let ext = (ten as NSString).pathExtension.lowercased()
-                let laAnhVideo = kieu != .data || ["jpg", "jpeg", "png", "heic", "heif", "gif", "webp", "mp4", "mov", "m4v"].contains(ext)
-                tiep.resume(returning: TepChiaSe(url: dich, ten: ten, laAnhVideo: laAnhVideo))
+                tiep.resume(returning: url.flatMap { chep($0) })
             }
         }
+        // v8.2: tệp chỉ khai public.file-url (app Tệp, vài app khác) -> loadFileRepresentation(data) trả nil;
+        // thử lấy thẳng URL rồi chép (có quyền truy cập tạm).
+        if tho == nil, p.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            let url: URL? = await withCheckedContinuation { tiep in
+                p.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                    tiep.resume(returning: (item as? URL) ?? (item as? Data).flatMap { URL(dataRepresentation: $0, relativeTo: nil) })
+                }
+            }
+            if let url {
+                let coQuyen = url.startAccessingSecurityScopedResource()
+                tho = chep(url)
+                if coQuyen { url.stopAccessingSecurityScopedResource() }
+            }
+        }
+        if tho == nil, loi == nil { loi = "Không đọc được tệp " + (goiY ?? "") + " - các tệp khác vẫn gửi được." }
         // v7.12: HEIC -> JPG (<= 2560), MOV -> MP4 720p trước khi gửi Zalo
         guard let tho, tho.laAnhVideo else { return tho }
         let (url, ten) = await ChuanTepGui.chuan(url: tho.url, ten: tho.ten)

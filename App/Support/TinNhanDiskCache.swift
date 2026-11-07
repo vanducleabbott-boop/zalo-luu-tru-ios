@@ -48,6 +48,7 @@ final class TinNhanDiskCache {
 
     /// Lưu danh sách tin nhắn vào bộ nhớ máy
     func luuTin(_ tin: [Tin], cuocId: String) {
+        let tin = tin.filter { !$0.msgId.hasPrefix("temp_") }   // v8.2: không lưu ô tạm đang tải
         guard !tin.isEmpty else { return }
         let f = duongDanFile(cho: cuocId)
         khoaLock.lock()
@@ -63,6 +64,7 @@ final class TinNhanDiskCache {
 
     /// Cập nhật thêm 1 tin nhắn mới (realtime SSE) vào cache
     func capNhatTinMoi(tin: Tin, cuocId: String) {
+        if tin.msgId.hasPrefix("temp_") { return }
         let f = duongDanFile(cho: cuocId)
         khoaLock.lock()
         defer { khoaLock.unlock() }
