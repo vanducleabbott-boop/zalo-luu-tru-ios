@@ -13,7 +13,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.guava948.kale5858.cf
         PRODUCT_NAME: ZaloLuuTru
-        MARKETING_VERSION: "7.12"
+        MARKETING_VERSION: "8.0"
         CURRENT_PROJECT_VERSION: "86"
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_VERSION: "5.0"
@@ -54,7 +54,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.guava948.kale5858.cf.share
         PRODUCT_NAME: ZaloShare
-        MARKETING_VERSION: "7.12"
+        MARKETING_VERSION: "8.0"
         CURRENT_PROJECT_VERSION: "86"
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_VERSION: "5.0"
