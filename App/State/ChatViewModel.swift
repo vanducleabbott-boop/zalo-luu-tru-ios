@@ -48,6 +48,42 @@ final class ChatViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] sk in self?.xuLySuKien(sk) }
             .store(in: &huyTheoDoi)
+        // v8.1: việc tải lên nằm ở HangTaiLen (không mất khi rời chat) -> theo dõi vòng xoay + kết quả.
+        let hang = HangTaiLen.shared, maCuoc = cuoc.id
+        hang.$dangTaiLen
+            .sink { [weak self] ds in self?.dangTaiLen = ds }
+            .store(in: &huyTheoDoi)
+        hang.ketThuc
+            .filter { $0.cuocId == maCuoc }
+            .sink { [weak self] kq in self?.xuLyKetThucTaiLen(kq) }
+            .store(in: &huyTheoDoi)
+        if let l = hang.layLoiChuaXem(maCuoc) { loi = l }
+    }
+
+    /// Gộp các ô đang tải (của HangTaiLen) vào danh sách vừa nạp - mở lại chat vẫn thấy ảnh/video đang tải.
+    private func gopTinTamDangTai(_ ds: [Tin]) -> [Tin] {
+        let tam = HangTaiLen.shared.tinTamCua(cuoc.id)
+        guard !tam.isEmpty else { return ds }
+        let co = Set(ds.map(\.msgId))
+        return ds + tam.filter { !co.contains($0.msgId) }
+    }
+
+    private func xuLyKetThucTaiLen(_ kq: HangTaiLen.KetThuc) {
+        _ = HangTaiLen.shared.layLoiChuaXem(cuoc.id)   // chat đang mở -> báo luôn ở đây
+        if let l = kq.loi {
+            loi = (kq.laAlbum ? "Không gửi được album: " : "Không gửi được tệp: ") + l
+            tinDangXem.removeAll { kq.ids.contains($0.msgId) }
+            return
+        }
+        ChiaSeChung.baoDaNhan(cuoc.nguoiNhanChiaSe)
+        guard kq.laAlbum else { return }
+        // v7.11: máy chủ ghi album bằng mã tạm rồi 5s/20s sau mới đổi sang mã thật của Zalo -> tự tải lại đoạn cuối.
+        Task { [weak self] in
+            for giay in [3, 8, 23] as [UInt64] {
+                try? await Task.sleep(nanoseconds: giay * 1_000_000_000)
+                await self?.dongBoDoanCuoi()
+            }
+        }
     }
 
     var danhSachHienThi: [GomNhom.MucHienThi] { GomNhom.gomTheoNgay(tinDangXem) }
@@ -69,7 +105,7 @@ final class ChatViewModel: ObservableObject {
         // 1. Nếu có tin nhắn đã lưu trong bộ nhớ đệm, hiển thị ngay lập tức (0ms delay)
         var daCoCache = false
         if quanh == nil, let cached = TinNhanDiskCache.shared.layTin(cuocId: cuoc.id), !cached.isEmpty {
-            tinDangXem = cached
+            tinDangXem = gopTinTamDangTai(cached)
             daCoCache = true
             Task { await napNguoiLienQuan(cached) }
             if let sangMsgId { cuonToiMsgId = sangMsgId } else { cuonToiMsgId = "__cuoi__" }
@@ -83,7 +119,7 @@ final class ChatViewModel: ObservableObject {
             if let c = kq.cuoc { cuoc = c }
             if let toi = kq.toi, !toi.isEmpty { env.uidToi = toi }
             let cuCount = tinDangXem.count
-            tinDangXem = kq.tin
+            tinDangXem = gopTinTamDangTai(kq.tin)
             heTin = kq.tin.count < 60
             if let g = kq.dsGhim { dsGhim = g }
             if quanh == nil {
@@ -227,16 +263,13 @@ final class ChatViewModel: ObservableObject {
                 TrichDan(ten: $0.tenNguoi, chu: $0.chu ?? $0.tenFile, msgId: $0.msgId)
             }
         }
-        let tempId = chenTinTam(duLieu: duLieu, tenFile: tenFile, kieu: kieu, quote: trichDan, phu: nil)
+        let tinTam = chenTinTam(duLieu: duLieu, tenFile: tenFile, kieu: kieu, quote: trichDan, phu: nil)
         cuonToiMsgId = "__cuoi__"
 
-        // 4. Gửi file lên server ngầm
-        do {
-            try await env.api.guiFile(cuoc: cuoc.id, duLieu: duLieu, tenFile: tenFile, trichMsgId: trich)
-            ChiaSeChung.baoDaNhan(cuoc.nguoiNhanChiaSe)
-        } catch {
-            loi = "Không gửi được \(tenFile): " + error.localizedDescription
-            tinDangXem.removeAll(where: { $0.msgId == tempId })
+        // 4. Gửi file lên server ngầm - v8.1: qua HangTaiLen, rời chat/thoát app vẫn tải tiếp.
+        let env = self.env, cuocId = cuoc.id
+        HangTaiLen.shared.chay(cuocId: cuocId, tin: [tinTam], laAlbum: false) { _ in
+            try await HangTaiLen.shared.guiFileCoThuLai(env, cuocId: cuocId, duLieu: duLieu, tenFile: tenFile, trich: trich)
         }
     }
 
@@ -268,46 +301,21 @@ final class ChatViewModel: ObservableObject {
         // v7.8: hiện ngay cả album trong khung chat (mỗi ô có vòng xoay), tải TỪNG ảnh lên máy chủ (lỗi mạng thì thử lại),
         // đủ hết mới bảo máy chủ gửi 1 lượt sang Zalo. Trước: chờ máy chủ đẩy xong sang Zalo >100s -> Cloudflare cắt -> báo mất kết nối.
         let albumId = "temp_album_\(UUID().uuidString)"
-        let ids = tep.enumerated().map { i, t in
+        let tin = tep.enumerated().map { i, t in
             chenTinTam(duLieu: t.duLieu, tenFile: t.tenFile, kieu: Self.kieuTheoDuoi(t.tenFile), quote: nil,
                        phu: Phu(album: AlbumInfo(id: albumId, i: i, n: tep.count)))
         }
-        dangTaiLen.formUnion(ids)
         cuonToiMsgId = "__cuoi__"
+        // v8.1: qua HangTaiLen - rời chat/thoát app vẫn tải tiếp, mở lại chat vẫn thấy vòng xoay.
+        let env = self.env, cuocId = cuoc.id
         env.api.lamMoiKetNoiTaiLen()
-        do {
+        HangTaiLen.shared.chay(cuocId: cuocId, tin: tin, laAlbum: true) { xongMot in
             var ma: [String] = []
-            for (id, t) in zip(ids, tep) {
-                ma.append(try await taiLenCoThuLai(t.duLieu, tenFile: t.tenFile))
-                dangTaiLen.remove(id)
+            for (t, f) in zip(tin, tep) {
+                ma.append(try await HangTaiLen.shared.taiLenCoThuLai(env, f.duLieu, tenFile: f.tenFile))
+                xongMot(t.msgId)
             }
-            try await env.api.guiAlbum(cuoc: cuoc.id, ma: ma)
-            ChiaSeChung.baoDaNhan(cuoc.nguoiNhanChiaSe)
-            // v7.11: máy chủ ghi album bằng mã tạm rồi 5s/20s sau mới đổi sang mã thật của Zalo -> khung chat lúc đó
-            // chỉ còn 1 ảnh (thoát vào lại mới đủ). Tự tải lại đoạn cuối sau mỗi mốc đó.
-            Task { [weak self] in
-                for giay in [3, 8, 23] as [UInt64] {
-                    try? await Task.sleep(nanoseconds: giay * 1_000_000_000)
-                    await self?.dongBoDoanCuoi()
-                }
-            }
-        } catch {
-            loi = "Không gửi được album: " + error.localizedDescription
-            dangTaiLen.subtract(ids)
-            tinDangXem.removeAll { ids.contains($0.msgId) }
-        }
-    }
-
-    /// Tải 1 tệp lên chỗ chờ của máy chủ; mất mạng chập chờn thì thử lại tối đa 3 lần.
-    private func taiLenCoThuLai(_ duLieu: Data, tenFile: String) async throws -> String {
-        var lan = 0
-        while true {
-            do { return try await env.api.taiLenTam(duLieu: duLieu, tenFile: tenFile) }
-            catch let e as URLError where lan < 2 && e.code != .cancelled {
-                lan += 1
-                env.api.lamMoiKetNoiTaiLen()   // thử lại trên kết nối mới
-                try await Task.sleep(nanoseconds: UInt64(lan) * 1_500_000_000)
-            }
+            try await env.api.guiAlbum(cuoc: cuocId, ma: ma)
         }
     }
 
@@ -318,8 +326,8 @@ final class ChatViewModel: ObservableObject {
         return "file"
     }
 
-    /// Lưu tệp cục bộ (+ ảnh vào RAM) và chèn 1 tin tạm "temp_..." hiện ngay trong khung chat. Trả msgId tạm.
-    private func chenTinTam(duLieu: Data, tenFile: String, kieu: String, quote: TrichDan?, phu: Phu?) -> String {
+    /// Lưu tệp cục bộ (+ ảnh vào RAM) và chèn 1 tin tạm "temp_..." hiện ngay trong khung chat. Trả tin tạm.
+    private func chenTinTam(duLieu: Data, tenFile: String, kieu: String, quote: TrichDan?, phu: Phu?) -> Tin {
         let localURL = MediaDiskCache.shared.luuMediaCucBo(data: duLieu, tenFile: tenFile)
         if kieu == "anh", let img = UIImage(data: duLieu) {
             ImageCacheManager.shared.luuAnh(img, khoa: MediaDiskCache.shared.khoaCache(tu: localURL), dungLuong: duLieu.count)
@@ -332,7 +340,7 @@ final class ChatViewModel: ObservableObject {
             thuHoi: false, phu: phu, camXuc: [], tenCuoc: nil, laNhomCuoc: nil
         )
         tinDangXem = PhanTrang.ganTin(tinDangXem, tinTam)
-        return tempId
+        return tinTam
     }
 
     /// Gửi sticker từ bảng chọn. Zalo không cho trích dẫn kèm sticker -> đang trả lời thì sticker gửi thành tin thường.
@@ -470,10 +478,8 @@ final class ChatViewModel: ObservableObject {
     /// Thay đoạn cuối khung chat bằng đúng bản trên máy chủ (bỏ tin mã cũ đã bị máy chủ thay mã, bỏ ô tạm còn treo).
     func dongBoDoanCuoi() async {
         guard !cheDoQuanh, let kq = try? await env.api.dsTin(cuoc: cuoc.id), let dau = kq.tin.first else { return }
-        let dangTai = dangTaiLen
         let cu = tinDangXem.filter { $0.ts < dau.ts && !$0.msgId.hasPrefix("temp_") }
-        let tamConTai = tinDangXem.filter { dangTai.contains($0.msgId) }   // album khác đang tải dở thì giữ
-        tinDangXem = cu + kq.tin + tamConTai
+        tinDangXem = gopTinTamDangTai(cu + kq.tin)   // ảnh/album khác đang tải dở thì giữ
         TinNhanDiskCache.shared.luuTin(kq.tin, cuocId: cuoc.id)
         taiTruocMediaTheoQuyDinh(kq.tin)
     }
@@ -485,7 +491,7 @@ final class ChatViewModel: ObservableObject {
             let cuoiCu = tinDangXem.last?.ts ?? 0
             let coMoi = kq.tin.contains { $0.ts > cuoiCu && !$0.laToi }
             if tinDangXem.isEmpty || (kq.tin.first.map { $0.ts > cuoiCu } ?? false) {
-                tinDangXem = kq.tin
+                tinDangXem = gopTinTamDangTai(kq.tin)
                 heTin = kq.tin.count < 60
             } else {
                 for t in kq.tin { tinDangXem = PhanTrang.ganTin(tinDangXem, t) }
