@@ -114,8 +114,8 @@ final class ConversationListViewModel: ObservableObject {
         do { _ = try await env.api.datGhim(cuoc: c.id, bat: bat); await tai() } catch { loi = error.localizedDescription }
     }
 
-    func datTatThongBao(_ c: Cuoc, tat: Bool) async {
-        do { try await env.api.datTatThongBao(cuoc: c.id, tat: tat); await tai() } catch { loi = error.localizedDescription }
+    func datTatThongBao(_ c: Cuoc, tat: Bool, den: Int64? = nil) async {
+        do { try await env.datTatThongBao(c, tat: tat, den: den); await tai() } catch { loi = error.localizedDescription }
     }
 
     func lamMoiDanhBa() async -> Int? {

@@ -40,12 +40,22 @@ struct Cuoc: Codable, Equatable, Hashable, Identifiable {
     let chuaDoc: Int
     let capNhatLuc: Int64?
     let ghim: Int?           // thứ tự ghim, null = không ghim
-    let tatTb: Bool?         // chỉ xuất hiện (= true) khi nhóm đã tắt thông báo
+    let tatTb: Bool?         // chỉ xuất hiện (= true) khi cuộc (nhóm hay 1-1) đã tắt thông báo
+    let tatDen: Int64?       // ms hết hạn khi tắt có hẹn giờ; nil = tắt đến khi bật lại
 
     var laNhomBool: Bool { laNhom != 0 }
     var nguoiNhanChiaSe: NguoiNhanChiaSe { NguoiNhanChiaSe(id: id, ten: ten ?? id, laNhom: laNhomBool) }
     var daGhim: Bool { ghim != nil }
-    var daTatThongBao: Bool { tatTb == true }
+    var daTatThongBao: Bool {
+        guard tatTb == true else { return false }
+        guard let tatDen else { return true }
+        return Double(tatDen) > Date().timeIntervalSince1970 * 1000
+    }
+    /// Bản sao với trạng thái tắt thông báo mới (cập nhật ngay trên app, không chờ tải lại danh sách).
+    func voiTatThongBao(_ tat: Bool, den: Int64?) -> Cuoc {
+        Cuoc(id: id, laNhom: laNhom, ten: ten, anh: anh, tinCuoiTs: tinCuoiTs, tinCuoi: tinCuoi,
+                     chuaDoc: chuaDoc, capNhatLuc: capNhatLuc, ghim: ghim, tatTb: tat ? true : nil, tatDen: tat ? den : nil)
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, ten, anh, ghim
@@ -55,6 +65,7 @@ struct Cuoc: Codable, Equatable, Hashable, Identifiable {
         case chuaDoc = "chua_doc"
         case capNhatLuc = "cap_nhat_luc"
         case tatTb = "tat_tb"
+        case tatDen = "tat_den"
     }
 
     init(from decoder: Decoder) throws {
@@ -68,6 +79,7 @@ struct Cuoc: Codable, Equatable, Hashable, Identifiable {
         capNhatLuc = try c.decodeIfPresent(Int64.self, forKey: .capNhatLuc)
         ghim = try c.decodeIfPresent(Int.self, forKey: .ghim)
         tatTb = try c.decodeIfPresent(Bool.self, forKey: .tatTb)
+        tatDen = try c.decodeIfPresent(Int64.self, forKey: .tatDen)
         // BUG/QUIRK thật của server: /api/tin trả "cuoc" qua layCuoc() KHÔNG JSON.parse cột tin_cuoi
         // (dsCuoc() dùng cho /api/cuoc thì có parse) -> tin_cuoi khi đó là CHUỖI JSON thô, không phải object.
         // Khoan dung cả 2 dạng ở đây, không sửa server.
@@ -82,9 +94,10 @@ struct Cuoc: Codable, Equatable, Hashable, Identifiable {
     }
 
     init(id: String, laNhom: Int, ten: String?, anh: String?, tinCuoiTs: Int64?, tinCuoi: TinCuoiPreview?,
-         chuaDoc: Int, capNhatLuc: Int64?, ghim: Int?, tatTb: Bool?) {
+         chuaDoc: Int, capNhatLuc: Int64?, ghim: Int?, tatTb: Bool?, tatDen: Int64? = nil) {
         self.id = id; self.laNhom = laNhom; self.ten = ten; self.anh = anh; self.tinCuoiTs = tinCuoiTs
         self.tinCuoi = tinCuoi; self.chuaDoc = chuaDoc; self.capNhatLuc = capNhatLuc; self.ghim = ghim; self.tatTb = tatTb
+        self.tatDen = tatDen
     }
 }
 

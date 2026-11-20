@@ -85,12 +85,12 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         completionHandler()
     }
 
-    /// Gọi khi nhận tin mới qua SSE. Chỉ báo khi: không phải tin của mình (trừ Sổ tay/Cloud của tôi) và nhóm chưa bị tắt thông báo.
+    /// Gọi khi nhận tin mới qua SSE. Chỉ báo khi: không phải tin của mình (trừ Sổ tay/Cloud của tôi) và cuộc (nhóm hay 1-1) chưa bị tắt thông báo.
     /// Cho phép thông báo cả khi app đang mở hoặc đang chạy nền.
-    func baoTinMoiNeuCan(cuocId: String, tin: Tin, tenCuoc: String, laNhom: Bool, daTatThongBaoNhom: Bool) {
+    func baoTinMoiNeuCan(cuocId: String, tin: Tin, tenCuoc: String, laNhom: Bool, daTatThongBao: Bool) {
         if Self.dangTamTat { return }
-        guard !daTatThongBaoNhom else {
-            print("[Notification] Bo qua tin do nhom da tat thong bao: cuoc=\(cuocId)")
+        guard !daTatThongBao else {
+            print("[Notification] Bo qua tin do cuoc da tat thong bao: cuoc=\(cuocId)")
             return
         }
         if tin.laToi && cuocId != "so_tay" {

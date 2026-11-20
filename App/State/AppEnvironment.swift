@@ -82,7 +82,7 @@ final class AppEnvironment: ObservableObject {
             let c = dsCuocCache[cuocId]
             let ten = c?.ten ?? tin.tenNguoi ?? tin.tenCuoc ?? (cuocId == "so_tay" ? "Cloud của tôi" : "Tin nhắn Zalo")
             NotificationManager.shared.baoTinMoiNeuCan(cuocId: cuocId, tin: tin, tenCuoc: ten,
-                                                        laNhom: c?.laNhomBool ?? false, daTatThongBaoNhom: c?.daTatThongBao ?? false)
+                                                        laNhom: c?.laNhomBool ?? false, daTatThongBao: c?.daTatThongBao ?? false)
         case .cuocGoiDen(let nguon, let chiTiet, let thoiGian):
             // PC (bot_zalo.mjs) chỉ phát chuông khi chính nó KHÔNG ở trong cuộc gọi -> tin PC, gỡ cờ cũ.
             // 19/10/2026: cờ dangTrongCuocGoi từng kẹt true (bốc máy trượt, lỡ tín hiệu kết thúc lúc app ở nền)
@@ -115,6 +115,12 @@ final class AppEnvironment: ObservableObject {
         default:
             break
         }
+    }
+
+    /// Tắt / bật thông báo 1 cuộc (nhóm hay 1-1), có thể hẹn giờ. Cập nhật cache ngay để ChatView/thông báo đổi liền.
+    func datTatThongBao(_ c: Cuoc, tat: Bool, den: Int64?) async throws {
+        try await api.datTatThongBao(cuoc: c.id, tat: tat, den: den)
+        dsCuocCache[c.id] = (dsCuocCache[c.id] ?? c).voiTatThongBao(tat, den: den)
     }
 
     func kiemTraTrangThaiZalo() async {

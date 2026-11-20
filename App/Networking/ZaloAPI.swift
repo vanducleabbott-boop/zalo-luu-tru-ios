@@ -314,9 +314,10 @@ final class ZaloAPI {
         return kq.dsGhim
     }
 
-    func datTatThongBao(cuoc: String, tat: Bool) async throws {
-        struct Than: Encodable { let tat: Bool }
-        _ = try await goi("/api/tat-thong-bao", method: "POST", query: ["cuoc": cuoc], jsonBody: Than(tat: tat))
+    /// den: ms hết hạn (hẹn giờ); nil = tắt đến khi bật lại. Máy chủ cho tắt cả nhóm lẫn chat 1-1.
+    func datTatThongBao(cuoc: String, tat: Bool, den: Int64? = nil) async throws {
+        struct Than: Encodable { let tat: Bool; let den: Int64? }
+        _ = try await goi("/api/tat-thong-bao", method: "POST", query: ["cuoc": cuoc], jsonBody: Than(tat: tat, den: den))
     }
 
     struct KetQuaDanhBa: Decodable { let ok: Bool; let so: Int? }

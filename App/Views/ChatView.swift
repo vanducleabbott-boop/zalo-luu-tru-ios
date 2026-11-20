@@ -232,10 +232,9 @@ private struct ChatContentView: View {
                         Button { Task { await datGhim() } } label: {
                             Label(vm.cuoc.daGhim ? "Bỏ ghim" : "Ghim hội thoại", systemImage: "pin")
                         }
-                        if vm.cuoc.laNhomBool {
-                            Button { Task { await datTat() } } label: {
-                                Label(vm.cuoc.daTatThongBao ? "Bật lại thông báo" : "Tắt thông báo nhóm", systemImage: "bell.slash")
-                            }
+                        // /api/tin không trả tat_tb -> lấy trạng thái từ danh sách (env cache), cả nhóm lẫn 1-1
+                        MenuTatThongBao(cuoc: env.dsCuocCache[vm.cuoc.id] ?? vm.cuoc) { tat, den in
+                            Task { await datTat(tat, den: den) }
                         }
                     }
                 } label: { Image(systemName: "ellipsis.circle") }
@@ -308,8 +307,8 @@ private struct ChatContentView: View {
     private func datGhim() async {
         do { _ = try await env.api.datGhim(cuoc: vm.cuoc.id, bat: !vm.cuoc.daGhim) } catch { vm.loi = error.localizedDescription }
     }
-    private func datTat() async {
-        do { try await env.api.datTatThongBao(cuoc: vm.cuoc.id, tat: !vm.cuoc.daTatThongBao) } catch { vm.loi = error.localizedDescription }
+    private func datTat(_ tat: Bool, den: Int64?) async {
+        do { try await env.datTatThongBao(env.dsCuocCache[vm.cuoc.id] ?? vm.cuoc, tat: tat, den: den) } catch { vm.loi = error.localizedDescription }
     }
 
     private func cuonXuongDay(proxy: ScrollViewProxy, animate: Bool) {

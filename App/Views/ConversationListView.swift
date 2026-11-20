@@ -39,6 +39,7 @@ private struct ConversationListContentView: View {
     @ObservedObject var tim: TimKiemViewModel
     @State private var cuocCanGanNhom: Cuoc?
     @State private var hienSheetQuetQR = false
+    @State private var cuocCanTatTb: Cuoc?   // vuốt "Tắt TB" -> hỏi tắt bao lâu
 
     var body: some View {
         NavigationStack(path: $env.duongDanChat) {
@@ -119,18 +120,22 @@ private struct ConversationListContentView: View {
                             } label: {
                                 Label(c.daGhim ? "Bỏ ghim" : "Ghim", systemImage: c.daGhim ? "pin.slash" : "pin")
                             }
-                            if c.laNhomBool {
-                                Button {
-                                    Task { await vm.datTatThongBao(c, tat: !c.daTatThongBao) }
-                                } label: {
-                                    Label(c.daTatThongBao ? "Bật thông báo" : "Tắt thông báo", systemImage: c.daTatThongBao ? "bell" : "bell.slash")
-                                }
+                            MenuTatThongBao(cuoc: c) { tat, den in
+                                Task { await vm.datTatThongBao(c, tat: tat, den: den) }
                             }
                         }
                     }
             }
         }
         .listStyle(.plain)
+        .confirmationDialog("Tắt thông báo \(cuocCanTatTb?.ten ?? "")", isPresented: Binding(
+            get: { cuocCanTatTb != nil }, set: { if !$0 { cuocCanTatTb = nil } }
+        ), titleVisibility: .visible, presenting: cuocCanTatTb) { c in
+            ForEach(MocTatThongBao.allCases) { moc in
+                Button(moc.nhan) { Task { await vm.datTatThongBao(c, tat: true, den: moc.den()) } }
+            }
+            Button("Hủy", role: .cancel) {}
+        }
     }
 
     @ViewBuilder
@@ -138,10 +143,10 @@ private struct ConversationListContentView: View {
         if c.id != "so-tay" {
             Button(c.daGhim ? "Bỏ ghim" : "Ghim") { Task { await vm.datGhim(c, bat: !c.daGhim) } }
                 .tint(.orange)
-            if c.laNhomBool {
-                Button(c.daTatThongBao ? "Bật TB" : "Tắt TB") { Task { await vm.datTatThongBao(c, tat: !c.daTatThongBao) } }
-                    .tint(.gray)
+            Button(c.daTatThongBao ? "Bật TB" : "Tắt TB") {
+                if c.daTatThongBao { Task { await vm.datTatThongBao(c, tat: false) } } else { cuocCanTatTb = c }
             }
+            .tint(.gray)
         }
     }
 }
